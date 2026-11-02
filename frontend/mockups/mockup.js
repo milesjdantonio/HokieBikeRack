@@ -3,8 +3,32 @@
 import { riveIcon } from "../js/rive.js";
 import { rackMap } from "../app/js/map.js";
 
-const style = new URLSearchParams(location.search).get("style") === "b" ? "b" : "a";
+const style = ["a", "b", "b2", "b3"].includes(new URLSearchParams(location.search).get("style"))
+  ? new URLSearchParams(location.search).get("style") : "a";
 document.body.classList.add(`style-${style}`);
+if (style === "b2" || style === "b3") document.body.classList.add("style-b");
+
+// Each variation rearranges the same parts.
+const stage = document.querySelector(".stage");
+const panel = document.querySelector(".panel");
+const needs = document.querySelector(".needs");
+if (style === "b2") stage.prepend(panel);                       // docked column, nothing over the map
+if (style === "b3") {
+  document.querySelector(".map-area").append(needs);            // needs-you chips on the map
+  // Bottom sheet: keep each heading with its list so columns don't split them.
+  const kids = [...panel.children];
+  const groups = [];
+  let g = null;
+  for (const k of kids) {
+    if (k.classList.contains("panel-close") || k.classList.contains("panel-actions")) continue;
+    if (!g || k.tagName === "H2") { g = document.createElement("div"); g.className = "group"; groups.push(g); }
+    g.append(k);
+  }
+  // Name column holds the rack's actions and Close, so nothing overlaps the other columns.
+  groups[0].append(panel.querySelector(".panel-actions"), panel.querySelector(".panel-close"));
+  panel.append(...groups);
+  document.querySelector(".term-head span").textContent = "feed";
+}
 for (const a of document.querySelectorAll(".mock-switch a")) a.classList.toggle("on", a.dataset.style === style);
 
 const logo = riveIcon("logo", { size: 28 });
@@ -17,7 +41,14 @@ const racks = [
   { id: "newman", name: "Newman Library", status: "ONLINE", latitude: 37.22868, longitude: -80.41925 },
   { id: "torgersen", name: "Torgersen Hall North", status: "OFFLINE", latitude: 37.22995, longitude: -80.41985 },
 ];
-const map = rackMap(document.querySelector("#map"), {});
+const COOL = { ground: "#07090c", building: "#1d242d", label: "#d6dde5" };
+const MAP_OPTIONS = {
+  a: {},
+  b: { look: COOL },
+  b2: { look: { ...COOL, saturation: -1, brightness: 0.5 }, view: { pitch: 0, bearing: 0, zoom: 16.6 } },
+  b3: { look: { ...COOL, satellite: false, building: "#1c2430" }, view: { pitch: 58, bearing: -25 } },
+};
+const map = rackMap(document.querySelector("#map"), MAP_OPTIONS[style]);
 map.setRacks(racks);
 setTimeout(() => { map.setRacks(racks); map.select("squires"); }, 2500);
 

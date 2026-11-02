@@ -27,34 +27,58 @@ function loadStyle() {
   return stylePromise.then((style) => structuredClone(style));
 }
 
-function darken(style) {
-  style.sources.satellite = { type: "raster", tiles: [SATELLITE.url], tileSize: 256, maxzoom: 19, attribution: SATELLITE.attribution };
-  // Imagery above land/water fills, below roads, labels and buildings (TerraSim's order).
+/**
+ * Restyles OpenFreeMap's style for a dark page. `look` options:
+ *   satellite   true = Esri imagery under the streets (default); false = a dark street map only
+ *   saturation  imagery colour, -1 (grey) .. 0 (as photographed)
+ *   brightness  imagery brightness cap, 0..1
+ *   ground      page/background colour
+ *   building    3D building colour
+ */
+function darken(style, look = {}) {
+  const { satellite: useSatellite = true, saturation = -0.35, brightness = 0.62, ground = "#0e0a0c", building = "#2c2330",
+    label = "#e9dfe3" } = look;
   const under = style.layers.filter((l) => l.type === "background" || (l.type === "fill" && !/building/.test(l.id)));
   const over = style.layers.filter((l) => !under.includes(l));
-  const satellite = { id: "satellite", type: "raster", source: "satellite",
-    paint: { "raster-brightness-max": 0.62, "raster-saturation": -0.35, "raster-contrast": 0.05, "raster-fade-duration": 200 } };
-  style.layers = [...under, satellite, ...over];
+  if (useSatellite) {
+    style.sources.satellite = { type: "raster", tiles: [SATELLITE.url], tileSize: 256, maxzoom: 19, attribution: SATELLITE.attribution };
+    // Imagery above land/water fills, below roads, labels and buildings (TerraSim's order).
+    const satellite = { id: "satellite", type: "raster", source: "satellite",
+      paint: { "raster-brightness-max": brightness, "raster-saturation": saturation, "raster-contrast": 0.05, "raster-fade-duration": 200 } };
+    style.layers = [...under, satellite, ...over];
+  } else {
+    // Night street map: land, parks and water as quiet steps of the ground colour.
+    for (const l of under) {
+      l.paint = l.paint || {};
+      if (l.type !== "fill") continue;
+      l.paint["fill-color"] = /water/.test(l.id) ? "#0c1824" : /park|grass|wood|forest|landcover|green/.test(l.id) ? "#0f1714" : "#0d1117";
+      l.paint["fill-opacity"] = 1;
+    }
+  }
   for (const l of style.layers) {
     l.paint = l.paint || {};
-    if (l.type === "background") l.paint["background-color"] = "#0e0a0c";
-    if (l.type === "line") l.paint["line-opacity"] = /path|footway|cycle|track/.test(l.id) ? 0.25 : 0.35;
+    if (l.type === "background") l.paint["background-color"] = ground;
+    if (l.type === "line") {
+      const minor = /path|footway|cycle|track/.test(l.id);
+      if (useSatellite) l.paint["line-opacity"] = minor ? 0.25 : 0.35;
+      else if (!/boundary|water/.test(l.id)) { l.paint["line-color"] = minor ? "#1f2833" : "#2c3846"; l.paint["line-opacity"] = minor ? 0.8 : 1; }
+    }
     if (l.type === "symbol") {
-      l.paint["text-color"] = "#e9dfe3";
-      l.paint["text-halo-color"] = "#0e0a0c";
+      l.paint["text-color"] = label;
+      l.paint["text-halo-color"] = ground;
       l.paint["text-halo-width"] = 1.2;
       l.paint["icon-opacity"] = 0.6;
       // Fewer labels: only names that help find a rack (buildings, streets, places).
       if (/poi|shield/.test(l.id)) l.layout = { ...(l.layout || {}), visibility: "none" };
     }
     if (l.type === "fill-extrusion") {
-      l.paint["fill-extrusion-color"] = "#2c2330";
+      l.paint["fill-extrusion-color"] = building;
       l.paint["fill-extrusion-opacity"] = 0.9;
       l.paint["fill-extrusion-vertical-gradient"] = true;
     }
     if (l.type === "fill" && /building/.test(l.id)) l.paint["fill-opacity"] = 0.4;
   }
-  style.sky = { "sky-color": "#0e0a0c", "horizon-color": "#1e1519", "fog-color": "#0e0a0c", "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.7 };
+  style.sky = { "sky-color": ground, "horizon-color": "#1e1519", "fog-color": ground, "sky-horizon-blend": 0.6, "horizon-fog-blend": 0.6, "fog-ground-blend": 0.7 };
   return style;
 }
 
@@ -62,7 +86,8 @@ function darken(style) {
  * Mounts a map in `container`. Returns { setRacks(racks), select(id), destroy() }.
  * onSelect(rack) is called when a marker is clicked.
  */
-export function rackMap(container, { interactive = true, onSelect, focus = null } = {}) {
+export function rackMap(container, { interactive = true, onSelect, focus = null, look = {}, view = {} } = {}) {
+  const cam = { ...CAMPUS, ...view };
   container.classList.add("map");
   const markers = new Map();   // rack id -> { marker, el, sig }
   let map = null;
@@ -75,13 +100,13 @@ export function rackMap(container, { interactive = true, onSelect, focus = null 
 
   (async () => {
     let style;
-    try { style = darken(await loadStyle()); } catch { fallback("The map couldn't load. The list below still works."); return; }
+    try { style = darken(await loadStyle(), look); } catch { fallback("The map couldn't load. The list below still works."); return; }
     if (destroyed) return;
     try {
       map = new maplibregl.Map({
         container, style, interactive, attributionControl: { compact: true },
-        center: focus ? [focus.longitude, focus.latitude] : CAMPUS.center,
-        zoom: focus ? 17.2 : CAMPUS.zoom, pitch: CAMPUS.pitch, bearing: CAMPUS.bearing, maxPitch: 70,
+        center: focus ? [focus.longitude, focus.latitude] : cam.center,
+        zoom: focus ? 17.2 : cam.zoom, pitch: cam.pitch, bearing: cam.bearing, maxPitch: 70,
         canvasContextAttributes: { antialias: true },
       });
     } catch {
@@ -122,7 +147,7 @@ export function rackMap(container, { interactive = true, onSelect, focus = null 
       else {
         const b = new maplibregl.LngLatBounds();
         for (const r of placed) b.extend([r.longitude, r.latitude]);
-        map.fitBounds(b, { padding: 70, maxZoom: 17.3, duration: 0, pitch: CAMPUS.pitch, bearing: CAMPUS.bearing });
+        map.fitBounds(b, { padding: 70, maxZoom: 17.3, duration: 0, pitch: cam.pitch, bearing: cam.bearing });
       }
     }
   }

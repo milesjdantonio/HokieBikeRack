@@ -127,3 +127,36 @@ body.style-b .term-prompt { background: #0d1117; }
 .map-fallback { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); }
 .rive-icon { position: relative; display: block; }
 .rive-fallback { display: none; }
+
+/* ---------- B2: Docked. Nothing floats over the map. ---------- */
+body.style-b2 .stage { grid-template-columns: 360px 1fr 340px; grid-template-rows: auto 1fr; }
+body.style-b2 .needs { grid-column: 1 / span 2; grid-row: 1; background: var(--panel-2); padding: 10px 20px; }
+body.style-b2 .panel { position: static; grid-column: 1; grid-row: 2; width: auto; border-radius: 0; box-shadow: none; overflow-y: auto; }
+body.style-b2 .panel-close { display: none; }
+body.style-b2 .map-area { grid-column: 2; grid-row: 2; }
+body.style-b2 .term { grid-column: 3; grid-row: 1 / span 2; }
+body.style-b2 .alarm-pop { box-shadow: none; border-radius: 12px; }
+body.style-b2 .mock-switch { left: calc(50% - 300px); }
+
+/* ---------- B3: Night Map. Dark street map, bottom sheet, needs-you chips, phosphor feed. ---------- */
+body.style-b3 .stage { grid-template-columns: 1fr 380px; grid-template-rows: 1fr; }
+body.style-b3 .map-area { grid-row: 1; }
+body.style-b3 .term { grid-row: 1; }
+body.style-b3 .panel { top: auto; left: 16px; right: 16px; bottom: 16px; width: auto; max-height: 300px; display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); grid-auto-rows: min-content; gap: 8px 24px; padding: 18px 20px; }
+body.style-b3 .panel .group { display: grid; gap: 8px; align-content: start; }
+body.style-b3 .panel h2 { margin-top: 0; }
+body.style-b3 .panel-close { justify-self: start; padding: 4px 0; }
+body.style-b3 .panel-title { margin-top: 0; font-size: 1.75rem; }
+body.style-b3 .panel-actions { margin-top: 6px; flex-wrap: wrap; }
+body.style-b3 .needs { position: absolute; z-index: 6; top: 16px; left: 16px; right: 400px; padding: 0; background: none; gap: 8px; }
+body.style-b3 .needs-title { display: none; }
+body.style-b3 .needs-item { padding: 7px 14px; border-radius: 999px; background: var(--panel-2); color: var(--ink); box-shadow: var(--float-shadow); }
+body.style-b3 .alarm-pop { top: 16px; }
+body.style-b3 .term { background: #020604; color: #a6e3b0; }
+body.style-b3 .term .line .msg { color: #a6e3b0; }
+body.style-b3 .term .line.alarm .msg { color: #ff8f7e; }
+body.style-b3 .term .line.warn .msg { color: #f2cc60; }
+body.style-b3 .term .line .msg b { color: #e9fff0; }
+body.style-b3 .term-prompt { background: #06110a; }
+body.style-b3 .mock-switch { bottom: 314px; }
