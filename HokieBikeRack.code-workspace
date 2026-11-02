@@ -1,0 +1,6 @@
+{
+  "folders": [
+    { "name": "HokieBikeRack", "path": "." },
+    { "name": "firmware (PlatformIO)", "path": "firmware" }
+  ]
+}
