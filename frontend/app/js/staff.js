@@ -84,8 +84,8 @@ export function alerts(el, ctx) {
       }, { small: true, iconName: "check" }) : null;
       return row({
         lead: h("span", { class: `row-icon ${high ? "negative" : "warning"}` }, icon(e.eventType.startsWith("TAMPER") ? "siren" : "signal")),
-        title: `${ALERT_TITLE[e.eventType] || e.eventType} at ${e.rackName || "a rack"}`,
-        sub: [alertDetail(e), when(e.occurredAt)].filter(Boolean).join(", "),
+        title: ALERT_TITLE[e.eventType] || e.eventType,
+        sub: [e.rackName || "Unknown rack", when(e.occurredAt), alertDetail(e)].filter(Boolean).join(", "),
         side: handle || h("span", { class: "small muted" }, ago(e.occurredAt)),
       });
     }) : h("p", { class: "empty" }, "Nothing to look at. Tamper alarms and sensor problems show up here."));

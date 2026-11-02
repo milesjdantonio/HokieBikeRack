@@ -60,6 +60,11 @@ The admin terminal keeps monospace because Miles asked for a terminal (a brief c
 - Sound: tiny synthesized chirps that mirror the rack's buzzer (granted = one short beep, denied = two low beeps), toggle in Settings.
 - No fake data: no bike-occupancy numbers (there's no bike sensor). Sample-only parts are labelled.
 
+## The rack map
+Miles: "I would love if the racks could be visualized. TerraSim APIs could be used really well there."
+So the map uses TerraSim's stack (MapLibre, OpenFreeMap 3D buildings, Esri imagery), dimmed for the
+dark ground. Markers are still (no pulses); the ring colour carries the status.
+
 ## Admin terminal specifics
 - Black `#000`, text `#c9d1d9`, dim `#6e7681`, green `#3fb950` OK, amber `#d29922` warning, red `#f85149` alarm, cyan `#58a6ff` links/buttons.
 - System monospace (`ui-monospace`, Cascadia Mono, Consolas).

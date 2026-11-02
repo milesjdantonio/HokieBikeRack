@@ -1,86 +1,93 @@
-# Frontend notes (HTML, CSS, JavaScript; no build step)
+# Frontend notes
 
-## Files
-```
-frontend/
-  index.html        login screen + app shell (top bar, tabs)
-  styles.css        everything visual, incl. the phone frame
-  favicon.svg
-  js/main.js        login, routing (#overview, #events…), live indicator
-  js/api.js         fetch wrapper: adds the login header, turns errors into messages
-  js/ui.js          h() element builder, formatting, badges, modal, toast
-  js/views/*.js     one file per page (overview, events, racks, cards, reports, audit)
-  js/app-preview.js the phone-style Rider/Admin app
-```
-The backend serves this folder at `http://localhost:8080/` (see
-`spring.web.resources.static-locations` in `application.yml`). Same origin as the
-API, so no CORS setup is needed.
+Four pages, all plain HTML/CSS/JavaScript modules (no build step), served by the backend:
 
-## No build step
-Browsers understand `<script type="module">` and `import` natively. No npm, no
-bundler: edit a file, refresh. Trade-off: no TypeScript, no hot reload.
+| Address | What | Code |
+|---|---|---|
+| `/` | **Admin terminal**: sign-in prompt, then one black page with every section | `index.html`, `css/terminal.css`, `js/terminal.js` |
+| `/app` | **Rider app**: Racks (campus map + list), a rack, My Card, Alerts, Settings | `app/` |
+| `/app?mode=staff` | **Staff app**: Health (map + list), Alerts, Cards, Settings | `app/` (same code, `MODE`) |
+| `/lab` | Rive lab: every animation and state, for checking art | `lab/` |
 
-## Routing with the URL hash
-`#events?rackId=…` → `main.js` reads `location.hash`, calls
-`views/events.js render(container, ctx)`. Each view may return `{ cleanup }`
-to stop its 10-second refresh timer when you leave.
+Shared: `js/api.js` (login header, errors), `js/dom.js` (`h()` element builder, time
+formatting), `js/rive.js` (mounts a Rive animation with a fallback). Design rules:
+[design.md](design.md). Read that first; the second version of these pages exists because the first
+"felt very AI generated".
 
-## XSS safety: never `innerHTML` with data
-Card labels and rack names are typed by people. If we did
-`row.innerHTML = "<td>" + label + "</td>"`, a label like
-`<img src=x onerror=alert(1)>` would run code. Instead `h("td", {}, label)`
-creates elements and inserts text with `append()`, which is always treated as text.
-CSP (`default-src 'self'`) is the second safety net.
+## Why two looks
+- **Staff on a laptop** need everything at once, fast. Miles asked for a terminal: monospace,
+  black, every section stacked, `[bracket]` buttons, no pop-ups. Deliberately plain.
+- **Riders on a phone** get a product with its own world, built with the craft rules from
+  TerraSim, SchmollCrossword and Rythm Architect.
 
-## Login storage
-After a successful `GET /api/v1/me`, the Base64 `username:password` is kept in
-`sessionStorage` (cleared when the tab closes; readable only by this site).
-Fine for a local demo. A real deployment would use HTTPS plus short-lived
-session tokens, because Basic auth sends the password with every request.
+## Admin terminal (`js/terminal.js`)
+- Each section is a "command" (`$ racks`, `$ events --tail 50`). Filters are `[buttons]`; the
+  active one is inverted.
+- **No pop-ups.** Register, edit, revoke, new rack, add device: each opens an inline form *under
+  the row it belongs to*. Confirmations too ("revoke Miles? [revoke] [cancel]").
+- **Live refresh every 10 s, but never under your fingers.** `busy(section)` skips a section
+  with an open form or a focused input, so typing is never wiped.
+- **No flicker.** `renderIfChanged(el, signature, build)` only rebuilds a section when its data
+  changed (it compares a JSON signature).
+- A device token is printed once, inline, with `[copy]` and `[done]`.
+- Racks get map coordinates as `lat, lng` (paste from Google Maps).
+- `[open rider app]` / `[open staff app]` show `/app` in a phone frame (an `<iframe>`; the backend
+  allows same-origin framing only).
 
-## Viewer vs admin
-`/api/v1/me` returns `canEdit`. Viewers don't see edit buttons, but **the
-backend is what actually blocks them** (403). Never rely on hiding buttons.
+## Customer app (`app/`)
+- `js/main.js`: sign-in, shell (top bar + tabs), hash routing (`#racks`, `#rack/<id>`, …), refresh
+  every 12 s (paused while a form is open).
+- `js/rider.js`: Racks, rack, My Card, Alerts. `js/staff.js`: Health, Alerts, Cards.
+- `js/ui.js`: drawn SVG icons (one stroke weight), buttons, rows, switch, toast, sounds.
+- `js/map.js`: the rack map (below).
+- `css/tokens.css`: every colour, font, radius and easing. `css/app.css`: everything else.
 
-## App preview
-`📱 App preview` opens a phone frame with two modes:
-- **Rider app:** racks with live lock status, rack detail with how-to-unlock and
-  24 h activity, "My card" (pick which registered card is "you", since rider accounts
-  don't exist yet), tamper alerts at your racks.
-- **Admin app:** rack health counts, live alerts with ✓ acknowledge,
-  unknown taps with Register, quick revoke.
-It uses the same live API. No fake bike occupancy (there's no bike sensor);
-sample-only bits are labeled "PREVIEW ONLY" / "(sample)".
+Things worth noticing:
+- **Surfaces are separated by tone, not lines.** A list is one rounded surface; rows are 2 px apart
+  so the darker ground shows between them.
+- **One accent.** Burnt Orange marks the main action (Try a Tap, Register, Sign In) and the
+  current tab. Status uses green/amber words, not badges.
+- **Copy rules** (SchmollCrossword): Title Case buttons, no eyebrows, no filler, no emoji, no
+  exclamation marks. Sentences only where they tell you something ("2 of 3 racks are taking cards.").
+- **The authored moment** is the tap: the rack scene plays the card arriving, the LED, the bolt,
+  with a beep that mirrors the real buzzer (Settings > Sound).
+- **Wide screens:** map beside the list; scene beside the details; the tabs become top-bar links
+  (no floating pill navigation, which the rules ban).
+- **Browser surfaces are themed:** selection, focus ring, caret, scrollbars, tabular numbers.
+- Reduce motion turns off entrances and pauses Rive after it settles.
+
+## The rack map (TerraSim's stack)
+- **MapLibre GL JS 6.15** (vendored in `vendor/maplibre/`, same build TerraSim uses), OpenFreeMap's
+  "liberty" style for streets, labels and **3D buildings** (no API key), and **Esri World Imagery**
+  under it, dimmed like a photo in a dark room (`raster-brightness-max`, less saturation).
+- Layer order copied from TerraSim: land/water fills, then satellite, then roads, labels and
+  buildings on top.
+- Markers are **still**: the rack icon in a disc, its ring coloured by status. Nothing pulses
+  (Miles: pulses read as AI-made).
+- Racks need coordinates (`latitude`, `longitude`, Flyway V3). Without them they're still in the list.
+- If the style can't load or WebGL is off, a sentence replaces the map and the list still works.
+- Privacy/terms: map tiles come from OpenFreeMap and Esri; attribution is in the map's (i) button and
+  Settings. Check Esri's terms before any real deployment (TerraSim notes the same).
+- The CSP allows only those two hosts (`connect-src`, `img-src`) plus `worker-src blob:`.
+
+## Rive
+- `tools/rive/art/rack.mjs` → `rack.riv`: the lit centrepiece. Number input `state`: 0 idle,
+  1 granted, 2 denied, 3 alarm, 4 offline. **Every moving part has a pose in every state**
+  (`tools/rive/pose.mjs`), so switching states never leaves the card hanging mid-air.
+- `logo.mjs` → `logo.riv`: the hoop draws itself, a wheel rolls in, the orange light comes on.
+- `node tools/rive/build.mjs` rebuilds; open `/lab` to see every state.
+- The writer (`tools/rive/riv.mjs`) is copied from TerraSim (MIT).
+
+## Lessons from building it
+- `el.append(arrayOfNodes)` stringifies the array ("[object HTMLButtonElement]"). Flatten first:
+  `renderIfChanged` uses `.flat(Infinity)`.
+- A form control named `name` is shadowed by `form.name`; use `form.elements.name`.
+- An `<input>` with the same background as its form is invisible: step the tone up inside forms.
+- Icons that share a silhouette (a hoop and a bell) read as the same thing. Draw them apart.
+- `X-Frame-Options: DENY` blocks your *own* iframe. Use `SAMEORIGIN` + `frame-ancestors 'self'`.
+- On Windows, write multi-line edit scripts to a file; shell heredocs with quotes break.
 
 ## How it was checked
-Headless Microsoft Edge driven through the Chrome DevTools Protocol: log in as
-admin and viewer, visit every page, open the preview, take screenshots, collect
-console errors. Found and fixed: the preview rendering `[object HTMLDivElement]`
-(passed an array to `append`), an unreadable Sign-out button, table borders broken
-by `display:flex` on a `<td>`, missing favicon.
-
-**Lesson:** `el.append(arrayOfNodes)` converts the array to text. Use `el.append(...nodes)`.
-Another one: a form control named `name` is shadowed by `form.name` (the form's
-own name attribute). Use `form.elements.name`.
-
-## Animated icons with Rive (Phase 7)
-Idea and tooling borrowed from Miles's **TerraSim** project.
-- **Rive** is an animation format with *state machines*: an animation reacts to inputs
-  (`unlocked = true`, `status = 2`) instead of just playing.
-- The `.riv` files are **generated from code**: `tools/rive/art/{lock,alarm,pulse}.mjs` describe
-  shapes, keyframes and state machines; `node tools/rive/build.mjs` writes
-  `frontend/assets/rive/*.riv`. Animations are reviewable in Git like any code.
-- `frontend/js/rive.js` mounts one: `riveIcon("lock", { size: 26, inputs: { unlocked: true } })`.
-  If Rive fails, a CSS fallback (dot / emoji) stays visible, so nothing breaks.
-- Icons are cleaned up automatically when a view re-renders (`sweep()`), otherwise every
-  10-second refresh would leak a canvas + animation loop.
-- The runtime is WebAssembly, so the CSP needs `'wasm-unsafe-eval'` (allows compiling WASM,
-  still blocks `eval()` of JavaScript strings).
-- Respects *reduce motion*: animations pause after settling, and CSS motion is disabled.
-- Preview them at http://localhost:8080/lab/rive.html.
-
-| File | Input | Where it's used |
-|---|---|---|
-| `pulse.riv` | `status` 0 offline / 1 online / 2 warning | Live chip, rack cards, device rows, app rack lists |
-| `lock.riv` | `unlocked` true/false | Login (opens on sign-in), device health (from heartbeat), rider app "Try a tap" |
-| `alarm.riv` | `active` true/false | Rack cards with open alerts, device health, app alert lists |
+Headless Microsoft Edge driven over the DevTools protocol (scratch scripts, not committed): sign in,
+visit every page at phone (390 px, 2x) and desktop (1440 px) sizes, press Try a Tap mid-animation,
+open the inline forms, step every Rive state in `/lab`, collect console errors.

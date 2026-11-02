@@ -121,10 +121,11 @@ Reference patterns: TerraSim `website/js/rive.js` + vendored Rive runtime + `.ri
 Miles's feedback: current UI "feels very AI generated where TerraSim is built to avoid all of that" → follow docs/notes/design.md anti-template rules strictly. Third reference: Rythm Architect (local, C:/Users/miles/Downloads/ProjectFrontEnd, port 5173).
 Decisions: admin page = ONE black page that looks like a terminal (monospace, everything stacked, clickable [buttons], NO typed commands, "not fancy"). Customer (rider) app = its own page at `/app` AND openable from the terminal in a phone frame; follows the design principles of SchmollCrossword + TerraSim. More professional Rive animations.
 - [x] 8.1 Read design principles in TerraSim (AGENT.md, .impeccable, direction) and SchmollCrossword (CLAUDE.md, css) → write them down in docs/notes/design.md
-- [ ] 8.2 Terminal admin: rewrite index.html + styles + views into one stacked page (status, racks, unknown cards, events, cards, reports, audit), terminal-style dialogs
-- [ ] 8.3 Customer app at frontend/app/ (phone-first, Rider-focused), terminal opens it in a phone frame
-- [ ] 8.4 Rive: rack.riv centrepiece (idle/granted/denied/alarm/offline, every property posed in every state), logo.riv, refine pulse; rebuild; lab page
-- [ ] 8.5 Headless checks (terminal as admin + viewer, /app, lab), docs, commit, push
+- [x] 8.2 Terminal admin: rewrite index.html + styles + views into one stacked page (status, racks, unknown cards, events, cards, reports, audit), terminal-style dialogs
+- [x] 8.3 Customer app at frontend/app/ (phone-first, Rider-focused), terminal opens it in a phone frame
+- [x] 8.4 Rive: rack.riv centrepiece (idle/granted/denied/alarm/offline, every property posed in every state), logo.riv, refine pulse; rebuild; lab page
+- [x] 8.6 Rack map (Miles: "racks could be visualized, TerraSim APIs"): Flyway V3 lat/lng, MapLibre + OpenFreeMap 3D buildings + Esri imagery, still markers
+- [x] 8.5 Headless checks (terminal as admin + viewer, /app, lab), docs, commit, push
 
 ## Progress log
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
@@ -133,5 +134,6 @@ Decisions: admin page = ONE black page that looks like a terminal (monospace, ev
 - 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).
 - 2026-11-02: Phase 4 written (vanilla JS modules, no build). Browser check happens in 5.2.
 - 2026-11-02: Phase 5 done. Backend (embedded) + simulator demo + headless-Edge check of every page as admin and viewer: no console errors. Fixed: blank app preview, unreadable Sign out, table action column, favicon 404.
+- 2026-11-02: Phase 8 done. All four pages remade: terminal admin (/), rider app (/app), staff app (/app?mode=staff), sign-in for both. Campus map. Pulses removed (Miles). 15 backend tests; headless checks at phone + desktop, admin + viewer, no console errors.
 - 2026-11-02: Phase 7 done. Rive icons (lock, alarm, pulse) generated from code with TerraSim's writer; vendored runtime; CSP adds 'wasm-unsafe-eval'; login unlock animation; subtle motion with reduced-motion support. Lab page /lab/rive.html. Headless checks: no console errors.
 - 2026-11-02: Phase 6 docs done (notes, wiring, checklist, demo script, updated READMEs/API/status/security). Added serial `i2c-scan` + `accel`. Phase 7 added at Miles's suggestion.

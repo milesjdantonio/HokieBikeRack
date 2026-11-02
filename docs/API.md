@@ -64,10 +64,10 @@ Response: `{"serverTime": "…", "currentRevision": n}`.
 | Method | Path | Role | Notes |
 |---|---|---|---|
 | GET | `/me` | any | `{username, roles, canEdit}` |
-| GET | `/racks` | any | list with live `status` (ONLINE/OFFLINE/WARNING/UNKNOWN), device counts, `openAlerts`, `sensorFault` |
+| GET | `/racks` | any | list with `latitude`/`longitude` (null if not placed), live `status` (ONLINE/OFFLINE/WARNING/UNKNOWN), device counts, `openAlerts`, `sensorFault` |
 | GET | `/racks/{id}` | any | `{rack, devices[]}`; devices include `lastHeartbeat`, `online`, `authorizationRevision` |
-| POST | `/racks` | ADMIN | `{name, locationDescription?}` → 201 |
-| PATCH | `/racks/{id}` | ADMIN | `{name?, locationDescription?}` |
+| POST | `/racks` | ADMIN | `{name, locationDescription?, latitude?, longitude?}` → 201. Coordinates come as a pair. |
+| PATCH | `/racks/{id}` | ADMIN | `{name?, locationDescription?, latitude?, longitude?, clearCoordinates?}` |
 | POST | `/racks/{id}/devices` | ADMIN | `{label}` → 201 `{device, deviceToken, configSnippet}`. **Token shown once.** |
 | POST | `/racks/{id}/devices/{deviceId}/rotate-token` | ADMIN | new token; old one stops working |
 | PATCH | `/racks/{id}/devices/{deviceId}` | ADMIN | `{label?, active?}` |

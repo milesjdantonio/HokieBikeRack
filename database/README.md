@@ -4,6 +4,7 @@ Migrations: `backend/src/main/resources/db/migration/` (Flyway runs them at star
 - `V1__initial_schema.sql`: racks, devices, credentials, rack permissions, security events
 - `V2__full_demo_schema.sql`: device token hashes + heartbeat, credential `all_racks`,
   event credential reference / time source / acknowledgement, authorization revision, admin audit log
+- `V3__rack_coordinates.sql`: optional rack latitude/longitude (as a pair) for the app's map
 
 Never edit a migration that already ran; add `V3__…`.
 

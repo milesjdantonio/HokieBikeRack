@@ -16,7 +16,7 @@ The servo output is **off by default** until that test. Not a security-certified
 cd backend
 export ADMIN_PASSWORD=change-me VIEWER_PASSWORD=change-me-too   # PowerShell: $env:ADMIN_PASSWORD="change-me"
 mvn spring-boot:run -Dspring-boot.run.profiles=embedded
-# 2. Open http://localhost:8080 and sign in as admin
+# 2. Open http://localhost:8080 (admin terminal) or http://localhost:8080/app (rider app)
 # 3. In another terminal, pretend to be a rack:
 python tools/device_simulator.py setup --admin-password change-me
 python tools/device_simulator.py demo  --admin-password change-me
@@ -34,15 +34,16 @@ python tools/device_simulator.py demo  --admin-password change-me
 | Rack | ESP32 DevKit, Arduino core 3 / PlatformIO, PN532 NFC (I2C), MPU-6050 accelerometer (I2C), MG90S servo, red/green LEDs, active buzzer |
 | Backend | Java 21, Spring Boot 3.5, Spring Security, JdbcClient (plain SQL), Flyway |
 | Database | PostgreSQL 17 (embedded for dev/demo, or your own) |
-| Dashboard | HTML/CSS/JavaScript modules, no build step, served by the backend |
+| Admin terminal | One black monospace page at `/`, HTML/CSS/JS modules, no build step |
+| Customer app | Rider app at `/app`, staff app at `/app?mode=staff`; Rive animations, MapLibre 3D campus map (OpenFreeMap + Esri imagery) |
 | Simulator | Python 3 standard library |
 
 ## Repository map
 - `firmware/`: ESP32 code. `lib/hbr_logic` = PC-tested logic, `src/` = hardware glue. [README](firmware/README.md)
 - `backend/`: REST API, security, migrations, tests. [README](backend/README.md)
-- `frontend/`: admin dashboard + phone-style app preview. [README](frontend/README.md)
+- `frontend/`: admin terminal (`/`), customer app (`/app`), Rive lab (`/lab`). [README](frontend/README.md)
 - `tools/device_simulator.py`: fake rack for demos/tests
-- `docs/notes/`: **learning notes**: start with [overview.md](docs/notes/overview.md)
+- `docs/notes/`: **learning notes**: start with [overview.md](docs/notes/overview.md); design rules in [design.md](docs/notes/design.md)
 - `docs/BUILD_PLAN.md`: what was built, in order, with the progress log
 - `docs/API.md`: the REST contract · `docs/ARCHITECTURE.md` · `docs/SECURITY.md`
 - `docs/HARDWARE_DECISIONS.md` · `docs/PROJECT_STATUS.md` · `docs/DEMO_SCRIPT.md`
