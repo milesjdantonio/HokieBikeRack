@@ -118,11 +118,12 @@ Reference patterns: TerraSim `website/js/rive.js` + vendored Rive runtime + `.ri
 - [x] 7.4 Re-run the headless Edge check (admin + viewer), commit, push
 
 ### Phase 8 — terminal admin + customer app + better Rive (Miles, 2026-11-02)
+Miles's feedback: current UI "feels very AI generated where TerraSim is built to avoid all of that" → follow docs/notes/design.md anti-template rules strictly. Third reference: Rythm Architect (local, C:/Users/miles/Downloads/ProjectFrontEnd, port 5173).
 Decisions: admin page = ONE black page that looks like a terminal (monospace, everything stacked, clickable [buttons], NO typed commands, "not fancy"). Customer (rider) app = its own page at `/app` AND openable from the terminal in a phone frame; follows the design principles of SchmollCrossword + TerraSim. More professional Rive animations.
-- [ ] 8.1 Read design principles in TerraSim (AGENT.md, .impeccable, direction) and SchmollCrossword (CLAUDE.md, css) → write them down in docs/notes/design.md
+- [x] 8.1 Read design principles in TerraSim (AGENT.md, .impeccable, direction) and SchmollCrossword (CLAUDE.md, css) → write them down in docs/notes/design.md
 - [ ] 8.2 Terminal admin: rewrite index.html + styles + views into one stacked page (status, racks, unknown cards, events, cards, reports, audit), terminal-style dialogs
 - [ ] 8.3 Customer app at frontend/app/ (phone-first, Rider-focused), terminal opens it in a phone frame
-- [ ] 8.4 Rive: redesign lock/alarm/pulse + new animations (card tap, granted/denied, loader); rebuild; lab page
+- [ ] 8.4 Rive: rack.riv centrepiece (idle/granted/denied/alarm/offline, every property posed in every state), logo.riv, refine pulse; rebuild; lab page
 - [ ] 8.5 Headless checks (terminal as admin + viewer, /app, lab), docs, commit, push
 
 ## Progress log
