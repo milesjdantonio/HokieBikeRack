@@ -23,7 +23,7 @@ function loadStyle() {
   stylePromise = stylePromise || fetch(STYLE_URL).then((r) => {
     if (!r.ok) throw new Error(`map style ${r.status}`);
     return r.json();
-  });
+  }).catch((e) => { stylePromise = null; throw e; });   // a failure isn't remembered: the next map tries again
   return stylePromise.then((style) => structuredClone(style));
 }
 

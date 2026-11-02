@@ -133,10 +133,12 @@ function buildConsole() {
     h("span", {}, h("b", {}, "hokiebikerack"), ` ${VERSION}   ${state.me.username}@${location.host} `,
       h("span", { class: state.canEdit ? "ok" : "warn" }, state.canEdit ? "(admin)" : "(read-only)")),
     h("span", {}, live, h("span", { class: "cursor", "aria-hidden": "true" }), "  ",
+      btn("help", () => toggleHelp()), " ",
       btn("sign out", () => { clearCredentials(); clearInterval(timer); showLogin(); })));
   term.append(top);
   S.live = live;
 
+  S.help = section("help", "help");
   S.status = section("status", "status");
   S.apps = section("apps", "apps");
   S.racks = section("racks", "racks");
@@ -145,9 +147,11 @@ function buildConsole() {
   S.cards = section("cards", "cards");
   S.report = section("report", "report");
   S.audit = section("audit", "audit", "--tail 20");
-  for (const sec of [S.status, S.apps, S.racks, S.unknown, S.events, S.cards, S.report, S.audit]) term.append(sec.el);
+  for (const sec of [S.help, S.status, S.apps, S.racks, S.unknown, S.events, S.cards, S.report, S.audit]) term.append(sec.el);
 
   renderApps();
+  renderHelp();
+  S.help.el.hidden = localStorage.getItem("hbr.term.help") === "hidden";
   refreshAll(true);
   clearInterval(timer);
   timer = setInterval(() => { if (document.visibilityState === "visible") refreshAll(false); }, 10000);
@@ -188,6 +192,40 @@ async function loadStatus() {
       item("card list revision", rev.revision)));
 }
 
+// ---------- $ help (the terminal's tutorial) ----------
+
+function toggleHelp(show) {
+  const hidden = show === undefined ? !S.help.el.hidden : !show;
+  S.help.el.hidden = hidden;
+  localStorage.setItem("hbr.term.help", hidden ? "hidden" : "shown");
+  if (!hidden) S.help.el.scrollIntoView({ block: "start" });
+}
+
+function renderHelp() {
+  const line = (cmd, text) => h("tr", {}, h("td", { class: "ok" }, cmd), h("td", { class: "wrap" }, text));
+  clear(S.help.tools).append(btn("hide help", () => toggleHelp(false)));
+  clear(S.help.body).append(
+    h("p", {}, "everything is on this one page. each section is like a command; it refreshes every 10 s on its own."),
+    h("p", { class: "sub" }, "first time? set up a rack in this order:"),
+    h("table", {}, h("tbody", {},
+      line("1. $ racks", "[new rack]: give it a name and (optional) lat, lng. or use [place on map] to click the spot."),
+      line("2.", "[details] > [add device]: a token is printed once. copy it into firmware/include/config.h."),
+      line("3. esp32", "flash it. within a minute the rack shows online here."),
+      line("4. tap a card", "it appears under $ cards --unknown. [register] it and pick the racks it works at."),
+      line("5. tap again", "green light and a beep: it worked. see it under $ events."))),
+    h("p", { class: "sub" }, "what each section is for:"),
+    h("table", {}, h("tbody", {},
+      line("$ status", "counts at a glance. amber means something wants a look."),
+      line("$ apps", "the rider and staff apps, in a phone frame or a new tab."),
+      line("$ racks", "every rack, its lock modules and their health. [ack alerts] clears its warnings."),
+      line("$ cards --unknown", "cards that were tapped but aren't registered yet."),
+      line("$ events", "everything the racks reported. filter by type or rack. * means the rack's clock wasn't set."),
+      line("$ cards", "registered cards. [edit] changes racks or expiry, [revoke] turns one off for good."),
+      line("$ report", "counts by type, rack and day."),
+      line("$ audit", "every change an admin made, and who made it."))),
+    h("p", { class: "note" }, "viewer accounts see everything but can't change anything. more: docs/notes/overview.md"));
+}
+
 // ---------- $ apps ----------
 
 function renderApps() {
@@ -201,7 +239,8 @@ function renderApps() {
 
 function openPhone(mode) {
   const src = `/app/?embed=1${mode ? `&mode=${mode}` : ""}`;
-  const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); };
+  const opener = document.activeElement;
+  const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); if (opener && opener.focus) opener.focus(); };
   const onKey = (e) => { if (e.key === "Escape") close(); };
   const overlay = h("div", { class: "phone-overlay", role: "dialog", "aria-modal": "true",
     "aria-label": mode ? "staff app" : "rider app", onClick: (e) => { if (e.target === overlay) close(); } },

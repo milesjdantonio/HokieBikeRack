@@ -21,6 +21,16 @@ Defaults chosen while building. None are blocking. Change them if the team prefe
 - Do we want per-person admin accounts before any wider demo?
 - Should the dashboard hide SIM events by default once real hardware is in use?
 
+## Feature ideas not built yet (from the Phase 9 UX pass)
+- **Rider accounts** so My Card shows *your* card without picking it (needs a login per rider and a
+  link between a person and a credential).
+- **Report a Problem** on a rack (broken, blocked, missing) that lands in the staff Alerts.
+- **Favourite racks** at the top of the list; alerts only for those.
+- **Push notifications** for staff when a tamper alarm fires (needs HTTPS + a service worker).
+- **Busy times** per rack from unlock history ("usually busy 9-11 am").
+- **Bulk card import** (CSV) for a whole class or club.
+- **Rack photos** so riders recognise the spot.
+
 ## Security (before anything beyond a supervised demo)
 - HTTPS (needs a certificate + `HBR_API_ROOT_CA` on the racks).
 - Turn off `HBR_ENABLE_SERIAL_SIM` and `HBR_ALLOW_INSECURE_HTTP`.

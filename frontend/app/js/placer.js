@@ -15,8 +15,8 @@ export function placementPanel({ initial = null, saveLabel = "Save Location", fi
   const readout = h("p", { class: "small faint place-readout" });
   const save = button(saveLabel, () => submit(), { kind: "primary" });
   const results = h("div", { class: "place-results", role: "listbox", "aria-label": "Search results", hidden: true });
-  const query = h("input", { class: "input", type: "search", placeholder: "Search a building or street", autocomplete: "off",
-    enterkeyhint: "search", "aria-label": "Search a building or street" });
+  const query = h("input", { class: "input", type: "search", placeholder: "Torgersen Hall", autocomplete: "off",
+    enterkeyhint: "search" });
   const mapEl = h("div");
   const error = h("p", { class: "form-error", role: "alert" });
 
@@ -81,7 +81,7 @@ export function placementPanel({ initial = null, saveLabel = "Save Location", fi
     if (e.key === "Enter" && e.target.tagName !== "INPUT" && e.target.tagName !== "BUTTON") { e.preventDefault(); submit(); }
   } },
   fields,
-  h("div", { class: "place-search" }, query, results),
+  h("label", { class: "field" }, h("span", {}, "Jump to a place"), h("div", { class: "place-search" }, query, results)),
   hint, mapEl, readout, error,
   h("div", { class: "btn-row" }, save, button("Cancel", () => onCancel(), { kind: "quiet" })));
   describe();

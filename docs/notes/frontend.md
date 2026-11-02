@@ -78,6 +78,47 @@ Things worth noticing:
 - `node tools/rive/build.mjs` rebuilds; open `/lab` to see every state.
 - The writer (`tools/rive/riv.mjs`) is copied from TerraSim (MIT).
 
+## Placing racks by clicking (like TerraSim)
+Staff app → a rack → **Place on Map** (or **Move on Map**), or Health → **Add Rack**. The terminal's
+`[place on map]` opens the same screen. `app/js/placer.js`:
+- Click the satellite map to drop the pin; drag it to fine-tune. **Enter** saves, **Escape** cancels.
+- A live hint line says what to do next (TerraSim's `draw-hint`), and a readout shows the coordinates.
+- **Jump to a place** searches with Photon (komoot's OpenStreetMap search, TerraSim's typeahead),
+  biased to Blacksburg; picking a result flies the map there.
+- Starts looking straight down (pitch 0): easier to be exact than at an angle.
+
+## Tutorial (Miles: "I was confused when doing the old UI")
+- **Apps:** a short tour the first time you open each app (`app/js/tour.js`). One step lights up one
+  real thing (dimmed page, cut-out around it) with one or two sentences. Next/Back/Skip, keyboard
+  (Enter/arrows/Escape), focus kept in the card. A step whose target isn't there (e.g. Add Rack for a
+  viewer) is skipped. Shown once per device; **Settings → Show the Tour Again**.
+  Tours: rider (welcome, map, Find Nearest, racks, My Card, Alerts, Settings), rack (scene, Try a Tap,
+  today), staff (welcome, health, Add Rack, Alerts, Cards, Settings).
+- **Terminal:** a `$ help` section, open the first time, with the setup order (rack → device → flash →
+  tap → register) and what each section is for. `[help]` in the top line toggles it.
+
+## UX pass (Phase 9)
+- **Find Nearest** (riders): uses the device's location, sorts racks by distance and shows "260 m away".
+  The position never leaves the browser.
+- **Get Directions** on a placed rack: opens Google Maps cycling directions.
+- **Connection banner:** if the server can't be reached, a line says so and keeps the last data, with
+  **Try Again**. Coming back to the tab refreshes straight away.
+- **Sign-in** tells a wrong password apart from a server that's down; **Show/Hide** on the password.
+- **Rack Not Found** page for bad links, with the way back. **Loading** title while a rack loads.
+- Offline racks explain why **Try a Tap** is off. One accent per screen (Place on Map is no longer orange).
+- **Back** goes where you came from, or home if you arrived by link (never out of the app).
+- Staff: **Recent Activity** on each rack, **Mark All Handled** on Alerts, a name search on Cards once
+  there are more than five, empty states that say what to do next.
+
+## Bugs found in the sweep (fixed)
+- Settings → Open Staff App inside the phone frame built `?mode=staff?embed=1` (broken link).
+- A failed map-style download was cached forever: every later map failed until a reload.
+- Back used `history.length`, which counts other sites: it could leave the app.
+- Two orange actions on the staff rack page (Try a Tap and Place on Map).
+- Staff alert titles cut off the rack name ("Tamper alarm at ...").
+- The terminal's filter buttons rendered as "[object HTMLButtonElement]" (nested arrays).
+- The phone frame didn't give focus back to the button that opened it.
+
 ## Lessons from building it
 - `el.append(arrayOfNodes)` stringifies the array ("[object HTMLButtonElement]"). Flatten first:
   `renderIfChanged` uses `.flat(Infinity)`.

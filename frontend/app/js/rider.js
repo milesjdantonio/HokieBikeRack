@@ -14,13 +14,25 @@ export function statusIcon(status) {
   return h("span", { class: `row-icon ${STATUS_CLASS[status] || "faint"}` }, icon("racks"));
 }
 
-function rackRow(r, ctx, extraSub) {
+/** Straight-line distance in metres (haversine). */
+function metres(a, b) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(b.latitude - a.latitude), dLng = rad(b.longitude - a.longitude);
+  const x = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLng / 2) ** 2;
+  return 6371000 * 2 * Math.asin(Math.sqrt(x));
+}
+function distanceText(m) {
+  if (m < 1000) return `${Math.max(10, Math.round(m / 10) * 10)} m away`;
+  return `${(m / 1609.34).toFixed(1)} mi away`;
+}
+
+function rackRow(r, ctx, extraSub, distance) {
   return row({
     lead: statusIcon(r.status),
     title: r.name,
-    sub: extraSub || r.locationDescription || "No location set",
+    sub: extraSub || r.locationDescription || "No description yet",
     side: h("span", { class: STATUS_CLASS[r.status] }, STATUS_WORD[r.status] || r.status),
-    sideSub: r.lastSeenAt ? ago(r.lastSeenAt) : null,
+    sideSub: distance != null ? h("span", { class: "near" }, distanceText(distance)) : r.lastSeenAt ? ago(r.lastSeenAt) : null,
     onClick: () => ctx.go(`#rack/${r.id}`),
     label: `${r.name}, ${STATUS_WORD[r.status]}`,
   });
@@ -32,16 +44,50 @@ export function racks(el, ctx) {
   const lede = h("p", { class: "lede" });
   const mapEl = h("div");
   const list = h("div", { class: "list" }, h("div", { class: "skeleton" }), h("div", { class: "skeleton" }));
-  el.append(h("h1", { class: "display" }, "Racks"), lede, h("div", { class: "split" }, mapEl, list));
+  let me = null;   // the rider's position, only if they asked (never leaves this device)
+  let data = [];
+  const near = button("Find Nearest", () => locate(), { small: true });
+  near.classList.add("find-near");
+  if (!("geolocation" in navigator)) near.hidden = true;
+  el.append(h("div", { class: "heading-row" }, h("h1", { class: "display" }, "Racks"), near), lede, h("div", { class: "split" }, mapEl, list));
   const map = rackMap(mapEl, { onSelect: (r) => ctx.go(`#rack/${r.id}`) });
 
+  function locate() {
+    near.disabled = true;
+    near.lastChild.textContent = "Finding You";
+    navigator.geolocation.getCurrentPosition((pos) => {
+      me = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+      near.disabled = false;
+      near.lastChild.textContent = "Find Nearest";
+      draw();
+      const closest = sorted()[0];
+      if (closest && closest.latitude != null) map.select(closest.id);
+    }, (err) => {
+      near.disabled = false;
+      near.lastChild.textContent = "Find Nearest";
+      ctx.toast(err.code === 1 ? "Location is off for this site. Turn it on in your browser to find the nearest rack." : "Couldn't find your location. Try again outside.");
+    }, { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  }
+
+  /** Nearest first once we know where the rider is; otherwise ready racks first. */
+  function sorted() {
+    const placed = (r) => r.latitude != null;
+    if (me) return [...data].sort((a, b) => (placed(a) ? metres(me, a) : 1e12) - (placed(b) ? metres(me, b) : 1e12));
+    const rank = { ONLINE: 0, WARNING: 1, OFFLINE: 2, UNKNOWN: 3 };
+    return [...data].sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name));
+  }
+
+  function draw() {
+    renderIfChanged(list, JSON.stringify([data, me]), () => data.length
+      ? sorted().map((r) => rackRow(r, ctx, null, me && r.latitude != null ? metres(me, r) : null))
+      : h("p", { class: "empty" }, "No racks yet. Once staff add one, it shows up here and on the map."));
+  }
+
   async function refresh() {
-    const data = await api("/racks");
+    data = await api("/racks");
     const ready = data.filter((r) => r.status === "ONLINE" || r.status === "WARNING").length;
     lede.textContent = data.length ? `${ready} of ${data.length} ${data.length === 1 ? "rack is" : "racks are"} taking cards.` : "";
-    renderIfChanged(list, JSON.stringify(data), () => data.length
-      ? data.map((r) => rackRow(r, ctx))
-      : h("p", { class: "empty" }, "No racks yet."));
+    draw();
     map.setRacks(data);
   }
   refresh().catch((e) => { list.replaceChildren(h("p", { class: "empty" }, `Couldn't load racks: ${e.message}`)); });
@@ -64,12 +110,12 @@ function sentence(rack, devices, lastTamper) {
 }
 
 export function rack(el, ctx, id, action) {
-  const back = h("button", { type: "button", class: "back", onClick: () => history.length > 1 ? history.back() : ctx.go("#") },
+  const back = h("button", { type: "button", class: "back", onClick: () => ctx.back() },
     icon("back"), ctx.mode === "staff" ? "Health" : "Racks");
   const scene = riveIcon("rack", { size: 600, height: 400, inputs: { state: 0 }, label: "The rack, its lock and reader" });
   const caption = h("p", { class: "stage-caption", "aria-live": "polite" });
   const stage = h("figure", { class: "stage" }, scene.el, h("div", { class: "stage-fallback" }, icon("racks")), caption);
-  const title = h("h1", { class: "display" });
+  const title = h("h1", { class: "display" }, h("span", { class: "faint" }, "Loading"));
   const status = h("p", { class: "status-sentence" });
   const facts = h("dl", { class: "facts" });
   const where = h("div", { class: "block" });
@@ -81,6 +127,9 @@ export function rack(el, ctx, id, action) {
   let data = null;
 
   const tapBtn = button("Try a Tap", () => demo(1), { kind: "primary", iconName: "tap" });
+  tapBtn.classList.add("try-tap");
+  const tryNote = h("p", { class: "small faint" }, "A preview of what the rack does. Nothing unlocks.");
+  const activity = h("div", { class: "block" });
   const unknownBtn = button("Try an Unknown Card", () => demo(2), { kind: "quiet" });
   function demo(state) {
     clearTimeout(demoTimer);
@@ -100,10 +149,9 @@ export function rack(el, ctx, id, action) {
 
   el.append(back, h("div", { class: "rack-layout" }, stage, h("div", {},
     title, status,
-    h("div", { class: "block" }, h("div", { class: "btn-row" }, tapBtn, unknownBtn),
-      h("p", { class: "small faint" }, "A preview of what the rack does. Nothing unlocks.")),
+    h("div", { class: "block" }, h("div", { class: "btn-row" }, tapBtn, unknownBtn), tryNote),
     h("div", { class: "block" }, h("h2", {}, "Today"), facts),
-    devicesBlock, where)));
+    devicesBlock, activity, where)));
 
   async function refresh() {
     const since = startOfToday();
@@ -123,6 +171,8 @@ export function rack(el, ctx, id, action) {
       scene.set("state", baseState);
       tapBtn.disabled = unknownBtn.disabled = off;
     }
+    tryNote.textContent = off ? "The preview works once this rack is online." : "A preview of what the rack does. Nothing unlocks.";
+    if (ctx.mode === "staff") renderActivity(activity, r.id);
     renderIfChanged(facts, JSON.stringify([r.status, r.lastSeenAt && ago(r.lastSeenAt), unlocks.total, tamper.total]), () => [
       fact("Status", h("span", { class: STATUS_CLASS[r.status] }, STATUS_WORD[r.status])),
       fact("Last check-in", r.lastSeenAt ? ago(r.lastSeenAt) : "Never"),
@@ -169,12 +219,14 @@ export function rack(el, ctx, id, action) {
         const mapEl = h("div", { class: "map-small" });
         parts.push(mapEl);
         map = rackMap(mapEl, { interactive: true, focus: r });
+        parts.push(h("div", { class: "btn-row" }, h("a", { class: "btn btn-small", target: "_blank", rel: "noopener",
+          href: `https://www.google.com/maps/dir/?api=1&destination=${r.latitude},${r.longitude}&travelmode=bicycling` }, "Get Directions")));
       } else {
         parts.push(h("p", { class: "empty" }, canPlace ? "This rack isn't on the map yet." : "This rack isn't on the map yet. Staff will add it."));
       }
       if (canPlace) {
         parts.push(h("div", { class: "btn-row" },
-          button(placed ? "Move on Map" : "Place on Map", () => { placing = true; renderWhere(r); }, { kind: placed ? "" : "primary", small: true }),
+          button(placed ? "Move on Map" : "Place on Map", () => { placing = true; renderWhere(r); }, { small: true }),
           placed ? button("Take Off Map", async () => {
             try {
               await api(`/racks/${r.id}`, { method: "PATCH", body: { clearCoordinates: true } });
@@ -187,8 +239,42 @@ export function rack(el, ctx, id, action) {
     where.replaceChildren(...parts);
   }
 
-  refresh().catch((e) => { title.textContent = "Rack not found"; status.textContent = e.message; });
+  refresh().catch((e) => {
+    // Bad link or a deleted rack: say so plainly and offer the way back.
+    el.replaceChildren(back, h("div", { class: "block" },
+      h("h1", { class: "display" }, e.status === 404 ? "Rack Not Found" : "Couldn't Load This Rack"),
+      h("p", { class: "status-sentence" }, e.status === 404 ? "It may have been removed, or the link is wrong." : e.message),
+      h("div", { class: "block" }, button(ctx.mode === "staff" ? "Go to Rack Health" : "See All Racks", () => ctx.go("#"), { kind: "primary" }))));
+  });
   return { refresh, destroy: () => { clearTimeout(demoTimer); if (map) map.destroy(); if (placer) placer.destroy(); document.title = "HokieBikeRack"; } };
+}
+
+const ACTIVITY = {
+  ACCESS_GRANTED: ["unlock", "positive", "Unlocked"],
+  ACCESS_DENIED: ["blocked", "negative", "Card not accepted"],
+  TAMPER_WARNING: ["siren", "warning", "Rack bumped"],
+  TAMPER_ALARM: ["siren", "negative", "Tamper alarm"],
+  SENSOR_FAULT: ["signal", "warning", "Sensor problem"],
+  DEVICE_BOOT: ["signal", "faint", "Lock module started"],
+};
+
+/** Staff only: the last few things that happened at this rack. */
+async function renderActivity(block, rackId) {
+  const data = await api("/events", { query: { rackId, size: 8 } });
+  renderIfChanged(block, JSON.stringify(data.items.map((e) => e.id)), () => [
+    h("h2", {}, "Recent Activity"),
+    data.items.length ? h("div", { class: "list" }, data.items.map((e) => {
+      const [ic, cls, label] = ACTIVITY[e.eventType] || ["signal", "faint", e.eventType.toLowerCase()];
+      const who = e.credentialLabel || (e.credentialReference ? `Card ${shortRef(e.credentialReference, 8)}` : null);
+      const why = e.eventType === "ACCESS_DENIED" ? DENY_REASONS[e.details?.reason] : null;
+      return row({
+        lead: h("span", { class: `row-icon ${cls}` }, icon(ic)),
+        title: label,
+        sub: [who, why].filter(Boolean).join(", ") || null,
+        side: h("span", { class: "small muted" }, when(e.occurredAt)),
+      });
+    })) : h("p", { class: "empty" }, "Nothing yet."),
+  ]);
 }
 
 function fact(label, value) {

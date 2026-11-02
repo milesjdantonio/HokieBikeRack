@@ -47,6 +47,7 @@ export function health(el, ctx) {
     addBtn.hidden = false;
   }
   const addBtn = ctx.canEdit ? button("Add Rack", openAdd, { small: true }) : h("span");
+  addBtn.classList.add("add-rack");
   el.append(h("div", { class: "heading-row" }, h("h1", { class: "display" }, "Rack Health"), addBtn), lede, adding,
     h("div", { class: "split" }, mapEl, list));
   const map = rackMap(mapEl, { onSelect: (r) => ctx.go(`#rack/${r.id}`) });
@@ -72,7 +73,7 @@ export function health(el, ctx) {
         sideSub: r.lastSeenAt ? ago(r.lastSeenAt) : "Never",
         onClick: () => ctx.go(`#rack/${r.id}`),
       });
-    }) : h("p", { class: "empty" }, "No racks yet. Add one in the admin console."));
+    }) : h("p", { class: "empty" }, ctx.canEdit ? "No racks yet. Use Add Rack to name one and click where it stands." : "No racks yet."));
     map.setRacks(racks);
   }
   refresh().catch((e) => list.replaceChildren(h("p", { class: "empty" }, e.message)));
@@ -102,12 +103,26 @@ function alertDetail(e) {
 export function alerts(el, ctx) {
   const lede = h("p", { class: "lede" });
   const list = h("div", { class: "list" }, h("div", { class: "skeleton" }));
-  el.append(h("h1", { class: "display" }, "Alerts"), lede, list);
+  let items = [];
+  const all = ctx.canEdit ? button("Mark All Handled", async () => {
+    all.disabled = true;
+    try {
+      // The API marks a whole rack at a time; every rack with open alerts gets one call.
+      const racks = [...new Set(items.map((e) => e.rackId).filter(Boolean))];
+      await Promise.all(racks.map((id) => api(`/events/acknowledge-rack/${id}`, { method: "POST" })));
+      ctx.toast(`${items.length} marked handled`);
+      await refresh();
+    } catch (e) { ctx.toast(e.message); }
+    all.disabled = false;
+  }, { kind: "primary", small: true, iconName: "check" }) : h("span");
+  all.hidden = true;
+  el.append(h("div", { class: "heading-row" }, h("h1", { class: "display" }, "Alerts"), all), lede, list);
 
   async function refresh() {
     const data = await api("/events", { query: { unacknowledged: true, size: 60 } });
-    const items = data.items.filter((e) => ["MEDIUM", "HIGH", "CRITICAL"].includes(e.severity));
+    items = data.items.filter((e) => ["MEDIUM", "HIGH", "CRITICAL"].includes(e.severity));
     ctx.setCount(items.length);
+    all.hidden = items.length < 2;
     lede.textContent = items.length ? `${items.length} to look at.` : "";
     renderIfChanged(list, JSON.stringify([items.map((e) => e.id), ctx.canEdit]), () => items.length ? items.map((e) => {
       const high = e.severity !== "MEDIUM";
@@ -136,10 +151,13 @@ export function alerts(el, ctx) {
 export function cards(el, ctx) {
   const waiting = h("div");
   const registered = h("div");
-  const state = { registering: null, open: null, confirming: null };
+  const state = { registering: null, open: null, confirming: null, filter: "" };
+  const filter = h("input", { class: "input filter-input", type: "search", placeholder: "Find a card by name", "aria-label": "Find a card by name",
+    autocomplete: "off", onInput: () => { state.filter = filter.value.trim().toLowerCase(); refresh(); } });
+  filter.hidden = true;
   el.append(h("h1", { class: "display" }, "Cards"),
     h("div", { class: "block" }, h("h2", {}, "Waiting to Register"), waiting),
-    h("div", { class: "block" }, h("h2", {}, "Registered"), registered));
+    h("div", { class: "block" }, h("h2", {}, "Registered"), filter, registered));
   let racks = [];
 
   function registerForm(u) {
@@ -208,8 +226,10 @@ export function cards(el, ctx) {
         state.registering === u.credentialReference ? registerForm(u) : null,
       ]))
       : h("p", { class: "empty" }, "No new cards. When someone taps an unregistered card, it shows up here."));
-    const visible = creds.filter((c) => c.status !== "REVOKED");
-    renderIfChanged(registered, JSON.stringify([visible, state.open, state.confirming, rackList.length]), () => visible.length
+    const active = creds.filter((c) => c.status !== "REVOKED");
+    filter.hidden = active.length < 6 && !state.filter;
+    const visible = active.filter((c) => !state.filter || c.displayLabel.toLowerCase().includes(state.filter));
+    renderIfChanged(registered, JSON.stringify([visible, state.open, state.confirming, rackList.length, state.filter]), () => visible.length
       ? h("div", { class: "list" }, visible.map((c) => [
         row({
           lead: h("span", { class: `row-icon ${c.status === "ACTIVE" ? "positive" : "faint"}` }, icon("card")),
@@ -223,7 +243,7 @@ export function cards(el, ctx) {
         }),
         state.open === c.id ? cardActions(c) : null,
       ]))
-      : h("p", { class: "empty" }, "No cards registered yet."));
+      : h("p", { class: "empty" }, state.filter ? "No card with that name." : "No cards registered yet. They show up under Waiting to Register after someone taps one."));
   }
   refresh().catch((e) => waiting.replaceChildren(h("p", { class: "empty" }, e.message)));
   return { refresh };
