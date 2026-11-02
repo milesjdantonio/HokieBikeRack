@@ -90,14 +90,14 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - [x] 3.9 Integration tests (auth, idempotency, snapshot, roles, validation) — `mvn test` green
 
 ### Phase 4 — frontend — `frontend/`
-- [ ] 4.1 Login screen, API client, loading/error/empty states
-- [ ] 4.2 Overview (metrics, rack health, recent events, auto refresh)
-- [ ] 4.3 Events page with filters; unknown-card → Register flow
-- [ ] 4.4 Racks page: create rack, provision device (token shown once + config.h snippet)
-- [ ] 4.5 Credentials page: list, edit, rack permissions, revoke
-- [ ] 4.6 Reports + audit log
-- [ ] 4.7 Viewer role: hide/disable edit actions (backend still enforces)
-- [ ] 4.8 **App preview** (phone frame) with Rider + Admin tabs, live data
+- [x] 4.1 Login screen, API client, loading/error/empty states
+- [x] 4.2 Overview (metrics, rack health, recent events, auto refresh)
+- [x] 4.3 Events page with filters; unknown-card → Register flow
+- [x] 4.4 Racks page: create rack, provision device (token shown once + config.h snippet)
+- [x] 4.5 Credentials page: list, edit, rack permissions, revoke
+- [x] 4.6 Reports + audit log
+- [x] 4.7 Viewer role: hide/disable edit actions (backend still enforces)
+- [x] 4.8 **App preview** (phone frame) with Rider + Admin tabs, live data
 
 ### Phase 5 — simulator + end-to-end check
 - [ ] 5.1 `tools/device_simulator.py`: acts like an ESP32 (heartbeat, snapshot, card taps, tamper) using the same HMAC + API
@@ -115,3 +115,4 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - 2026-11-02: Phase 1 done. 37 PC unit tests pass (`pio test -e native`).
 - 2026-11-02: Phase 2 done. Firmware builds with servo OFF and ON (`PLATFORMIO_BUILD_FLAGS=-DHBR_ENABLE_SERVO=1`). Not yet run on hardware.
 - 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).
+- 2026-11-02: Phase 4 written (vanilla JS modules, no build). Browser check happens in 5.2.

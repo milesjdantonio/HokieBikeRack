@@ -1,8 +1,58 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>HokieBikeRack Admin</title><link rel="stylesheet" href="styles.css"><script src="app.js" defer></script></head>
-<body><header><div><p class="eyebrow">SMART RACK MANAGEMENT</p><h1>HokieBikeRack</h1></div><span class="chip">Prototype · Demo data</span></header>
-<main><section><h2>Rack overview</h2><p>Monitor connectivity and review access or tamper events.</p></section>
-<section class="summary"><article><h3>Registered racks</h3><p id="rack-count" class="metric">—</p></article><article><h3>Online devices</h3><p id="online-count" class="metric">—</p></article><article><h3>Recent alerts</h3><p id="alert-count" class="metric">—</p></article></section>
-<section class="panel"><div class="panel-heading"><div><h2>Recent security events</h2><p>Sample data only; no real device is connected.</p></div><button id="refresh-button">Refresh demo</button></div>
-<div class="table-wrap"><table><thead><tr><th>Time</th><th>Rack</th><th>Event</th><th>Severity</th><th>Status</th></tr></thead><tbody id="events-table"></tbody></table></div></section>
-<p class="notice">Authentication, authorization, and live API integration are not implemented.</p></main><footer>HokieBikeRack · Initial scaffold</footer></body></html>
+<!--
+  HokieBikeRack admin dashboard. Served by the backend at http://localhost:8080/
+  No build step: plain HTML + CSS + JavaScript modules (js/*.js).
+  How it works: docs/notes/frontend.md
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HokieBikeRack Admin</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="js/main.js"></script>
+</head>
+<body>
+  <!-- Login screen. Shown until /api/v1/me accepts the username + password. -->
+  <section id="login-view" class="login" hidden>
+    <form id="login-form" class="login-card" autocomplete="on">
+      <p class="eyebrow">SMART RACK MANAGEMENT</p>
+      <h1>HokieBikeRack</h1>
+      <p class="muted">Sign in with the admin or viewer account set on the backend.</p>
+      <label>Username <input name="username" autocomplete="username" required value="admin"></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <p id="login-error" class="form-error" role="alert"></p>
+      <button type="submit">Sign in</button>
+      <p class="fine">Forgot it? The backend prints generated passwords in its log at startup.</p>
+    </form>
+  </section>
+
+  <!-- Main app. -->
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">SMART RACK MANAGEMENT</p>
+        <h1>HokieBikeRack</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="live-indicator" class="chip">Live</span>
+        <span id="user-chip" class="chip"></span>
+        <button id="app-preview-button" class="secondary" type="button">📱 App preview</button>
+        <button id="logout-button" class="ghost" type="button">Sign out</button>
+      </div>
+    </header>
+    <nav class="tabs" aria-label="Sections">
+      <a href="#overview" data-view="overview">Overview</a>
+      <a href="#events" data-view="events">Events</a>
+      <a href="#racks" data-view="racks">Racks</a>
+      <a href="#cards" data-view="cards">Cards</a>
+      <a href="#reports" data-view="reports">Reports</a>
+      <a href="#audit" data-view="audit">Audit log</a>
+    </nav>
+    <main id="view" tabindex="-1"></main>
+    <footer>HokieBikeRack prototype · local demo · not a security-certified lock system</footer>
+  </div>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</body>
+</html>
