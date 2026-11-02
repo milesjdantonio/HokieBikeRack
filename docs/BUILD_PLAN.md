@@ -79,15 +79,15 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - [x] 2.11 Build passes for servo OFF and servo ON configs; update KNOWNBUGS.txt
 
 ### Phase 3 — backend (Java 21 / Spring Boot) — `backend/`
-- [ ] 3.1 pom: security, embedded Postgres (zonky) for tests + `embedded` profile
-- [ ] 3.2 Flyway `V2`: device token hash, event credential ref/time source, authorization revision counter, audit log, unique indexes
-- [ ] 3.3 Domain + repositories (racks, devices, credentials, permissions, events, audit)
-- [ ] 3.4 Security: device bearer-token filter for `/api/v1/devices/**`; HTTP Basic ADMIN/VIEWER for admin API; JSON 401/403 (no browser popup)
-- [ ] 3.5 Device API: events (idempotent `ON CONFLICT DO NOTHING`), authorization-snapshot, heartbeat
-- [ ] 3.6 Admin API: racks, device provisioning/token rotation, credentials (+ register from unknown card, revoke, rack permissions), events (filters + paging), reports, audit log, `/me`
-- [ ] 3.7 Validation + error handling (ProblemDetail)
-- [ ] 3.8 Serve `frontend/` from the backend at `/`
-- [ ] 3.9 Integration tests (auth, idempotency, snapshot, roles, validation) — `mvn test` green
+- [x] 3.1 pom: security, embedded Postgres (zonky) for tests + `embedded` profile
+- [x] 3.2 Flyway `V2`: device token hash, event credential ref/time source, authorization revision counter, audit log, unique indexes
+- [x] 3.3 Domain + repositories (racks, devices, credentials, permissions, events, audit)
+- [x] 3.4 Security: device bearer-token filter for `/api/v1/devices/**`; HTTP Basic ADMIN/VIEWER for admin API; JSON 401/403 (no browser popup)
+- [x] 3.5 Device API: events (idempotent `ON CONFLICT DO NOTHING`), authorization-snapshot, heartbeat
+- [x] 3.6 Admin API: racks, device provisioning/token rotation, credentials (+ register from unknown card, revoke, rack permissions), events (filters + paging), reports, audit log, `/me`
+- [x] 3.7 Validation + error handling (ProblemDetail)
+- [x] 3.8 Serve `frontend/` from the backend at `/`
+- [x] 3.9 Integration tests (auth, idempotency, snapshot, roles, validation) — `mvn test` green
 
 ### Phase 4 — frontend — `frontend/`
 - [ ] 4.1 Login screen, API client, loading/error/empty states
@@ -114,3 +114,4 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
 - 2026-11-02: Phase 1 done. 37 PC unit tests pass (`pio test -e native`).
 - 2026-11-02: Phase 2 done. Firmware builds with servo OFF and ON (`PLATFORMIO_BUILD_FLAGS=-DHBR_ENABLE_SERVO=1`). Not yet run on hardware.
+- 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).

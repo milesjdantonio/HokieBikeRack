@@ -1,17 +1,70 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  HokieBikeRack backend build file (Maven).
+    mvn test                                                   run all tests (starts a throwaway Postgres)
+    mvn spring-boot:run -Dspring-boot.run.profiles=embedded    run with a built-in Postgres (no install)
+    mvn spring-boot:run                                        run against your own Postgres (DB_URL etc.)
+  Why each dependency is here: docs/notes/backend.md
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
-  <parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId><version>3.5.6</version><relativePath/></parent>
-  <groupId>edu.vt</groupId><artifactId>hokiebikerack-api</artifactId><version>0.1.0-SNAPSHOT</version>
-  <properties><java.version>21</java.version></properties>
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>3.5.6</version>
+    <relativePath/>
+  </parent>
+  <groupId>edu.vt</groupId>
+  <artifactId>hokiebikerack-api</artifactId>
+  <version>0.2.0-SNAPSHOT</version>
+
+  <properties>
+    <java.version>21</java.version>
+    <embedded-postgres.version>2.1.0</embedded-postgres.version>
+    <postgres-binaries.version>17.5.0</postgres-binaries.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <!-- Picks the PostgreSQL version that embedded-postgres downloads. -->
+      <dependency>
+        <groupId>io.zonky.test.postgres</groupId>
+        <artifactId>embedded-postgres-binaries-bom</artifactId>
+        <version>${postgres-binaries.version}</version>
+        <type>pom</type>
+        <scope>import</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+
   <dependencies>
+    <!-- REST controllers + JSON -->
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>
+    <!-- @Valid / @NotBlank request checks -->
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-validation</artifactId></dependency>
-    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa</artifactId></dependency>
+    <!-- Logins, roles, device tokens -->
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-security</artifactId></dependency>
+    <!-- Plain SQL with JdbcClient + HikariCP connection pool -->
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-jdbc</artifactId></dependency>
     <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><scope>runtime</scope></dependency>
+    <!-- Database migrations (src/main/resources/db/migration) -->
     <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-core</artifactId></dependency>
     <dependency><groupId>org.flywaydb</groupId><artifactId>flyway-database-postgresql</artifactId></dependency>
+    <!-- A real PostgreSQL that Maven downloads and starts for you ("embedded" profile + tests).
+         Not for production. -->
+    <dependency>
+      <groupId>io.zonky.test</groupId>
+      <artifactId>embedded-postgres</artifactId>
+      <version>${embedded-postgres.version}</version>
+    </dependency>
+
     <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+    <dependency><groupId>org.springframework.security</groupId><artifactId>spring-security-test</artifactId><scope>test</scope></dependency>
   </dependencies>
-  <build><plugins><plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin></plugins></build>
+
+  <build>
+    <plugins>
+      <plugin><groupId>org.springframework.boot</groupId><artifactId>spring-boot-maven-plugin</artifactId></plugin>
+    </plugins>
+  </build>
 </project>

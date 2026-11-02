@@ -1,16 +1,51 @@
-# Local defaults only; override through environment variables.
+# HokieBikeRack backend settings. Local defaults only; override with environment
+# variables (see backend/.env.example). Never put real passwords in this file.
 spring:
   application:
     name: hokiebikerack-api
   datasource:
+    # Used when NOT running the "embedded" profile.
     url: ${DB_URL:jdbc:postgresql://localhost:5432/hokiebikerack}
     username: ${DB_USERNAME:hokiebikerack}
     password: ${DB_PASSWORD:change-me-locally}
-  jpa:
-    hibernate:
-      ddl-auto: validate
-    open-in-view: false
   flyway:
     enabled: true
+  jackson:
+    # Send times as "2026-11-02T15:04:05Z" text, not big numbers.
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: always
+  web:
+    resources:
+      # Serve the admin dashboard (../frontend) at http://localhost:8080/
+      static-locations: file:${HBR_FRONTEND_DIR:../frontend}/
+
 server:
   port: ${SERVER_PORT:8080}
+  error:
+    include-message: always   # our error messages never contain secrets
+    include-stacktrace: never
+
+hbr:
+  # How long a rack may keep using its card list without reaching us (offline).
+  snapshot-validity: ${HBR_SNAPSHOT_VALIDITY:72h}
+  # A device counts as ONLINE if we heard from it within this window
+  # (heartbeat is every 60 s, so 3 missed heartbeats = OFFLINE).
+  device-online-window: 3m
+  # Time zone used for "per day" report buckets.
+  report-zone: America/New_York
+  users:
+    admin-username: ${ADMIN_USERNAME:admin}
+    admin-password: ${ADMIN_PASSWORD:}     # empty = a random one is generated and logged
+    viewer-username: ${VIEWER_USERNAME:viewer}
+    viewer-password: ${VIEWER_PASSWORD:}
+  embedded-db:
+    # Kept OUTSIDE the repo on purpose: OneDrive syncing live database files
+    # can corrupt them.
+    data-dir: ${HBR_EMBEDDED_DB_DIR:${user.home}/.hokiebikerack/pgdata}
+    port: 54329
+    clean-on-start: false
+
+logging:
+  level:
+    io.zonky: WARN

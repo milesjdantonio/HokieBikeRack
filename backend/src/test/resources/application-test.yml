@@ -1,0 +1,10 @@
+# Used by tests together with the "embedded" profile: a brand-new temporary
+# PostgreSQL on a random port, wiped each run.
+hbr:
+  users:
+    admin-password: test-admin-pass
+    viewer-password: test-viewer-pass
+  embedded-db:
+    data-dir: ""
+    port: 0
+    clean-on-start: true
