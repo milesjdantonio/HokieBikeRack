@@ -108,7 +108,7 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - [x] 6.2 `docs/notes/hardware-test-checklist.md` + wiring guide for tomorrow's bench test
 - [x] 6.3 Update README, API.md (real contract), HARDWARE_DECISIONS, PROJECT_STATUS, SECURITY, component READMEs
 - [x] 6.4 Demo script for Tuesday (`docs/DEMO_SCRIPT.md`)
-- [ ] 6.5 Final push; summarize for Miles
+- [x] 6.5 Final push; summarize for Miles
 
 ### Phase 7 — frontend polish (Miles suggested borrowing from SchmollCrossword + TerraSim)
 Reference patterns: TerraSim `website/js/rive.js` + vendored Rive runtime + `.riv` files built by scripts in `website/tools/rive/`; SchmollCrossword `static/css/app.css` (everything driven by CSS variables), in-page dialogs, canvas FX.
