@@ -1,0 +1,10 @@
+{
+  "name": "hbr_logic",
+  "version": "0.2.0",
+  "description": "HokieBikeRack decision logic with NO hardware calls, so it can be unit-tested on a PC (pio test -e native).",
+  "frameworks": "*",
+  "platforms": "*",
+  "dependencies": {
+    "bblanchon/ArduinoJson": "^7.0.4"
+  }
+}

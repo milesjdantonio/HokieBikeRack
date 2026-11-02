@@ -57,12 +57,12 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - [x] 0.4 Write this plan file and push
 
 ### Phase 1 — firmware logic (pure C++, tested on the PC) — `firmware/lib/hbr_logic/`
-- [ ] 1.1 `access_rules`: snapshot struct, allow/deny decision with reasons (no snapshot / expired / clock unknown / not listed), rollback protection, snapshot JSON parsing
-- [ ] 1.2 `tamper_detector`: baseline (slow average), deviation threshold, consecutive-sample filter, warning → alarm escalation, cooldowns
-- [ ] 1.3 `feedback_player`: non-blocking LED/buzzer patterns with priorities (boot, granted, denied, tamper warning, tamper alarm, not-ready blip)
-- [ ] 1.4 `lock_controller`: momentary unlock timer (millis wrap-safe)
-- [ ] 1.5 `util`: UUID v4 formatting, ISO-8601 UTC formatting, hex encoding, card debounce
-- [ ] 1.6 Unity tests in `firmware/test/` — all pass with `pio test -e native`
+- [x] 1.1 `access_rules`: snapshot struct, allow/deny decision with reasons (no snapshot / expired / clock unknown / not listed), rollback protection, snapshot JSON parsing
+- [x] 1.2 `tamper_detector`: baseline (slow average), deviation threshold, consecutive-sample filter, warning → alarm escalation, cooldowns
+- [x] 1.3 `feedback_player`: non-blocking LED/buzzer patterns with priorities (boot, granted, denied, tamper warning, tamper alarm, not-ready blip)
+- [x] 1.4 `lock_controller`: momentary unlock timer (millis wrap-safe)
+- [x] 1.5 `util`: UUID v4 formatting, ISO-8601 UTC formatting, hex encoding, card debounce
+- [x] 1.6 Unity tests in `firmware/test/` — all pass with `pio test -e native`
 
 ### Phase 2 — firmware hardware glue — `firmware/src/`
 - [ ] 2.1 `pins.h` pin map + `config.example.h` (new flags: servo enable, allow HTTP, card key, angles)
@@ -111,3 +111,4 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 
 ## Progress log
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
+- 2026-11-02: Phase 1 done. 37 PC unit tests pass (`pio test -e native`).
