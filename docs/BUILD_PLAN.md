@@ -138,6 +138,19 @@ Miles: "can the user click for where the bike rack is, similar to how it's done 
 - [x] 9.5 New features (UX-led): ideas listed in docs/notes/open-questions.md, build the best ones
 - [x] 9.6 Checks (backend tests, headless phone/desktop/admin/viewer), docs, commit, push
 
+### Phase 10: rebuild to the agreed plan (docs/notes/frontend-plan.md)
+Miles: the Phase 8/9 pages were hard to navigate and the design wasn't good. We agreed the target
+page by page first. Two front ends: an admin site (map + terminal panel, replaces the terminal page
+and staff app) and the rider app (no login to see racks).
+- [ ] 10.1 Two static admin mockups (A same family, B control room) at /mockups/admin.html → Miles picks
+- [ ] 10.2 Public read-only racks API for riders (+ tests)
+- [ ] 10.3 Admin site: shell, map, terminal feed
+- [ ] 10.4 Rack panel (status, alerts, module, cards, register, move, add module)
+- [ ] 10.5 Needs-you strip + terminal commands (incl. demo tap/shake)
+- [ ] 10.6 Rive warnings (map pin, pop-up card, terminal badges) + Reports + Audit log
+- [ ] 10.7 Rider app cleanup (no login, no tours, simpler)
+- [ ] 10.8 Remove old pages, docs, demo script, checks, push
+
 ## Progress log
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
 - 2026-11-02: Phase 1 done. 37 PC unit tests pass (`pio test -e native`).
@@ -145,6 +158,7 @@ Miles: "can the user click for where the bike rack is, similar to how it's done 
 - 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).
 - 2026-11-02: Phase 4 written (vanilla JS modules, no build). Browser check happens in 5.2.
 - 2026-11-02: Phase 5 done. Backend (embedded) + simulator demo + headless-Edge check of every page as admin and viewer: no console errors. Fixed: blank app preview, unreadable Sign out, table action column, favicon 404.
+- 2026-11-02: Talked through every page with Miles; agreed plan saved in docs/notes/frontend-plan.md (Phase 10).
 - 2026-11-02: Phase 9 done. Click-to-place + Add Rack + place search (TerraSim style); tours for both apps + terminal $ help; Find Nearest, directions, connection banner, clearer sign-in, rack-not-found, recent activity, mark all handled, card search. 7 bugs fixed (listed in docs/notes/frontend.md). 15 backend tests; headless flow check, no errors.
 - 2026-11-02: Phase 8 done. All four pages remade: terminal admin (/), rider app (/app), staff app (/app?mode=staff), sign-in for both. Campus map. Pulses removed (Miles). 15 backend tests; headless checks at phone + desktop, admin + viewer, no console errors.
 - 2026-11-02: Phase 7 done. Rive icons (lock, alarm, pulse) generated from code with TerraSim's writer; vendored runtime; CSP adds 'wasm-unsafe-eval'; login unlock animation; subtle motion with reduced-motion support. Lab page /lab/rive.html. Headless checks: no console errors.
