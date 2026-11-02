@@ -1,0 +1,100 @@
+# Backend notes (Java 21, Spring Boot 3.5, PostgreSQL)
+
+## Run it
+```bash
+cd backend
+mvn test                                                   # 14 integration tests on a real throwaway Postgres
+mvn spring-boot:run -Dspring-boot.run.profiles=embedded    # dashboard at http://localhost:8080
+```
+Set `ADMIN_PASSWORD` / `VIEWER_PASSWORD` first, or copy the generated ones from the log.
+PowerShell: `$env:ADMIN_PASSWORD="..."`. Git Bash: `export ADMIN_PASSWORD=...`.
+
+## Package map
+```
+edu.vt.hokiebikerack
+  config/       SecurityConfig (3 filter chains), DeviceTokenFilter, EmbeddedPostgresConfig, HbrProperties
+  common/       ApiException + handler (JSON errors), Db helpers, Tokens (random + SHA-256)
+  devices/      DeviceApiController (what the ESP32 calls), DeviceService (snapshot, heartbeat)
+  events/       EventService (idempotent ingest, search, acknowledge), EventController
+  credentials/  CredentialService (register/edit/revoke, unknown cards), AuthorizationRevision
+  racks/        RackService (racks, devices, token rotation, live status)
+  reports/      ReportService (GROUP BY counts)
+  audit/        AuditService (who changed what)
+```
+Pattern: **Controller** (HTTP in/out, validation) → **Service** (rules + SQL) → database.
+
+## Security: three filter chains
+`SecurityConfig.java` defines three independent rule sets, checked in order:
+
+| Order | Paths | Who | How |
+|---|---|---|---|
+| 1 | `/api/v1/devices/**` | ESP32s | `Authorization: Bearer <token>`, checked against the device ID **in the URL** |
+| 2 | `/api/**` | people | HTTP Basic. `GET` = ADMIN or VIEWER; anything else = ADMIN |
+| 3 | everything else | anyone | static dashboard files (contain no data) + CSP header |
+
+Things worth understanding:
+- **The URL's device ID is not proof.** A valid token for rack A on rack B's URL → 401. (Tested.)
+- **Passwords → bcrypt** (slow on purpose; humans pick guessable passwords).
+  **Device tokens → SHA-256** (fast is fine; 256 random bits can't be guessed).
+  Either way the database never holds the real secret.
+- **401 without `WWW-Authenticate`**: otherwise the browser pops up its own ugly
+  login box. Our JS shows its own login screen instead.
+- **CSRF off — why that's OK:** CSRF tricks your browser into sending a request
+  *with your cookies* to another site. We use no cookies or sessions; the
+  `Authorization` header is added by our own JS and a malicious site can't add it.
+- **CSP** (`default-src 'self'`) means the browser only runs scripts from our
+  server. Even if some text slipped into the page as HTML, inline `<script>` wouldn't run.
+- Role checks in the UI (hiding buttons) are convenience only. The server enforces them.
+
+## Plain SQL (JdbcClient) instead of JPA
+JPA/Hibernate maps Java objects to tables automatically. We switched to
+writing SQL directly with Spring's `JdbcClient` because:
+- the key trick, `INSERT … ON CONFLICT (id) DO NOTHING`, is plain SQL;
+- JSONB columns (`details`, `last_heartbeat`) are easy in SQL, fiddly in JPA;
+- for learning, you can see exactly what hits the database.
+Trade-off: more typing for simple CRUD.
+
+## Idempotent event upload
+The ESP32 can't know if a request that timed out actually reached the server,
+so it retries. To make retries harmless:
+1. The device gives each event a UUID **once**, when it's created.
+2. The server inserts with `ON CONFLICT (id) DO NOTHING` (primary key = that UUID).
+3. Response: `{"accepted": 1, "duplicates": 0}` → on a retry `{"accepted": 0, "duplicates": 1}`.
+The database enforces it, so it even works if two uploads race. (Tested.)
+
+## Don't trust device clocks
+If `occurredAt` is missing, > 5 min in the future, or > 30 days old, we store
+the server's receive time and `time_source = 'SERVER'` (shown as `*` in the dashboard).
+
+## Authorization revision
+One-row table `authorization_state`. Every credential change runs
+`revision = GREATEST(revision + 1, now_in_ms)`: always bigger than before, and
+about "now", so a wiped database still starts above what a rack remembers.
+
+## Live rack status (computed, not stored)
+`UNKNOWN` (no device) → `OFFLINE` (no heartbeat/request in 3 min) →
+`WARNING` (unacknowledged MEDIUM+ event in 24 h, or a heartbeat reporting a
+sensor fault) → otherwise `ONLINE`. See `RackService.status()`.
+
+## Migrations (Flyway)
+`src/main/resources/db/migration/V1__…sql`, `V2__…sql` run once each, in
+order, recorded in `flyway_schema_history`. **Never edit a migration that has
+run anywhere; add `V3__…`.** Flyway checksums old files and refuses to start if they changed.
+
+## Embedded Postgres
+`io.zonky.test:embedded-postgres` downloads real PostgreSQL 17 binaries via
+Maven and starts them inside the app (`embedded` profile). Data lives in
+`~/.hokiebikerack/pgdata`, deliberately **outside OneDrive** (syncing live DB
+files can corrupt them). Delete that folder for a fresh start.
+Tests use the same thing with a temporary folder and a random port.
+
+## Tests
+`ApiIntegrationTest` uses MockMvc (fake HTTP requests, real app, real DB).
+It covers logins, roles, device token swap, token rotation, hashing,
+idempotency, clock trust, validation, the full tap → register → revoke flow,
+all-racks cards, heartbeat → status, tamper → WARNING → acknowledge, reports.
+
+## Ideas for later
+Rate limiting on login, real user accounts (DB + hashed passwords), HTTPS
+(reverse proxy with a certificate), signing snapshots so racks can verify them
+even over plain HTTP, event retention/cleanup, pagination on credentials.
