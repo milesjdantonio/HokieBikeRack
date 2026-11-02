@@ -1,0 +1,94 @@
+<!doctype html>
+<!--
+  MOCKUP of the new admin site (docs/notes/frontend-plan.md). Sample data, nothing is saved.
+  Style A: /mockups/admin.html?style=a   Style B: /mockups/admin.html?style=b
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Admin Mockup · HokieBikeRack</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../vendor/maplibre/maplibre-gl.css">
+  <link rel="stylesheet" href="../app/css/tokens.css">
+  <link rel="stylesheet" href="mockup.css">
+  <script src="../vendor/rive/rive.js" defer></script>
+  <script type="module" src="mockup.js"></script>
+</head>
+<body>
+  <div class="mock-switch" role="group" aria-label="Mockup style">
+    <span>Mockup</span>
+    <a href="?style=a" data-style="a">A: Same Family</a>
+    <a href="?style=b" data-style="b">B: Control Room</a>
+  </div>
+
+  <header class="top">
+    <a class="brand" href="#"><span class="brand-mark" id="brand-mark"></span>HokieBikeRack</a>
+    <nav class="top-nav" aria-label="Pages">
+      <a href="#" aria-current="page">Map</a>
+      <a href="#">Reports</a>
+      <a href="#">Audit Log</a>
+    </nav>
+    <span class="top-user">admin</span>
+  </header>
+
+  <main class="stage">
+    <section class="map-area" aria-label="Campus map">
+      <div id="map" class="map"></div>
+
+      <!-- Rack panel: slides in over the left of the map when a rack is clicked -->
+      <aside class="panel" aria-label="Squires North">
+        <button class="panel-close" type="button" aria-label="Close">Close</button>
+        <h1 class="panel-title">Squires North</h1>
+        <p class="panel-sub">Squires Student Center, north side</p>
+        <p class="state state-alarm">Alarm. Someone is tampering with this rack.</p>
+
+        <h2>Alerts</h2>
+        <div class="list">
+          <div class="item"><span class="item-main"><b>Tamper alarm</b><span>Jolt of 1.31 g, 2 min ago</span></span><button class="btn">Handled</button></div>
+          <div class="item"><span class="item-main"><b>Rack bumped</b><span>Jolt of 0.62 g, 3 min ago</span></span><button class="btn">Handled</button></div>
+        </div>
+
+        <h2>Lock Module</h2>
+        <div class="list">
+          <div class="item"><span class="item-main"><b>ESP32 #1</b><span>Online, all sensors working, signal -55 dBm</span></span><span class="ok">Online</span></div>
+        </div>
+
+        <h2>Cards That Work Here</h2>
+        <div class="list">
+          <div class="item"><span class="item-main"><b>Demo Rider</b><span>Used 2 min ago</span></span><button class="btn btn-quiet">Turn Off</button></div>
+        </div>
+
+        <div class="panel-actions">
+          <button class="btn">Move on Map</button>
+          <button class="btn">Add Lock Module</button>
+        </div>
+      </aside>
+
+      <!-- New-alarm pop-up (Rive) -->
+      <div class="alarm-pop" role="alert">
+        <div class="alarm-scene" id="alarm-scene"></div>
+        <div class="alarm-text">
+          <b>Tamper alarm</b>
+          <span>Squires North, just now</span>
+          <div class="alarm-actions"><button class="btn btn-primary">Open Rack</button><button class="btn btn-quiet">Dismiss</button></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="term" aria-label="Terminal">
+      <div class="term-head"><span>terminal</span><span class="term-live">live</span></div>
+      <div class="term-feed" id="feed"></div>
+      <div class="term-prompt"><span class="term-ps">admin $</span><span class="term-typed">tap newman</span><span class="term-cursor"></span></div>
+    </section>
+
+    <footer class="needs" aria-label="Needs you">
+      <span class="needs-title">Needs You</span>
+      <span class="needs-item"><span class="dot dot-alarm"></span>2 tamper alerts at Squires North <button class="link">Open</button></span>
+      <span class="needs-item"><span class="dot dot-warn"></span>New card tapped at Newman Library <button class="link">Register</button></span>
+      <span class="needs-item"><span class="dot dot-off"></span>Torgersen Hall North offline 14 min <button class="link">Open</button></span>
+    </footer>
+  </main>
+</body>
+</html>

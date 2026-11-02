@@ -142,7 +142,7 @@ Miles: "can the user click for where the bike rack is, similar to how it's done 
 Miles: the Phase 8/9 pages were hard to navigate and the design wasn't good. We agreed the target
 page by page first. Two front ends: an admin site (map + terminal panel, replaces the terminal page
 and staff app) and the rider app (no login to see racks).
-- [ ] 10.1 Two static admin mockups (A same family, B control room) at /mockups/admin.html → Miles picks
+- [x] 10.1 Two static admin mockups (A same family, B control room) at /mockups/admin.html → Miles picks
 - [ ] 10.2 Public read-only racks API for riders (+ tests)
 - [ ] 10.3 Admin site: shell, map, terminal feed
 - [ ] 10.4 Rack panel (status, alerts, module, cards, register, move, add module)
