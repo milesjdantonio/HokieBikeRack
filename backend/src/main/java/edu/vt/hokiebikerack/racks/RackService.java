@@ -40,7 +40,7 @@ public class RackService {
   // One query for all racks. The sub-selects count devices and recent alerts per rack.
   // "Open alerts" = MEDIUM or worse, not acknowledged, received in the last 24 h.
   private static final String RACK_SUMMARY_SQL = """
-      SELECT r.id, r.name, r.location_description, r.created_at,
+      SELECT r.id, r.name, r.location_description, r.latitude, r.longitude, r.created_at,
         (SELECT count(*) FROM devices d WHERE d.rack_id = r.id AND d.active) AS device_count,
         (SELECT count(*) FROM devices d WHERE d.rack_id = r.id AND d.active
             AND d.last_seen_at > :onlineSince) AS online_count,
@@ -69,6 +69,7 @@ public class RackService {
     long alerts = rs.getLong("open_alerts");
     boolean fault = rs.getBoolean("sensor_fault");
     return new RackSummary(Db.uuid(rs, "id"), rs.getString("name"), rs.getString("location_description"),
+        rs.getObject("latitude", Double.class), rs.getObject("longitude", Double.class),
         status(devices, online, alerts, fault), devices, online, Db.instant(rs, "last_seen_at"), alerts, fault,
         Db.instant(rs, "created_at"));
   }
@@ -118,14 +119,20 @@ public class RackService {
         .orElseThrow(() -> ApiException.notFound("Device"));
   }
 
+  private static void checkPair(Double lat, Double lng) {
+    if ((lat == null) != (lng == null)) throw ApiException.badRequest("Send latitude and longitude together");
+  }
+
   @Transactional
   public RackDetail create(CreateRack req, String actor) {
+    checkPair(req.latitude(), req.longitude());
     UUID id = UUID.randomUUID();
     jdbc.sql("""
-            INSERT INTO racks (id, name, location_description, status)
-            VALUES (:id, :name, :loc, 'UNKNOWN')
+            INSERT INTO racks (id, name, location_description, status, latitude, longitude)
+            VALUES (:id, :name, :loc, 'UNKNOWN', :lat, :lng)
             """)
         .param("id", id).param("name", req.name().trim()).param("loc", blankToNull(req.locationDescription()))
+        .param("lat", req.latitude()).param("lng", req.longitude())
         .update();
     audit.record(actor, "RACK_CREATED", "RACK", id, Map.of("name", req.name().trim()));
     return get(id);
@@ -134,19 +141,26 @@ public class RackService {
   @Transactional
   public RackDetail update(UUID rackId, UpdateRack req, String actor) {
     get(rackId);  // 404 if missing
+    checkPair(req.latitude(), req.longitude());
+    boolean clear = Boolean.TRUE.equals(req.clearCoordinates());
     Map<String, Object> changes = new LinkedHashMap<>();
     if (req.name() != null) changes.put("name", req.name().trim());
     if (req.locationDescription() != null) changes.put("locationDescription", req.locationDescription().trim());
+    if (req.latitude() != null) changes.put("coordinates", req.latitude() + "," + req.longitude());
+    if (clear) changes.put("coordinates", "removed");
     jdbc.sql("""
             UPDATE racks SET
               name = COALESCE(:name, name),
               location_description = CASE WHEN :locSet THEN :loc ELSE location_description END,
+              latitude = CASE WHEN :clear THEN NULL ELSE COALESCE(:lat, latitude) END,
+              longitude = CASE WHEN :clear THEN NULL ELSE COALESCE(:lng, longitude) END,
               updated_at = :now
             WHERE id = :id
             """)
         .param("name", req.name() == null ? null : req.name().trim())
         .param("locSet", req.locationDescription() != null)
         .param("loc", blankToNull(req.locationDescription()))
+        .param("clear", clear).param("lat", req.latitude()).param("lng", req.longitude())
         .param("now", Db.ts(clock.instant()))
         .param("id", rackId)
         .update();

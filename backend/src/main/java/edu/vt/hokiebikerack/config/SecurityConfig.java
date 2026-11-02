@@ -39,6 +39,7 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 @Configuration
 public class SecurityConfig {
   private static final Logger log = LoggerFactory.getLogger(SecurityConfig.class);
+  private static final String MAP_HOSTS = "https://tiles.openfreemap.org https://server.arcgisonline.com";
 
   /** 401 as JSON, WITHOUT "WWW-Authenticate: Basic" so browsers don't pop up a login box. */
   private static final AuthenticationEntryPoint JSON_401 = (request, response, ex) ->
@@ -95,10 +96,16 @@ public class SecurityConfig {
             // Only load scripts/styles/images from our own server. Blocks most
             // cross-site scripting (XSS) even if some text slipped through unescaped.
             // 'wasm-unsafe-eval' lets the Rive animation runtime (WebAssembly) start; it does
-            // NOT allow eval() of JavaScript strings.
+            // NOT allow eval() of JavaScript strings. The rack map loads tiles from two providers
+            // only (OpenFreeMap streets/buildings, Esri satellite), the same ones as Miles's
+            // TerraSim; MapLibre runs its worker from this server.
             .contentSecurityPolicy(c -> c.policyDirectives(
-                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data:; "
-                    + "object-src 'none'; frame-ancestors 'none'"))
+                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; "
+                    + "connect-src 'self' " + MAP_HOSTS + "; img-src 'self' data: blob: " + MAP_HOSTS + "; "
+                    + "object-src 'none'; frame-ancestors 'self'"))
+            // The admin terminal shows the customer app inside a phone frame, so our own pages
+            // may frame each other. Other sites still can't frame us (clickjacking).
+            .frameOptions(fo -> fo.sameOrigin())
             .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
         .build();
   }

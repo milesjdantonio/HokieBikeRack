@@ -319,4 +319,19 @@ class ApiIntegrationTest {
     // The token is never returned again by normal reads.
     assertThat(detail.toString()).doesNotContain(d.token());
   }
+
+  @Test
+  void rackCoordinatesComeAsAPairAndCanBeCleared() throws Exception {
+    JsonNode rack = json(jsonBody(post("/api/v1/racks"),
+        "{\"name\":\"Mapped\",\"latitude\":37.2297,\"longitude\":-80.4199}").with(ADMIN), 201);
+    assertThat(rack.at("/rack/latitude").asDouble()).isEqualTo(37.2297);
+    String id = rack.at("/rack/id").asText();
+    // Only one of the two -> rejected.
+    json(jsonBody(patch("/api/v1/racks/" + id), "{\"latitude\":37.0}").with(ADMIN), 400);
+    // Out of range -> rejected.
+    json(jsonBody(patch("/api/v1/racks/" + id), "{\"latitude\":95,\"longitude\":0}").with(ADMIN), 400);
+    JsonNode cleared = json(jsonBody(patch("/api/v1/racks/" + id), "{\"clearCoordinates\":true}").with(ADMIN), 200);
+    assertThat(cleared.at("/rack/latitude").isNull()).isTrue();
+    assertThat(cleared.at("/rack/name").asText()).isEqualTo("Mapped");
+  }
 }

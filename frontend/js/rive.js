@@ -14,7 +14,7 @@ if (R) {
   R.Rive.suppressDeprecationWarnings = ["default-state-machine", "state-machine-inputs", "state-machines-param"];
 }
 
-const MACHINES = { pulse: "Pulse", lock: "Lock", alarm: "Alarm" };
+const MACHINES = { pulse: "Pulse", lock: "Lock", alarm: "Alarm", rack: "Rack", logo: "Logo" };
 const live = new Set();
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -31,12 +31,13 @@ function sweep() {
   }
 }
 
-export function riveIcon(name, { size = 24, inputs = {}, label = "" } = {}) {
+export function riveIcon(name, opts = {}) {
+  const { size = 24, inputs = {}, label = "" } = opts;
   sweep();
   const el = document.createElement("span");
   el.className = `rive-icon rive-${name}`;
   el.style.width = `${size}px`;   // CSSOM styles are allowed by our CSP
-  el.style.height = `${size}px`;
+  el.style.height = `${opts.height || size}px`;
   if (label) { el.setAttribute("role", "img"); el.setAttribute("aria-label", label); }
   else el.setAttribute("aria-hidden", "true");
   const fallback = document.createElement("span");
@@ -49,12 +50,14 @@ export function riveIcon(name, { size = 24, inputs = {}, label = "" } = {}) {
   };
   applyFallback();
 
-  const handle = { el, ready: false, inputs: {}, set, destroy, seen: false, created: Date.now() };
+  const handle = { el, ready: false, inputs: {}, set, fire, destroy, seen: false, created: Date.now() };
   if (!R) return handle;
 
   const canvas = document.createElement("canvas");
-  canvas.width = size * 2;   // 2x for sharp edges on high-DPI screens
-  canvas.height = size * 2;
+  // Drawn at the screen's pixel density (at least 2x) so edges stay sharp.
+  const dpr = Math.max(2, Math.ceil(window.devicePixelRatio || 1));
+  canvas.width = size * dpr;
+  canvas.height = (opts.height || size) * dpr;
   let instance = null;
   try {
     instance = new R.Rive({
@@ -91,6 +94,16 @@ export function riveIcon(name, { size = 24, inputs = {}, label = "" } = {}) {
     if (instance && reducedMotion()) {
       instance.play();
       setTimeout(() => instance && instance.pause(), 1200);
+    }
+  }
+
+  /** Fires a trigger input (e.g. the logo's `play`). */
+  function fire(key) {
+    const input = handle.inputs[key];
+    if (input && input.fire) input.fire();
+    if (instance && reducedMotion()) {
+      instance.play();
+      setTimeout(() => instance && instance.pause(), 1600);
     }
   }
 

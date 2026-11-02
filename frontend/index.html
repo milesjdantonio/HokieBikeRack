@@ -1,62 +1,22 @@
 <!doctype html>
 <!--
-  HokieBikeRack admin dashboard. Served by the backend at http://localhost:8080/
-  No build step: plain HTML + CSS + JavaScript modules (js/*.js).
-  How it works: docs/notes/frontend.md
+  HokieBikeRack admin terminal. One black page, everything stacked, like a terminal.
+  Served by the backend at http://localhost:8080/. Logic: js/terminal.js. Look: css/terminal.css.
+  The customer app lives at /app (and opens here in a phone frame).
 -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>HokieBikeRack Admin</title>
+  <meta name="color-scheme" content="dark">
+  <title>hokiebikerack admin</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="styles.css">
-  <!-- Rive runtime (animated icons). Loads before main.js because both are deferred. -->
-  <script src="vendor/rive/rive.js" defer></script>
-  <script type="module" src="js/main.js"></script>
+  <link rel="stylesheet" href="css/terminal.css">
+  <script type="module" src="js/terminal.js"></script>
 </head>
 <body>
-  <!-- Login screen. Shown until /api/v1/me accepts the username + password. -->
-  <section id="login-view" class="login" hidden>
-    <form id="login-form" class="login-card" autocomplete="on">
-      <div id="login-lock" class="login-lock"></div>
-      <p class="eyebrow">SMART RACK MANAGEMENT</p>
-      <h1>HokieBikeRack</h1>
-      <p class="muted">Sign in with the admin or viewer account set on the backend.</p>
-      <label>Username <input name="username" autocomplete="username" required value="admin"></label>
-      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
-      <p id="login-error" class="form-error" role="alert"></p>
-      <button type="submit">Sign in</button>
-      <p class="fine">Forgot it? The backend prints generated passwords in its log at startup.</p>
-    </form>
-  </section>
-
-  <!-- Main app. -->
-  <div id="app-view" hidden>
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">SMART RACK MANAGEMENT</p>
-        <h1>HokieBikeRack</h1>
-      </div>
-      <div class="topbar-actions">
-        <span id="live-indicator" class="chip"><span id="live-text">Live</span></span>
-        <span id="user-chip" class="chip"></span>
-        <button id="app-preview-button" class="secondary" type="button">📱 App preview</button>
-        <button id="logout-button" class="ghost light" type="button">Sign out</button>
-      </div>
-    </header>
-    <nav class="tabs" aria-label="Sections">
-      <a href="#overview" data-view="overview">Overview</a>
-      <a href="#events" data-view="events">Events</a>
-      <a href="#racks" data-view="racks">Racks</a>
-      <a href="#cards" data-view="cards">Cards</a>
-      <a href="#reports" data-view="reports">Reports</a>
-      <a href="#audit" data-view="audit">Audit log</a>
-    </nav>
-    <main id="view" tabindex="-1"></main>
-    <footer>HokieBikeRack prototype · local demo · not a security-certified lock system</footer>
-  </div>
-
-  <div id="toasts" class="toasts" aria-live="polite"></div>
+  <main id="term" class="term">
+    <noscript><p>hokiebikerack admin needs JavaScript.</p></noscript>
+  </main>
 </body>
 </html>
