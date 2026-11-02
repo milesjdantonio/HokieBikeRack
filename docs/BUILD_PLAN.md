@@ -1,0 +1,113 @@
+# HokieBikeRack — full build plan and progress tracker
+
+**Read this first if you are resuming work (human or Claude).**
+This file is the single source of truth for "what's done / what's next".
+Every step ends with: tick the box here → commit → `git push`. If a session
+runs out of usage mid-step, the next session starts at the first unticked box.
+
+- Branch: `feature/full-stack-demo` (open a PR into `main` on GitHub when ready)
+- Light demo due: **Tuesday 2026-11-10**
+- Started: 2026-11-02
+
+## How to resume (copy/paste for a new Claude session)
+> Read `docs/BUILD_PLAN.md` and continue from the first unchecked step on branch
+> `feature/full-stack-demo`. Follow the decisions listed there. After each step,
+> tick it, commit, and push.
+
+Useful commands (Windows, from repo root):
+- Firmware build: `~/.platformio/penv/Scripts/pio.exe run -d firmware`
+- Firmware PC tests: `~/.platformio/penv/Scripts/pio.exe test -d firmware -e native`
+- Backend tests: `cd backend && mvn -q test`
+- Backend run (embedded DB): `cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=embedded`
+
+---
+
+## Decisions (confirmed by Miles on 2026-11-02)
+
+| Topic | Decision |
+|---|---|
+| Board | Generic ESP32 dev board (`esp32dev`), Arduino core 3.3 |
+| NFC | PN532 over **I2C** (shares bus with accelerometer) |
+| Accelerometer | **MPU-6050 (GY-521)**, I2C 0x68 |
+| Servo | MG90S on a **separate 5 V supply**, grounds tied. Real driver written but **off by default** (`HBR_ENABLE_SERVO 0`) until bench test |
+| Lock mode | **Momentary**: allowed card → unlock 5 s → auto re-lock |
+| Lights | Separate **red + green LEDs** with 220–330 Ω resistors |
+| Sound | **Active buzzer** (on/off only), switched by an NPN transistor |
+| Tamper response | 1st detection → **warning** (red blinks + quick chirps). Continues within the escalation window → **alarm** (flash red + siren **10 s**). Never moves the lock. |
+| Offline policy | Saved card list valid **72 h** after it was issued; after that every card is denied (fail-secure) |
+| Demo Wi-Fi | **Phone hotspot** (WPA2-Personal). Plain HTTP allowed only with an explicit opt-in flag for the local demo |
+| Database | PostgreSQL. Dev/demo uses **embedded Postgres** profile (no install). Real Postgres still supported |
+| Admin login | **ADMIN** (can change things) + **VIEWER** (read-only), set via env vars |
+| Card enrollment | Tap unknown card → dashboard shows "unknown card" → admin clicks **Register**. Raw UID never leaves the ESP32; only an HMAC-SHA256 "credential reference" |
+| Dashboard | Opened on the laptop (`http://localhost:8080`), served by the backend |
+| App preview | Button opens a **phone-style app view** with **Rider** and **Admin** tabs, **live data**, no fake bike occupancy |
+
+Defaults I chose (change freely — listed in `docs/notes/open-questions.md`):
+pins (SDA 21, SCL 22, servo 13, green LED 25, red LED 26, buzzer 27), servo
+angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
+
+---
+
+## Steps
+
+### Phase 0 — setup
+- [x] 0.1 Create branch `feature/full-stack-demo` and push
+- [x] 0.2 Confirm existing firmware builds (it did, flash was 92% full)
+- [x] 0.3 Switch to `huge_app.csv` partition, add PN532 + ESP32Servo libs, add `native` test env
+- [x] 0.4 Write this plan file and push
+
+### Phase 1 — firmware logic (pure C++, tested on the PC) — `firmware/lib/hbr_logic/`
+- [ ] 1.1 `access_rules`: snapshot struct, allow/deny decision with reasons (no snapshot / expired / clock unknown / not listed), rollback protection, snapshot JSON parsing
+- [ ] 1.2 `tamper_detector`: baseline (slow average), deviation threshold, consecutive-sample filter, warning → alarm escalation, cooldowns
+- [ ] 1.3 `feedback_player`: non-blocking LED/buzzer patterns with priorities (boot, granted, denied, tamper warning, tamper alarm, not-ready blip)
+- [ ] 1.4 `lock_controller`: momentary unlock timer (millis wrap-safe)
+- [ ] 1.5 `util`: UUID v4 formatting, ISO-8601 UTC formatting, hex encoding, card debounce
+- [ ] 1.6 Unity tests in `firmware/test/` — all pass with `pio test -e native`
+
+### Phase 2 — firmware hardware glue — `firmware/src/`
+- [ ] 2.1 `pins.h` pin map + `config.example.h` (new flags: servo enable, allow HTTP, card key, angles)
+- [ ] 2.2 `card_reader.cpp`: PN532 over I2C (Adafruit lib), short timeouts, detect missing reader
+- [ ] 2.3 `credential_ref.cpp`: HMAC-SHA256(card key, UID) via mbedtls → hex reference
+- [ ] 2.4 `tamper_sensor.cpp`: MPU-6050 raw register driver (wake, ±4 g, read 6 bytes)
+- [ ] 2.5 `lock.cpp`: ESP32Servo output behind `HBR_ENABLE_SERVO`, else simulated prints
+- [ ] 2.6 `feedback.cpp`: drive LEDs + buzzer from `feedback_player`
+- [ ] 2.7 `event_queue.cpp`: FreeRTOS mutex, UUID ids, size cap
+- [ ] 2.8 `auth_store.cpp`: current snapshot in RAM + `/snapshot.json` on LittleFS, mutex
+- [ ] 2.9 `backend_sync.cpp`: **separate FreeRTOS task** (fixes KNOWNBUGS #1), Wi-Fi, NTP, snapshot fetch, heartbeat, event upload, HTTPS or opt-in HTTP
+- [ ] 2.10 `main.cpp`: wire it all together; events: DEVICE_BOOT, ACCESS_GRANTED, ACCESS_DENIED, TAMPER_WARNING, TAMPER_ALARM, SENSOR_FAULT
+- [ ] 2.11 Build passes for servo OFF and servo ON configs; update KNOWNBUGS.txt
+
+### Phase 3 — backend (Java 21 / Spring Boot) — `backend/`
+- [ ] 3.1 pom: security, embedded Postgres (zonky) for tests + `embedded` profile
+- [ ] 3.2 Flyway `V2`: device token hash, event credential ref/time source, authorization revision counter, audit log, unique indexes
+- [ ] 3.3 Domain + repositories (racks, devices, credentials, permissions, events, audit)
+- [ ] 3.4 Security: device bearer-token filter for `/api/v1/devices/**`; HTTP Basic ADMIN/VIEWER for admin API; JSON 401/403 (no browser popup)
+- [ ] 3.5 Device API: events (idempotent `ON CONFLICT DO NOTHING`), authorization-snapshot, heartbeat
+- [ ] 3.6 Admin API: racks, device provisioning/token rotation, credentials (+ register from unknown card, revoke, rack permissions), events (filters + paging), reports, audit log, `/me`
+- [ ] 3.7 Validation + error handling (ProblemDetail)
+- [ ] 3.8 Serve `frontend/` from the backend at `/`
+- [ ] 3.9 Integration tests (auth, idempotency, snapshot, roles, validation) — `mvn test` green
+
+### Phase 4 — frontend — `frontend/`
+- [ ] 4.1 Login screen, API client, loading/error/empty states
+- [ ] 4.2 Overview (metrics, rack health, recent events, auto refresh)
+- [ ] 4.3 Events page with filters; unknown-card → Register flow
+- [ ] 4.4 Racks page: create rack, provision device (token shown once + config.h snippet)
+- [ ] 4.5 Credentials page: list, edit, rack permissions, revoke
+- [ ] 4.6 Reports + audit log
+- [ ] 4.7 Viewer role: hide/disable edit actions (backend still enforces)
+- [ ] 4.8 **App preview** (phone frame) with Rider + Admin tabs, live data
+
+### Phase 5 — simulator + end-to-end check
+- [ ] 5.1 `tools/device_simulator.py`: acts like an ESP32 (heartbeat, snapshot, card taps, tamper) using the same HMAC + API
+- [ ] 5.2 Run backend (embedded) + simulator + browser check of the dashboard; fix bugs
+
+### Phase 6 — notes and docs
+- [ ] 6.1 `docs/notes/` learning notes: overview (card tap end-to-end), firmware, backend, frontend, decisions, open questions
+- [ ] 6.2 `docs/notes/hardware-test-checklist.md` + wiring guide for tomorrow's bench test
+- [ ] 6.3 Update README, API.md (real contract), HARDWARE_DECISIONS, PROJECT_STATUS, SECURITY, component READMEs
+- [ ] 6.4 Demo script for Tuesday (`docs/DEMO_SCRIPT.md`)
+- [ ] 6.5 Final push; summarize for Miles
+
+## Progress log
+- 2026-11-02: Phase 0 done. Questions answered (see Decisions).
