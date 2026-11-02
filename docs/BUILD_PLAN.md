@@ -8,6 +8,7 @@ runs out of usage mid-step, the next session starts at the first unticked box.
 - Branch: `feature/full-stack-demo` (open a PR into `main` on GitHub when ready)
 - Light demo due: **Tuesday 2026-11-10**
 - Started: 2026-11-02
+- Commits: do NOT add a "Co-Authored-By: Claude" line (Miles asked, 2026-11-02)
 
 ## How to resume (copy/paste for a new Claude session)
 > Read `docs/BUILD_PLAN.md` and continue from the first unchecked step on branch
@@ -65,17 +66,17 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - [x] 1.6 Unity tests in `firmware/test/` — all pass with `pio test -e native`
 
 ### Phase 2 — firmware hardware glue — `firmware/src/`
-- [ ] 2.1 `pins.h` pin map + `config.example.h` (new flags: servo enable, allow HTTP, card key, angles)
-- [ ] 2.2 `card_reader.cpp`: PN532 over I2C (Adafruit lib), short timeouts, detect missing reader
-- [ ] 2.3 `credential_ref.cpp`: HMAC-SHA256(card key, UID) via mbedtls → hex reference
-- [ ] 2.4 `tamper_sensor.cpp`: MPU-6050 raw register driver (wake, ±4 g, read 6 bytes)
-- [ ] 2.5 `lock.cpp`: ESP32Servo output behind `HBR_ENABLE_SERVO`, else simulated prints
-- [ ] 2.6 `feedback.cpp`: drive LEDs + buzzer from `feedback_player`
-- [ ] 2.7 `event_queue.cpp`: FreeRTOS mutex, UUID ids, size cap
-- [ ] 2.8 `auth_store.cpp`: current snapshot in RAM + `/snapshot.json` on LittleFS, mutex
-- [ ] 2.9 `backend_sync.cpp`: **separate FreeRTOS task** (fixes KNOWNBUGS #1), Wi-Fi, NTP, snapshot fetch, heartbeat, event upload, HTTPS or opt-in HTTP
-- [ ] 2.10 `main.cpp`: wire it all together; events: DEVICE_BOOT, ACCESS_GRANTED, ACCESS_DENIED, TAMPER_WARNING, TAMPER_ALARM, SENSOR_FAULT
-- [ ] 2.11 Build passes for servo OFF and servo ON configs; update KNOWNBUGS.txt
+- [x] 2.1 `pins.h` pin map + `config.example.h` (new flags: servo enable, allow HTTP, card key, angles)
+- [x] 2.2 `card_reader.cpp`: PN532 over I2C (Adafruit lib), short timeouts, detect missing reader
+- [x] 2.3 `credential_ref.cpp`: HMAC-SHA256(card key, UID) via mbedtls → hex reference
+- [x] 2.4 `tamper_sensor.cpp`: MPU-6050 raw register driver (wake, ±4 g, read 6 bytes)
+- [x] 2.5 `lock.cpp`: ESP32Servo output behind `HBR_ENABLE_SERVO`, else simulated prints
+- [x] 2.6 `feedback.cpp`: drive LEDs + buzzer from `feedback_player`
+- [x] 2.7 `event_queue.cpp`: FreeRTOS mutex, UUID ids, size cap
+- [x] 2.8 `auth_store.cpp`: current snapshot in RAM + `/snapshot.json` on LittleFS, mutex
+- [x] 2.9 `backend_sync.cpp`: **separate FreeRTOS task** (fixes KNOWNBUGS #1), Wi-Fi, NTP, snapshot fetch, heartbeat, event upload, HTTPS or opt-in HTTP
+- [x] 2.10 `main.cpp`: wire it all together; events: DEVICE_BOOT, ACCESS_GRANTED, ACCESS_DENIED, TAMPER_WARNING, TAMPER_ALARM, SENSOR_FAULT
+- [x] 2.11 Build passes for servo OFF and servo ON configs; update KNOWNBUGS.txt
 
 ### Phase 3 — backend (Java 21 / Spring Boot) — `backend/`
 - [ ] 3.1 pom: security, embedded Postgres (zonky) for tests + `embedded` profile
@@ -112,3 +113,4 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 ## Progress log
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
 - 2026-11-02: Phase 1 done. 37 PC unit tests pass (`pio test -e native`).
+- 2026-11-02: Phase 2 done. Firmware builds with servo OFF and ON (`PLATFORMIO_BUILD_FLAGS=-DHBR_ENABLE_SERVO=1`). Not yet run on hardware.

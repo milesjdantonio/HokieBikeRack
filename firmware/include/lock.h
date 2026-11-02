@@ -1,13 +1,18 @@
 #pragma once
 // The lock (MG90S servo). Owner: Person A
-// SIMULATED for now: these only print messages. Real servo output stays
-// disabled until power and mechanical safety are reviewed
-// (see docs/HARDWARE_DECISIONS.md).
+// Momentary mode: lockRequestUnlock() opens it, and it re-locks by itself
+// after HBR_UNLOCK_DURATION_MS (timing logic: lib/hbr_logic/src/lock_controller.h).
+//
+// HBR_ENABLE_SERVO 0 (default): SIMULATED, only prints messages.
+// HBR_ENABLE_SERVO 1: really moves the servo. Only after the bench test in
+// docs/notes/hardware-test-checklist.md.
+#include <stdint.h>
 
-// Call once from setup().
+// Call once from setup(). With the servo enabled, this moves it to LOCKED.
 void lockSetup();
 
-// Unlocks, then re-locks automatically after a few seconds (see lockUpdate).
+// Unlocks, then re-locks automatically (see lockUpdate). A second call while
+// open restarts the timer.
 void lockRequestUnlock();
 void lockRequestLock();
 
@@ -17,3 +22,9 @@ void lockUpdate();
 // What the lock was last told to do. This is NOT proof the lock actually
 // moved: the servo has no position feedback.
 bool lockIsCommandedUnlocked();
+
+// True while unlocked or for `graceMs` after re-locking. Used to ignore
+// tamper jolts while a rider pulls their bike out.
+bool lockRecentlyUnlocked(uint32_t graceMs);
+
+bool lockServoEnabled();

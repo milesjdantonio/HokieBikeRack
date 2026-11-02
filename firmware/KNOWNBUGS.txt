@@ -1,17 +1,41 @@
 HokieBikeRack firmware - known bugs and limitations
 ==================================================
 
-1. Event upload can freeze the main loop for up to 8 seconds
-   Where:  src/backend_sync.cpp, syncEvents()
-   What:   Every 15 seconds, queued events are uploaded with http.POST().
-           That call waits for the server to answer, with an 8-second timeout
-           (http.setTimeout(8000)). While it waits, loop() is stuck, so card
-           taps, tamper checks, and the lock's auto re-lock timer are not handled.
-   When:   Only when Wi-Fi is connected and there are events to send, and the
-           backend is slow or unreachable. A fast, healthy server answers quickly.
-   Impact: A card tap may be ignored, a shake may be missed, or the lock may stay
-           open a few seconds longer than UNLOCK_DURATION_MS.
-   Possible fixes (later):
-     - Lower the timeout (e.g. 2-3 seconds) as a quick improvement.
-     - Run uploads in a separate FreeRTOS task so loop() never waits on the network.
-   Status: Open. Acceptable for the demo.
+1. [FIXED 2026-11-02] Event upload could freeze the main loop for up to 8 seconds
+   Was:    syncEvents() ran http.POST() inside loop() with an 8 s timeout, so card
+           taps, tamper checks and the re-lock timer stopped while it waited.
+   Fix:    All network work now runs in its own FreeRTOS task on core 0
+           (src/backend_sync.cpp). loop() never waits on the network. The event
+           queue and card list are protected by mutexes because two tasks use them.
+           Timeouts are also shorter (4 s connect, 5 s reply).
+   Lesson: see docs/notes/firmware.md, "Two tasks at once".
+
+2. Not tested on real hardware yet (2026-11-02)
+   What:   Everything compiles and the logic passes 37 PC unit tests, but the
+           PN532 polling, MPU-6050 driver, servo, LEDs and buzzer have not run on
+           the real board. Follow docs/notes/hardware-test-checklist.md.
+   Status: Open - bench test planned.
+
+3. After a full power loss with NO Wi-Fi, every card is denied
+   Why:    The ESP32 has no battery-backed clock. Until NTP sets the time, the
+           rack can't tell whether its saved card list has expired, so it fails
+           secure (denies). Soft resets keep the time; power cuts do not.
+   Fix later: add an RTC module (e.g. DS3231) with a coin cell.
+   Status: Accepted for the demo.
+
+4. Card UID matching can be fooled by cloned cards
+   Why:    The PN532 reads the card's public ID. Cheap "magic" cards can copy it.
+           We hash the ID (HMAC) so it isn't exposed, but a clone hashes the same.
+   Fix later: cards with real cryptography (e.g. MIFARE DESFire EV2/EV3).
+   Status: Accepted for the demo; documented in docs/SECURITY.md.
+
+5. Servo position is not verified
+   Why:    A 3-wire MG90S has no position feedback. "Unlocked" means "told to
+           unlock", not "is unlocked". A jam is not detected.
+   Status: Accepted for the demo.
+
+6. Plain HTTP for the local demo
+   Why:    With HBR_ALLOW_INSECURE_HTTP 1, traffic to the laptop isn't encrypted,
+           so someone on the same hotspot could read the device token. Use https
+           + HBR_API_ROOT_CA beyond a supervised demo.
+   Status: Accepted for the demo (phone hotspot with a password).
