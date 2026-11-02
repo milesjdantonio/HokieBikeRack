@@ -1,0 +1,28 @@
+# Open questions / defaults to confirm
+
+Defaults chosen while building. None are blocking. Change them if the team prefers otherwise.
+
+## Hardware (check during the bench test)
+| Default | Where to change | Question |
+|---|---|---|
+| Pins: SDA 21, SCL 22, servo 13, green 25, red 26, buzzer 27 | `firmware/include/pins.h` | OK for your exact board? (All are safe, non-strapping pins on ESP32-WROOM DevKits.) |
+| Servo angles: locked 0°, unlocked 90° | `config.h` `HBR_SERVO_*_DEG` | What angles does the real latch need? Find them with the linkage disconnected. |
+| Unlock time 5 s | `device_config.h` `HBR_UNLOCK_DURATION_MS` | Long enough to pull a bike/lock free? |
+| Tamper threshold 0.35 g, 3 samples | `lib/hbr_logic/src/tamper_detector.h` | Too sensitive / not enough once mounted? Use `accel` to measure. |
+| Escalation window 30 s, cooldown 3 s | same file | Feels right? |
+| Grace period after unlock 10 s | `HBR_TAMPER_GRACE_MS` | Long enough to remove a bike? |
+| Card type | — | What do the kit cards report? (4-byte = MIFARE Classic, 7-byte = NTAG/Ultralight usually.) Log shows `[card] read a N-byte card ID`. |
+| PN532 power 3.3 V | wiring guide | Keep at 3.3 V so its I2C pull-ups don't put 5 V on ESP32 pins. |
+
+## Product / policy
+- **72 h offline** confirmed. Should *expired* (`validUntil`) cards also be capped to the snapshot? Today a card whose end date passes while a rack is offline keeps working until the snapshot expires.
+- Should the rack show a different light when it's running on an *old* list (offline > 1 h)? Today: idle blip is green when ready, red when not ready.
+- Should acknowledging alerts require a note ("checked, it was a delivery truck")?
+- Do we want per-person admin accounts before any wider demo?
+- Should the dashboard hide SIM events by default once real hardware is in use?
+
+## Security (before anything beyond a supervised demo)
+- HTTPS (needs a certificate + `HBR_API_ROOT_CA` on the racks).
+- Turn off `HBR_ENABLE_SERIAL_SIM` and `HBR_ALLOW_INSECURE_HTTP`.
+- Cards with real cryptography (DESFire) if clone resistance matters.
+- Login rate limiting.

@@ -50,6 +50,7 @@ void handleCard(const CardId &card) {
     return;
   }
   if (!debouncer.shouldProcess(ref, millis())) return;  // same card still on the reader
+  Serial.printf("[card] read a %u-byte card ID\n", card.length);  // length only, never the ID
 
   hbr::AccessResult result = accessPolicyCheck(ref);
   JsonDocument details;
@@ -179,6 +180,32 @@ void handleSerial() {
       Serial.println("ok: event queue cleared");
     } else if (line == "reboot") {
       ESP.restart();
+    } else if (line == "i2c-scan") {
+      // Who answers on the I2C bus? Expect 0x24 (PN532) and 0x68 (MPU-6050).
+      Serial.println("Scanning I2C bus...");
+      int found = 0;
+      for (uint8_t addr = 1; addr < 127; addr++) {
+        Wire.beginTransmission(addr);
+        if (Wire.endTransmission() == 0) {
+          Serial.printf("  found 0x%02X%s\n", addr,
+                        addr == 0x24 ? " (PN532)" : addr == 0x68 ? " (MPU-6050)" : addr == 0x69 ? " (MPU-6050, AD0 high)" : "");
+          found++;
+        }
+      }
+      Serial.printf("%d device(s). None? Check SDA=21, SCL=22, power, GND, and the PN532 I2C switches.\n", found);
+    } else if (line == "accel") {
+      // 2 seconds of raw readings, for calibrating the tamper threshold.
+      // (This command pauses the rack for 2 s; it's only for testing.)
+      for (int i = 0; i < 20; i++) {
+        AccelReading r;
+        if (tamperSensorRead(r)) {
+          Serial.printf("  x=%+.3f y=%+.3f z=%+.3f g   deviation from baseline %.3f g (threshold %.2f)\n",
+                        r.x, r.y, r.z, tamper.lastDeviationG(), tamper.config().thresholdG);
+        } else {
+          Serial.println("  no reading (sensor fault?)");
+        }
+        delay(100);
+      }
 #if HBR_ENABLE_SERIAL_SIM
     } else if (line.startsWith("tap ")) {
       // Pretend a card with this ID (hex) was tapped. Goes through the exact
@@ -197,7 +224,7 @@ void handleSerial() {
       Serial.println("ok: simulating a 0.4 s shake");
 #endif
     } else if (line.length()) {
-      Serial.println("commands: status, sync, forget-snapshot, clear-queue, reboot"
+      Serial.println("commands: status, sync, forget-snapshot, clear-queue, reboot, i2c-scan, accel"
 #if HBR_ENABLE_SERIAL_SIM
                      ", tap <hex-id>, shake"
 #endif
