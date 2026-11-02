@@ -217,6 +217,16 @@ function openPhone(mode) {
 
 // ---------- $ racks ----------
 
+/** "37.2297, -80.4199" -> {latitude, longitude}; "" -> null; anything else -> throws. */
+function parseCoords(text) {
+  const t = text.trim();
+  if (!t) return null;
+  const m = t.match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+  if (!m) throw new Error("coordinates look like 37.2297, -80.4199 (latitude, longitude)");
+  return { latitude: Number(m[1]), longitude: Number(m[2]) };
+}
+const coordsText = (r) => (r.latitude != null ? `${r.latitude}, ${r.longitude}` : "");
+
 async function loadRacks() {
   const racks = await api("/racks");
   state.racks = racks;
@@ -255,24 +265,29 @@ async function loadRacks() {
 function newRackForm() {
   const name = h("input", { required: true, maxlength: 120, class: "wide", placeholder: "e.g. torgersen hall north" });
   const loc = h("input", { maxlength: 255, class: "wide" });
+  const coords = h("input", { placeholder: "37.2297, -80.4199", spellcheck: "false" });
   const done = () => { state.newRack = false; loadRacks(); };
   return h("form", { class: "form", onSubmit: async (e) => {
     e.preventDefault();
-    const res = await run(S.racks, () => api("/racks", { method: "POST", body: { name: name.value.trim(), locationDescription: loc.value.trim() || null } }),
+    let where;
+    try { where = parseCoords(coords.value); } catch (err) { say(S.racks, `error: ${err.message}`, "err"); return; }
+    const res = await run(S.racks, () => api("/racks", { method: "POST", body: { name: name.value.trim(), locationDescription: loc.value.trim() || null, ...(where || {}) } }),
       `created rack "${name.value.trim()}"`);
     if (res) { state.openRack = res.rack.id; done(); loadStatus(); }
   } },
   h("div", { class: "row" }, field("name", name), field("location", loc)),
+  h("div", { class: "row" }, field("map lat, lng", coords), h("span", { class: "note" }, "optional. right-click a spot in google maps to copy it.")),
   h("div", { class: "row" }, h("button", { type: "submit", class: "btn" }, "create"), btn("cancel", done)));
 }
 
 function rackDetail(rack, revision) {
   const r = rack.rack;
-  const parts = [h("p", { class: "note" }, `id ${r.id}   location: `, h("span", { class: "dim" }, r.locationDescription || "not set"))];
+  const parts = [h("p", { class: "note" }, `id ${r.id}   location: `, h("span", { class: "dim" }, r.locationDescription || "not set"),
+    "   map: ", r.latitude != null ? h("span", { class: "dim" }, coordsText(r)) : h("span", { class: "warn" }, "not placed (won't show on the app's map)"))];
   const form = state.rackForm && state.rackForm.rackId === r.id ? state.rackForm.kind : null;
   if (state.canEdit && !form) {
     parts.push(h("p", { class: "actions" },
-      btn("rename", () => { state.rackForm = { rackId: r.id, kind: "rename" }; loadRacks(); }),
+      btn("edit", () => { state.rackForm = { rackId: r.id, kind: "rename" }; loadRacks(); }),
       btn("add device", () => { state.rackForm = { rackId: r.id, kind: "device" }; loadRacks(); })));
   }
   if (form === "rename") parts.push(renameForm(r));
@@ -328,13 +343,18 @@ function health(hb) {
 function renameForm(r) {
   const name = h("input", { value: r.name, required: true, maxlength: 120, class: "wide" });
   const loc = h("input", { value: r.locationDescription || "", maxlength: 255, class: "wide" });
+  const coords = h("input", { value: coordsText(r), placeholder: "37.2297, -80.4199", spellcheck: "false" });
   const done = () => { state.rackForm = null; loadRacks(); };
   return h("form", { class: "form", onSubmit: async (e) => {
     e.preventDefault();
-    const res = await run(S.racks, () => api(`/racks/${r.id}`, { method: "PATCH", body: { name: name.value.trim(), locationDescription: loc.value.trim() } }), "saved");
+    let where;
+    try { where = parseCoords(coords.value); } catch (err) { say(S.racks, `error: ${err.message}`, "err"); return; }
+    const body = { name: name.value.trim(), locationDescription: loc.value.trim(), ...(where || { clearCoordinates: true }) };
+    const res = await run(S.racks, () => api(`/racks/${r.id}`, { method: "PATCH", body }), "saved");
     if (res) done();
   } },
   h("div", { class: "row" }, field("name", name), field("location", loc)),
+  h("div", { class: "row" }, field("map lat, lng", coords), h("span", { class: "note" }, "empty = not on the map")),
   h("div", { class: "row" }, h("button", { type: "submit", class: "btn" }, "save"), btn("cancel", done)));
 }
 

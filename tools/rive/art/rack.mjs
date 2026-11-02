@@ -2,7 +2,7 @@
 // HokieBikeRack lock module on the hoop's right leg (status LED, NFC reader pad, locking bolt).
 //
 // State machine "Rack", number input `state`:
-//   0 idle     the LED breathes green (the rack is live and ready)
+//   0 idle     the LED is steady green (ready). Nothing pulses: Miles found pulsing reads as AI-made.
 //   1 granted  a card slides to the reader, NFC waves, LED turns green, the bolt pulls back
 //   2 denied   card, waves, LED blinks red twice, the card shakes and leaves
 //   3 alarm    the rack shudders, the LED flashes red/orange, rings spread from it
@@ -142,7 +142,7 @@ export default function build() {
   const waveFade = (start) => [[0, 0, 'hold'], [start, 0, EASE.out], [start + 8, 0.9, EASE.in], [start + 28, 0]];
 
   const anims = posed(ab, {
-    idle: { duration: 180, loop: 1 },
+    idle: { duration: 30 },
     granted: { duration: 160 },
     denied: { duration: 130 },
     alarm: { duration: 48, loop: 1 },
@@ -165,7 +165,6 @@ export default function build() {
       granted: waveFade(24 + i * 6), denied: waveFade(24 + i * 6),
     } })),
     { target: ledFill, prop: 'colorValue', base: hex(GREEN, 1), poses: {
-      idle: [[0, hex(GREEN, 0.45), EASE.inOut], [90, hex(GREEN, 1), EASE.inOut], [180, hex(GREEN, 0.45)]],
       granted: [[0, hex(GREEN, 0.7), 'hold'], [46, hex(GREEN, 0.7), EASE.out], [52, hex(GREEN_HI, 1)]],
       denied: [[0, hex(GREEN, 0.7), 'hold'], [46, hex(RED, 1), 'hold'], [58, hex(DARK_LED, 1), 'hold'], [66, hex(RED, 1), 'hold'],
         [78, hex(DARK_LED, 1), 'hold'], [86, hex(RED, 1), 'hold'], [112, hex(RED, 1), EASE.inOut], [130, hex(GREEN, 0.7)]],

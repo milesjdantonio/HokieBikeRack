@@ -1,9 +1,9 @@
 // Small animated icons made with Rive (https://rive.app). Adapted from Miles's TerraSim
 // project. The .riv files are built from code in tools/rive/art/ (node tools/rive/build.mjs).
 //
-//   const icon = riveIcon("pulse", { size: 18, inputs: { status: 1 }, label: "online" });
-//   container.append(icon.el);
-//   icon.set("status", 2);
+//   const scene = riveIcon("rack", { size: 600, height: 400, inputs: { state: 0 }, label: "The rack" });
+//   container.append(scene.el);
+//   scene.set("state", 1);   // play "granted"
 //
 // If Rive or the file can't load, the element keeps a plain CSS fallback, so nothing breaks.
 // Needs 'wasm-unsafe-eval' in the Content-Security-Policy (the Rive runtime is WebAssembly).
@@ -14,7 +14,7 @@ if (R) {
   R.Rive.suppressDeprecationWarnings = ["default-state-machine", "state-machine-inputs", "state-machines-param"];
 }
 
-const MACHINES = { pulse: "Pulse", lock: "Lock", alarm: "Alarm", rack: "Rack", logo: "Logo" };
+const MACHINES = { rack: "Rack", logo: "Logo" };
 const live = new Set();
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -113,9 +113,4 @@ export function riveIcon(name, opts = {}) {
     instance = null;
   }
   return handle;
-}
-
-/** Rack status word -> pulse input (0 offline, 1 online, 2 warning). */
-export function pulseStatus(status) {
-  return { ONLINE: 1, WARNING: 2 }[status] ?? 0;
 }

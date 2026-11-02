@@ -1,0 +1,51 @@
+/* HokieBikeRack customer app tokens. One dark ground with lit things on it (TerraSim);
+   every colour, face, radius and easing lives here (SchmollCrossword). See docs/notes/design.md. */
+
+@font-face { font-family: "Fraunces"; src: url("../fonts/fraunces-latin-300-normal.woff2") format("woff2"); font-weight: 300; font-display: swap; }
+@font-face { font-family: "Fraunces"; src: url("../fonts/fraunces-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Hanken Grotesk"; src: url("../fonts/hanken-grotesk-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Hanken Grotesk"; src: url("../fonts/hanken-grotesk-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+@font-face { font-family: "Hanken Grotesk"; src: url("../fonts/hanken-grotesk-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+
+:root {
+  color-scheme: dark;
+
+  /* ground and surfaces: separated by small steps in tone, never by lines */
+  --ground: #0e0a0c;
+  --panel: #17111a;
+  --panel-2: #211823;
+  --panel-3: #2c212f;
+  --stage: #120d10;          /* behind the rack scene */
+
+  /* ink */
+  --ink: #f4eef0;
+  --muted: #c9bcc2;          /* 10.5:1 on ground */
+  --faint: #9e8f97;          /* 6.1:1 on ground; never for body text */
+
+  /* one accent, for the action */
+  --accent: #e5751f;         /* Burnt Orange */
+  --accent-hover: #f08837;
+  --accent-ink: #1c0c02;
+
+  /* identity, not decoration */
+  --maroon: #861f41;
+  --maroon-2: #6e1835;
+
+  /* state */
+  --positive: #5fd39a;
+  --warning: #ffc46b;
+  --negative: #ff8f8f;
+
+  --display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --text: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  --radius: 16px;
+  --radius-small: 10px;
+  --gap: 2px;                /* the tone step between list rows */
+  --margin: clamp(16px, 4vw, 32px);
+  --bar-h: 64px;
+  --tabs-h: 68px;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --float-shadow: 0 18px 50px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.35); /* only for what floats */
+}

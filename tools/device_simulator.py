@@ -172,8 +172,10 @@ class Device:
 
 def cmd_setup(args):
     headers = admin_headers(args)
-    status, rack = request("POST", f"{args.url}/api/v1/racks",
-                           {"name": args.rack_name, "locationDescription": args.location}, headers)
+    body = {"name": args.rack_name, "locationDescription": args.location}
+    if args.lat is not None and args.lng is not None:
+        body.update(latitude=args.lat, longitude=args.lng)  # puts the rack on the app's map
+    status, rack = request("POST", f"{args.url}/api/v1/racks", body, headers)
     if status != 201:
         sys.exit(f"Creating rack failed ({status}): {rack}")
     rack_id = rack["rack"]["id"]
@@ -273,6 +275,9 @@ def main():
     s = sub.add_parser("setup", help="create a rack + simulated device")
     s.add_argument("--rack-name", default="Demo Rack (simulated)")
     s.add_argument("--location", default="Squires Student Center, north side")
+    # Approximate spot outside Squires Student Center, Virginia Tech.
+    s.add_argument("--lat", type=float, default=37.2297)
+    s.add_argument("--lng", type=float, default=-80.4185)
     s.set_defaults(fn=cmd_setup)
 
     t = sub.add_parser("tap", help="tap a card with this UID (hex)")

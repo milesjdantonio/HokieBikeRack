@@ -1,33 +1,32 @@
-// Rive lab page: mounts each icon large and adds buttons for its inputs.
-// window.__rive reports what loaded (used by automated checks).
+// Rive lab: mounts each animation and adds a button per input value or trigger.
+// window.__rive reports what loaded (used by the automated checks).
+import { h } from "../js/dom.js";
 import { riveIcon } from "../js/rive.js";
-import { h } from "../js/ui.js";
 
-const ICONS = [
-  { name: "rack", size: 360, height: 240, inputs: { state: 0 }, controls: [["state", [0, 1, 2, 3, 4], ["idle", "granted", "denied", "alarm", "offline"]]] },
-  { name: "logo", inputs: {}, controls: [] , triggers: ["play"] },
-  { name: "pulse", inputs: { status: 1 }, controls: [["status", [0, 1, 2], ["offline", "online", "warning"]]] },
-  { name: "lock", inputs: { unlocked: false }, controls: [["unlocked", [false, true], ["locked", "unlocked"]]] },
-  { name: "alarm", inputs: { active: false }, controls: [["active", [false, true], ["idle", "ALARM"]]] },
+const ANIMATIONS = [
+  { name: "rack", size: 600, height: 400, inputs: { state: 0 },
+    controls: [["state", [0, 1, 2, 3, 4], ["Idle", "Granted", "Denied", "Alarm", "Offline"]]] },
+  { name: "logo", size: 160, inputs: {}, controls: [], triggers: [["play", "Play"]] },
 ];
 
 window.__rive = {};
 const lab = document.querySelector("#lab");
-for (const def of ICONS) {
-  const icon = riveIcon(def.name, { size: def.size || 128, height: def.height, inputs: def.inputs, label: def.name });
+for (const def of ANIMATIONS) {
+  const anim = riveIcon(def.name, { size: def.size, height: def.height, inputs: def.inputs, label: def.name });
   const report = { name: def.name, loaded: false, inputs: [] };
   window.__rive[def.name] = report;
   const poll = setInterval(() => {
-    if (icon.ready) { report.loaded = true; report.inputs = Object.keys(icon.inputs); clearInterval(poll); }
-    if (icon.el.classList.contains("rive-failed")) { report.error = "load failed"; clearInterval(poll); }
+    if (anim.ready) { report.loaded = true; report.inputs = Object.keys(anim.inputs); clearInterval(poll); }
+    if (anim.el.classList.contains("rive-failed")) { report.error = "load failed"; clearInterval(poll); }
   }, 100);
-  window.__rive[def.name].set = (k, v) => icon.set(k, v);
-  window.__rive[def.name].fire = (k) => icon.fire(k);
-  lab.append(h("section", { class: "panel lab-card" },
+  report.set = (k, v) => anim.set(k, v);
+  report.fire = (k) => anim.fire(k);
+  const stage = h("figure", { class: def.name === "rack" ? "stage" : "lab-mark" }, anim.el);
+  lab.append(h("section", { class: "block" },
     h("h2", {}, `${def.name}.riv`),
-    h("div", { class: "lab-stage" }, icon.el),
-    h("div", { class: "lab-controls" }, def.controls.map(([key, values, labels]) =>
-      values.map((v, i) => h("button", { type: "button", class: "small secondary", onClick: () => icon.set(key, v) },
-        `${key} = ${labels[i]}`))),
-    (def.triggers || []).map((t) => h("button", { type: "button", class: "small secondary", onClick: () => icon.fire(t) }, `fire ${t}`)))));
+    stage,
+    h("div", { class: "btn-row lab-controls" },
+      def.controls.map(([key, values, labels]) => values.map((v, i) =>
+        h("button", { type: "button", class: "btn btn-small", onClick: () => anim.set(key, v) }, labels[i]))),
+      (def.triggers || []).map(([t, label]) => h("button", { type: "button", class: "btn btn-small", onClick: () => anim.fire(t) }, label)))));
 }
