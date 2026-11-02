@@ -62,3 +62,25 @@ by `display:flex` on a `<td>`, missing favicon.
 **Lesson:** `el.append(arrayOfNodes)` converts the array to text. Use `el.append(...nodes)`.
 Another one: a form control named `name` is shadowed by `form.name` (the form's
 own name attribute). Use `form.elements.name`.
+
+## Animated icons with Rive (Phase 7)
+Idea and tooling borrowed from Miles's **TerraSim** project.
+- **Rive** is an animation format with *state machines*: an animation reacts to inputs
+  (`unlocked = true`, `status = 2`) instead of just playing.
+- The `.riv` files are **generated from code**: `tools/rive/art/{lock,alarm,pulse}.mjs` describe
+  shapes, keyframes and state machines; `node tools/rive/build.mjs` writes
+  `frontend/assets/rive/*.riv`. Animations are reviewable in Git like any code.
+- `frontend/js/rive.js` mounts one: `riveIcon("lock", { size: 26, inputs: { unlocked: true } })`.
+  If Rive fails, a CSS fallback (dot / emoji) stays visible, so nothing breaks.
+- Icons are cleaned up automatically when a view re-renders (`sweep()`), otherwise every
+  10-second refresh would leak a canvas + animation loop.
+- The runtime is WebAssembly, so the CSP needs `'wasm-unsafe-eval'` (allows compiling WASM,
+  still blocks `eval()` of JavaScript strings).
+- Respects *reduce motion*: animations pause after settling, and CSS motion is disabled.
+- Preview them at http://localhost:8080/lab/rive.html.
+
+| File | Input | Where it's used |
+|---|---|---|
+| `pulse.riv` | `status` 0 offline / 1 online / 2 warning | Live chip, rack cards, device rows, app rack lists |
+| `lock.riv` | `unlocked` true/false | Login (opens on sign-in), device health (from heartbeat), rider app "Try a tap" |
+| `alarm.riv` | `active` true/false | Rack cards with open alerts, device health, app alert lists |

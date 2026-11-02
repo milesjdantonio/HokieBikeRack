@@ -6,6 +6,7 @@
 import { api } from "./api.js";
 import { badge, clear, eventName, eventSummary, h, relativeTime, shortRef, toast } from "./ui.js";
 import { openRegisterDialog, revokeCard } from "./views/cards.js";
+import { pulseStatus, riveIcon } from "./rive.js";
 
 const RIDER_STATUS = {
   ONLINE: { text: "Ready", hint: "Tap your card on the reader to unlock.", kind: "ok" },
@@ -79,7 +80,7 @@ export function openAppPreview(ctx) {
       return appShell("Find a rack", "Live lock status", h("ul", { class: "app-list" }, racks.length ? racks.map((r) => {
         const s = RIDER_STATUS[r.status] || RIDER_STATUS.UNKNOWN;
         return h("li", {}, h("button", { type: "button", class: "app-row", onClick: () => { state.rackId = r.id; draw(); } },
-          h("span", { class: `dot dot-${s.kind}` }),
+          riveIcon("pulse", { size: 24, inputs: { status: pulseStatus(r.status) } }).el,
           h("span", { class: "app-row-main" }, h("strong", {}, r.name), h("small", {}, r.locationDescription || s.hint)),
           h("span", { class: "app-row-side" }, badge(s.text, s.kind), h("small", {}, relativeTime(r.lastSeenAt)))));
       }) : h("li", { class: "app-empty" }, "No racks yet.")), tabs);
@@ -94,9 +95,20 @@ export function openAppPreview(ctx) {
     const [unlocks, tamper] = await Promise.all([
       api("/events", { query: { rackId: rack.id, type: "ACCESS_GRANTED", from: since, size: 1 } }),
       api("/events", { query: { rackId: rack.id, type: "TAMPER", from: since, size: 3 } })]);
+    const lock = riveIcon("lock", { size: 64, inputs: { unlocked: false }, label: "Lock" });
+    let demoTimer = null;
+    const tryIt = h("button", { type: "button", class: "app-chip-button", onClick: () => {
+      // Shows what a rider sees after a good tap: open for 5 s, then it locks itself.
+      lock.set("unlocked", true);
+      tryIt.textContent = "Unlocked · 5 s";
+      clearTimeout(demoTimer);
+      demoTimer = setTimeout(() => { lock.set("unlocked", false); tryIt.textContent = "Try a tap"; }, 5000);
+    } }, "Try a tap");
     return [
       h("button", { type: "button", class: "app-back", onClick: () => { state.rackId = null; draw(); } }, "‹ All racks"),
-      h("div", { class: `app-hero hero-${s.kind}` }, h("p", { class: "app-hero-title" }, s.text), h("p", {}, s.hint)),
+      h("div", { class: `app-hero hero-${s.kind}` },
+        h("div", { class: "app-hero-text" }, h("p", { class: "app-hero-title" }, s.text), h("p", {}, s.hint)),
+        h("div", { class: "app-hero-lock" }, lock.el, tryIt)),
       h("div", { class: "app-card" }, h("h3", {}, "How to unlock"),
         h("ol", {}, h("li", {}, "Hold your card flat on the reader."),
           h("li", {}, "Green light + beep = unlocked for 5 seconds."),
@@ -156,7 +168,7 @@ export function openAppPreview(ctx) {
     }
     return [h("p", { class: "app-fine" }, note),
       items.length ? h("ul", { class: "app-list" }, items.map((e) => h("li", { class: "app-alert" },
-        h("span", { class: `dot dot-${e.eventType === "TAMPER_ALARM" ? "danger" : "warn"}` }),
+        riveIcon("alarm", { size: 30, inputs: { active: e.eventType === "TAMPER_ALARM" && !e.acknowledgedAt } }).el,
         h("span", { class: "app-row-main" }, h("strong", {}, e.eventType === "TAMPER_ALARM" ? "Alarm: rack being tampered with" : "Rack was bumped"),
           h("small", {}, `${e.rackName} · ${relativeTime(e.occurredAt)}`)))))
         : h("p", { class: "app-empty" }, "No tamper alerts. 👍")];
@@ -176,8 +188,7 @@ export function openAppPreview(ctx) {
           h("div", { class: "stat warn" }, h("b", {}, String(counts.WARNING)), h("small", {}, "warning")),
           h("div", { class: "stat muted" }, h("b", {}, String(counts.OFFLINE + counts.UNKNOWN)), h("small", {}, "offline"))),
         h("ul", { class: "app-list" }, racks.map((r) => {
-          const kind = { ONLINE: "ok", WARNING: "warn" }[r.status] || "muted";
-          return h("li", { class: "app-row" }, h("span", { class: `dot dot-${kind}` }),
+          return h("li", { class: "app-row" }, riveIcon("pulse", { size: 24, inputs: { status: pulseStatus(r.status) } }).el,
             h("span", { class: "app-row-main" }, h("strong", {}, r.name), h("small", {}, `${r.onlineDeviceCount}/${r.deviceCount} devices · ${relativeTime(r.lastSeenAt)}`)),
             r.openAlerts ? badge(`${r.openAlerts} alert`, "warn") : null);
         })),
@@ -188,7 +199,7 @@ export function openAppPreview(ctx) {
       const items = alerts.items.filter((e) => ["MEDIUM", "HIGH", "CRITICAL"].includes(e.severity));
       return appShell("Live alerts", `${items.length} need review`, items.length ? h("ul", { class: "app-list" }, items.map((e) =>
         h("li", { class: "app-alert" },
-          h("span", { class: `dot dot-${e.severity === "MEDIUM" ? "warn" : "danger"}` }),
+          riveIcon("alarm", { size: 30, inputs: { active: e.severity !== "MEDIUM" } }).el,
           h("span", { class: "app-row-main" }, h("strong", {}, eventName(e.eventType)), h("small", {}, `${e.rackName} · ${relativeTime(e.occurredAt)} · ${eventSummary(e)}`)),
           ctx.canEdit ? h("button", { type: "button", class: "app-chip-button", onClick: async () => {
             try { await api(`/events/${e.id}/acknowledge`, { method: "POST" }); toast("Handled", "ok"); draw(); } catch (err) { toast(err.message, "error"); }

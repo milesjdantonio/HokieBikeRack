@@ -205,7 +205,9 @@ body.read-only .admin-only { display: none; }
 .app-card h3 { margin-bottom: .35rem; }
 .app-card p, .app-card ol { margin: .2rem 0; }
 .app-card ol { padding-left: 1.2rem; }
-.app-hero { border-radius: 16px; padding: 1rem; color: white; background: #6b7686; }
+.app-hero { border-radius: 16px; padding: 1rem; color: white; background: #6b7686; display: flex; justify-content: space-between; align-items: center; gap: .6rem; }
+.app-hero-lock { display: grid; justify-items: center; gap: .3rem; background: #ffffffe6; border-radius: 14px; padding: .4rem .5rem .5rem; }
+.app-hero-lock .app-chip-button { font-size: .68rem; white-space: nowrap; }
 .app-hero p { margin: 0; }
 .hero-ok { background: linear-gradient(135deg, #1d7a46, #2fa365); }
 .hero-warn { background: linear-gradient(135deg, #c1560d, var(--accent-2)); }
@@ -233,6 +235,40 @@ body.read-only .admin-only { display: none; }
 .stat.ok b { color: var(--ok); }
 .stat.warn b { color: var(--warn); }
 .stat.muted b { color: var(--muted); }
+
+/* ---------- Rive icons (js/rive.js) ----------
+   The canvas appears once Rive loads; until then (or if it fails) the CSS fallback shows. */
+.rive-icon { position: relative; display: inline-block; vertical-align: middle; flex: none; }
+.rive-icon canvas { width: 100%; height: 100%; display: block; }
+.rive-icon.has-rive .rive-fallback { display: none; }
+.rive-fallback { position: absolute; inset: 0; display: grid; place-items: center; line-height: 1; }
+.rive-pulse .rive-fallback::after { content: ""; width: 40%; height: 40%; border-radius: 50%; background: #9aa3af; }
+.rive-pulse[data-status="1"] .rive-fallback::after { background: var(--ok); }
+.rive-pulse[data-status="2"] .rive-fallback::after { background: var(--accent-2); }
+.rive-lock .rive-fallback::after { content: "🔒"; font-size: 55%; }
+.rive-lock[data-unlocked="true"] .rive-fallback::after { content: "🔓"; }
+.rive-alarm .rive-fallback::after { content: "🔔"; font-size: 55%; }
+.rive-alarm[data-active="true"] .rive-fallback::after { content: "🚨"; }
+.chip { display: inline-flex; align-items: center; }
+.chip .rive-icon { margin: -4px 4px -4px -6px; }
+.login-lock { display: flex; justify-content: center; margin-bottom: -.4rem; }
+.rack-card-title { display: flex; align-items: center; gap: .35rem; min-width: 0; }
+.rack-card-badges { display: flex; align-items: center; gap: .25rem; }
+.lock-cell { display: flex; align-items: center; gap: .3rem; }
+.lab-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 1rem; }
+.lab-stage { display: grid; place-items: center; background: var(--page); border-radius: 12px; padding: 1rem; margin: .8rem 0; }
+.lab-controls { display: flex; flex-wrap: wrap; gap: .4rem; }
+
+/* ---------- motion ---------- */
+@keyframes rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.panel, .metric-card, .rack-card { animation: rise-in .35s ease-out both; }
+.toast { animation: rise-in .25s ease-out both; }
+.modal { animation: rise-in .2s ease-out both; }
+.login-card.unlocking { animation: unlock-out .55s ease-in .35s both; }
+@keyframes unlock-out { to { opacity: 0; transform: translateY(-12px) scale(.98); } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-delay: 0s !important; transition-duration: .01ms !important; }
+}
 
 /* ---------- responsive ---------- */
 @media (max-width: 900px) {

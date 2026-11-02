@@ -11,12 +11,15 @@
   <title>HokieBikeRack Admin</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="styles.css">
+  <!-- Rive runtime (animated icons). Loads before main.js because both are deferred. -->
+  <script src="vendor/rive/rive.js" defer></script>
   <script type="module" src="js/main.js"></script>
 </head>
 <body>
   <!-- Login screen. Shown until /api/v1/me accepts the username + password. -->
   <section id="login-view" class="login" hidden>
     <form id="login-form" class="login-card" autocomplete="on">
+      <div id="login-lock" class="login-lock"></div>
       <p class="eyebrow">SMART RACK MANAGEMENT</p>
       <h1>HokieBikeRack</h1>
       <p class="muted">Sign in with the admin or viewer account set on the backend.</p>
@@ -36,7 +39,7 @@
         <h1>HokieBikeRack</h1>
       </div>
       <div class="topbar-actions">
-        <span id="live-indicator" class="chip">Live</span>
+        <span id="live-indicator" class="chip"><span id="live-text">Live</span></span>
         <span id="user-chip" class="chip"></span>
         <button id="app-preview-button" class="secondary" type="button">📱 App preview</button>
         <button id="logout-button" class="ghost light" type="button">Sign out</button>

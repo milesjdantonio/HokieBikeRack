@@ -10,6 +10,7 @@ import * as cards from "./views/cards.js";
 import * as reports from "./views/reports.js";
 import * as audit from "./views/audit.js";
 import { openAppPreview } from "./app-preview.js";
+import { riveIcon } from "./rive.js";
 
 const VIEWS = { overview, events, racks, cards, reports, audit };
 
@@ -17,6 +18,12 @@ const loginView = document.querySelector("#login-view");
 const appView = document.querySelector("#app-view");
 const viewEl = document.querySelector("#view");
 const liveIndicator = document.querySelector("#live-indicator");
+const liveText = document.querySelector("#live-text");
+const livePulse = riveIcon("pulse", { size: 22, inputs: { status: 1 } });
+liveIndicator.prepend(livePulse.el);
+const loginLock = riveIcon("lock", { size: 72, inputs: { unlocked: false }, label: "Locked" });
+document.querySelector("#login-lock").append(loginLock.el);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let current = null;
 const ctx = {
@@ -25,12 +32,14 @@ const ctx = {
   navigate(hash) { window.location.hash = hash; },
   /** Views call this after a successful refresh so the "Live" chip shows the time. */
   markUpdated() {
-    liveIndicator.textContent = `Live · ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
+    liveText.textContent = `Live · ${new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit", second: "2-digit" })}`;
     liveIndicator.classList.remove("chip-error");
+    livePulse.set("status", 1);
   },
   markError() {
-    liveIndicator.textContent = "Backend unreachable";
+    liveText.textContent = "Backend unreachable";
     liveIndicator.classList.add("chip-error");
+    livePulse.set("status", 0);
   },
 };
 
@@ -43,13 +52,21 @@ function showLogin(message = "") {
   document.querySelector("#login-form [name=password]").focus();
 }
 
-async function startApp() {
+async function startApp(fromLogin = false) {
   try {
     ctx.me = await api("/me");
   } catch (err) {
     clearCredentials();
     showLogin(err.status === 401 ? "Wrong username or password." : err.message);
     return;
+  }
+  if (fromLogin) {
+    // Little reward: the padlock opens, then the card slides away.
+    loginLock.set("unlocked", true);
+    document.querySelector("#login-form").classList.add("unlocking");
+    await sleep(900);
+    document.querySelector("#login-form").classList.remove("unlocking");
+    loginLock.set("unlocked", false);
   }
   ctx.canEdit = Boolean(ctx.me.canEdit);
   document.body.classList.toggle("read-only", !ctx.canEdit);
@@ -84,7 +101,7 @@ document.querySelector("#login-form").addEventListener("submit", async (e) => {
   const form = new FormData(e.target);
   setCredentials(form.get("username").trim(), form.get("password"));
   e.target.querySelector("[name=password]").value = "";
-  await startApp();
+  await startApp(true);
 });
 
 document.querySelector("#logout-button").addEventListener("click", () => {

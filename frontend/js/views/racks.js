@@ -1,5 +1,6 @@
 // Racks page: create racks, add ESP32 devices (get their token), see device health.
 import { api } from "../api.js";
+import { riveIcon } from "../rive.js";
 import { badge, clear, confirmDialog, copyText, emptyRow, errorBox, h, loading, modal, panel, relativeTime,
   statusBadge, toast } from "../ui.js";
 
@@ -23,11 +24,13 @@ function heartbeatFacts(hb) {
   if (!hb) return h("span", { class: "muted" }, "no heartbeat yet");
   const ok = (v) => (v === false ? badge("FAULT", "danger") : badge("OK", "ok"));
   return h("div", { class: "hb" },
+    h("span", { class: "lock-cell", title: "What the lock was last told to do (from the heartbeat)" },
+      riveIcon("lock", { size: 26, inputs: { unlocked: Boolean(hb.lockUnlocked) } }).el, hb.lockUnlocked ? "unlocked" : "locked"),
+    hb.alarmActive ? h("span", { class: "lock-cell" }, riveIcon("alarm", { size: 26, inputs: { active: true } }).el, "alarm") : null,
     h("span", {}, "Reader ", ok(hb.readerOk)),
     h("span", {}, "Accel ", ok(hb.accelOk)),
     h("span", {}, "Servo ", hb.servoEnabled ? badge("REAL", "warn") : badge("simulated", "muted")),
     h("span", {}, "Clock ", hb.clockSynced ? badge("set", "ok") : badge("not set", "danger")),
-    hb.alarmActive ? badge("ALARM", "danger") : null,
     hb.wifiRssi != null ? h("span", { class: "muted" }, `Wi-Fi ${hb.wifiRssi} dBm`) : null,
     hb.queueDepth != null ? h("span", { class: "muted" }, `queue ${hb.queueDepth}`) : null,
     hb.snapshotCardCount != null ? h("span", { class: "muted" }, `${hb.snapshotCardCount} cards on device`) : null);
@@ -43,7 +46,9 @@ function rackDetail(rackId, ctx, onChanged) {
         const upToDate = d.authorizationRevision >= revision.revision;
         return h("tr", { class: d.active ? "" : "row-muted" },
           h("td", {}, h("strong", {}, d.label), h("div", { class: "muted small-text mono" }, d.id)),
-          h("td", {}, d.active ? (d.online ? badge("online", "ok") : badge("offline", "muted")) : badge("disabled", "muted")),
+          h("td", {}, h("span", { class: "lock-cell" },
+            riveIcon("pulse", { size: 20, inputs: { status: d.active && d.online ? 1 : 0 } }).el,
+            d.active ? (d.online ? "online" : "offline") : "disabled")),
           h("td", {}, d.firmwareVersion || "—"),
           h("td", { title: d.lastSeenAt || "" }, relativeTime(d.lastSeenAt)),
           h("td", {}, d.lastSeenAt ? (upToDate ? badge("up to date", "ok") : badge("syncing…", "info")) : "—"),

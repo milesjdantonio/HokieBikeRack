@@ -1,0 +1,24 @@
+<!doctype html>
+<!--
+  Rive lab: preview every animation and flip its inputs.
+  Open http://localhost:8080/lab/rive.html (with the backend running).
+  Rebuild the files with: node tools/rive/build.mjs
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>HokieBikeRack · Rive lab</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../vendor/rive/rive.js" defer></script>
+  <script type="module" src="lab.js"></script>
+</head>
+<body>
+  <main>
+    <section class="intro"><h2>Rive lab</h2>
+      <p class="muted">Each animation with its state-machine inputs. Built from <code>tools/rive/art/*.mjs</code>.</p></section>
+    <div id="lab" class="lab-grid"></div>
+  </main>
+</body>
+</html>

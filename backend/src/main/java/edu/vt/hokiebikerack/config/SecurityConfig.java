@@ -94,8 +94,11 @@ public class SecurityConfig {
         .headers(h -> h
             // Only load scripts/styles/images from our own server. Blocks most
             // cross-site scripting (XSS) even if some text slipped through unescaped.
+            // 'wasm-unsafe-eval' lets the Rive animation runtime (WebAssembly) start; it does
+            // NOT allow eval() of JavaScript strings.
             .contentSecurityPolicy(c -> c.policyDirectives(
-                "default-src 'self'; img-src 'self' data:; object-src 'none'; frame-ancestors 'none'"))
+                "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; img-src 'self' data:; "
+                    + "object-src 'none'; frame-ancestors 'none'"))
             .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
         .build();
   }

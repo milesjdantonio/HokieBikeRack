@@ -4,6 +4,7 @@ import { badge, clear, errorBox, formatTime, h, loading, panel, relativeTime, sh
   toast } from "../ui.js";
 import { openRegisterDialog } from "./cards.js";
 import { eventTable } from "./events.js";
+import { pulseStatus, riveIcon } from "../rive.js";
 
 function metric(label, value, hint, kind = "") {
   return h("article", { class: `metric-card ${kind}` },
@@ -13,7 +14,12 @@ function metric(label, value, hint, kind = "") {
 function rackCard(rack, ctx, refresh) {
   return h("article", { class: `rack-card status-${rack.status.toLowerCase()}` },
     h("div", { class: "rack-card-head" },
-      h("h3", {}, h("a", { href: `#racks?rackId=${rack.id}` }, rack.name)), statusBadge(rack.status)),
+      h("h3", { class: "rack-card-title" },
+        riveIcon("pulse", { size: 22, inputs: { status: pulseStatus(rack.status) }, label: rack.status.toLowerCase() }).el,
+        h("a", { href: `#racks?rackId=${rack.id}` }, rack.name)),
+      h("span", { class: "rack-card-badges" },
+        rack.openAlerts ? riveIcon("alarm", { size: 30, inputs: { active: true }, label: "open tamper or sensor alerts" }).el : null,
+        statusBadge(rack.status))),
     h("p", { class: "muted small-text" }, rack.locationDescription || "No location set"),
     h("dl", { class: "facts" },
       h("dt", {}, "Devices online"), h("dd", {}, `${rack.onlineDeviceCount} / ${rack.deviceCount}`),

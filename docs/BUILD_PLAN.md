@@ -112,10 +112,10 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 
 ### Phase 7 — frontend polish (Miles suggested borrowing from SchmollCrossword + TerraSim)
 Reference patterns: TerraSim `website/js/rive.js` + vendored Rive runtime + `.riv` files built by scripts in `website/tools/rive/`; SchmollCrossword `static/css/app.css` (everything driven by CSS variables), in-page dialogs, canvas FX.
-- [ ] 7.1 Look at TerraSim's Rive setup (runtime loading, CSP needs: wasm) and decide what fits
-- [ ] 7.2 Animated status icons (lock open/close, alarm pulse, online heartbeat) — Rive if practical, CSS/SVG fallback
-- [ ] 7.3 Polish pass: motion on state changes, empty states, app-preview feel; respect prefers-reduced-motion
-- [ ] 7.4 Re-run the headless Edge check (admin + viewer), commit, push
+- [x] 7.1 Look at TerraSim's Rive setup (runtime loading, CSP needs: wasm) and decide what fits
+- [x] 7.2 Animated status icons (lock open/close, alarm pulse, online heartbeat) — Rive if practical, CSS/SVG fallback
+- [x] 7.3 Polish pass: motion on state changes, empty states, app-preview feel; respect prefers-reduced-motion
+- [x] 7.4 Re-run the headless Edge check (admin + viewer), commit, push
 
 ## Progress log
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
@@ -124,4 +124,5 @@ Reference patterns: TerraSim `website/js/rive.js` + vendored Rive runtime + `.ri
 - 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).
 - 2026-11-02: Phase 4 written (vanilla JS modules, no build). Browser check happens in 5.2.
 - 2026-11-02: Phase 5 done. Backend (embedded) + simulator demo + headless-Edge check of every page as admin and viewer: no console errors. Fixed: blank app preview, unreadable Sign out, table action column, favicon 404.
+- 2026-11-02: Phase 7 done. Rive icons (lock, alarm, pulse) generated from code with TerraSim's writer; vendored runtime; CSP adds 'wasm-unsafe-eval'; login unlock animation; subtle motion with reduced-motion support. Lab page /lab/rive.html. Headless checks: no console errors.
 - 2026-11-02: Phase 6 docs done (notes, wiring, checklist, demo script, updated READMEs/API/status/security). Added serial `i2c-scan` + `accel`. Phase 7 added at Miles's suggestion.
