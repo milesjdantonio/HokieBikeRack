@@ -49,7 +49,7 @@ export function openAppPreview(ctx) {
     for (const [m, b] of Object.entries(modeButtons)) b.classList.toggle("active", m === state.mode);
     try {
       const content = state.mode === "rider" ? await riderScreen() : await adminScreen();
-      clear(screen).append(content);
+      clear(screen).append(...[content].flat());  // content may be one node or a list
     } catch (err) {
       clear(screen).append(h("div", { class: "app-body" }, h("p", { class: "app-error" }, err.message)));
     }

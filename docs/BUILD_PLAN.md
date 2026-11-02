@@ -100,8 +100,8 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - [x] 4.8 **App preview** (phone frame) with Rider + Admin tabs, live data
 
 ### Phase 5 — simulator + end-to-end check
-- [ ] 5.1 `tools/device_simulator.py`: acts like an ESP32 (heartbeat, snapshot, card taps, tamper) using the same HMAC + API
-- [ ] 5.2 Run backend (embedded) + simulator + browser check of the dashboard; fix bugs
+- [x] 5.1 `tools/device_simulator.py`: acts like an ESP32 (heartbeat, snapshot, card taps, tamper) using the same HMAC + API
+- [x] 5.2 Run backend (embedded) + simulator + browser check of the dashboard; fix bugs
 
 ### Phase 6 — notes and docs
 - [ ] 6.1 `docs/notes/` learning notes: overview (card tap end-to-end), firmware, backend, frontend, decisions, open questions
@@ -116,3 +116,4 @@ angles (locked 0°, unlocked 90°), unlock 5 s, tamper threshold 0.35 g.
 - 2026-11-02: Phase 2 done. Firmware builds with servo OFF and ON (`PLATFORMIO_BUILD_FLAGS=-DHBR_ENABLE_SERVO=1`). Not yet run on hardware.
 - 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).
 - 2026-11-02: Phase 4 written (vanilla JS modules, no build). Browser check happens in 5.2.
+- 2026-11-02: Phase 5 done. Backend (embedded) + simulator demo + headless-Edge check of every page as admin and viewer: no console errors. Fixed: blank app preview, unreadable Sign out, table action column, favicon 404.

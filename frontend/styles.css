@@ -105,7 +105,9 @@ th { color: var(--muted); font-size: .72rem; text-transform: uppercase; letter-s
 td.empty { color: var(--muted); text-align: center; padding: 1.5rem; white-space: normal; }
 .row-alert { background: #fffaf2; }
 .row-muted td { opacity: .55; }
-.actions-cell { display: flex; gap: .35rem; justify-content: flex-end; }
+/* Keep the cell a real table cell (display:flex here would break the row borders). */
+.actions-cell { text-align: right; }
+.actions-cell > * + * { margin-left: .35rem; }
 
 .filters { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; margin-bottom: .75rem; }
 .pager { display: flex; justify-content: center; align-items: center; gap: 1rem; margin-top: .75rem; }
@@ -223,7 +225,8 @@ body.read-only .admin-only { display: none; }
 .app-id-card.id-bad { background: linear-gradient(135deg, #59606b, #2f343c); }
 .app-id-name { font-size: 1.25rem; font-weight: 800; margin-top: .5rem !important; }
 .app-mini-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .45rem; }
-.app-mini-list li { display: flex; justify-content: space-between; gap: .5rem; align-items: center; }
+.app-mini-list li { display: flex; justify-content: space-between; gap: .5rem; align-items: center; flex-wrap: wrap; }
+.app-mini-list li > span:first-child { white-space: nowrap; }
 .app-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: .5rem; }
 .stat { background: white; border-radius: 14px; padding: .7rem; text-align: center; border: 1px solid var(--line); display: grid; }
 .stat b { font-size: 1.5rem; }

@@ -54,7 +54,7 @@ async function startApp() {
   ctx.canEdit = Boolean(ctx.me.canEdit);
   document.body.classList.toggle("read-only", !ctx.canEdit);
   document.querySelector("#user-chip").textContent =
-    `${ctx.me.username} · ${ctx.canEdit ? "admin" : "read-only viewer"}`;
+    `${ctx.me.username} · ${ctx.canEdit ? "Admin" : "Read-only"}`;
   loginView.hidden = true;
   appView.hidden = false;
   renderRoute();
