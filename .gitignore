@@ -4,6 +4,7 @@
 !.env.example
 **/secrets.h
 **/credentials.h
+firmware/include/config.h
 application-local.yml
 backend/target/
 *.class
