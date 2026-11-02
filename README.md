@@ -1,39 +1,57 @@
 # HokieBikeRack
 
-Smart bike-rack access and tamper-monitoring prototype.
+Smart bike-rack access and tamper monitoring: an ESP32 rack that reads NFC
+cards, unlocks a servo latch for allowed riders, sounds an alarm when shaken,
+and reports everything to a Spring Boot backend with a live admin dashboard.
+
+**Status (Nov 2026):** full end-to-end prototype for a supervised local demo.
+Software is complete and tested (37 firmware logic tests, 14 backend
+integration tests, browser-checked dashboard). The hardware has **not** been bench-tested yet;
+see [docs/notes/hardware-test-checklist.md](docs/notes/hardware-test-checklist.md).
+The servo output is **off by default** until that test. Not a security-certified lock.
+
+## Quick start (no hardware needed)
+```bash
+# 1. Backend + database + dashboard (needs JDK 21+ and Maven; Postgres is downloaded for you)
+cd backend
+export ADMIN_PASSWORD=change-me VIEWER_PASSWORD=change-me-too   # PowerShell: $env:ADMIN_PASSWORD="change-me"
+mvn spring-boot:run -Dspring-boot.run.profiles=embedded
+# 2. Open http://localhost:8080 and sign in as admin
+# 3. In another terminal, pretend to be a rack:
+python tools/device_simulator.py setup --admin-password change-me
+python tools/device_simulator.py demo  --admin-password change-me
+```
+
+## With the real rack
+1. Wire it: [docs/notes/wiring-guide.md](docs/notes/wiring-guide.md)
+2. `firmware/include/config.example.h` → `config.h` (Wi-Fi, device ID/token from the dashboard, card key)
+3. `cd firmware && pio run -t upload && pio device monitor`
+4. Follow [docs/notes/hardware-test-checklist.md](docs/notes/hardware-test-checklist.md)
 
 ## Stack
-- Firmware: C++ / PlatformIO on a standard ESP32 development board (exact variant TBD)
-- NFC: PN532 reader and cards supplied in a kit (exact card technology TBD)
-- Proposed actuator: MG90S 9 g metal-gear hobby servo
-- Tamper sensing: 3-axis accelerometer (exact module/chip TBD)
-- Backend: Java 21 / Spring Boot REST API
-- Database: PostgreSQL with Flyway migrations
-- Admin UI: HTML/CSS/JavaScript
-
-## Status
-This is a planning scaffold for a local demo, not a finished or security-reviewed lock system. The firmware remains a serial-only placeholder; it does not read NFC, sample the accelerometer, connect to Wi-Fi, or move the servo. The servo power circuit and physical linkage have not been approved.
+| Part | Tech |
+|---|---|
+| Rack | ESP32 DevKit, Arduino core 3 / PlatformIO, PN532 NFC (I2C), MPU-6050 accelerometer (I2C), MG90S servo, red/green LEDs, active buzzer |
+| Backend | Java 21, Spring Boot 3.5, Spring Security, JdbcClient (plain SQL), Flyway |
+| Database | PostgreSQL 17 (embedded for dev/demo, or your own) |
+| Dashboard | HTML/CSS/JavaScript modules, no build step, served by the backend |
+| Simulator | Python 3 standard library |
 
 ## Repository map
-- `firmware/`: ESP32 C++ placeholder and hardware bring-up notes
-- `backend/`: Spring Boot starter, health endpoint, environment config, initial migration
-- `frontend/`: static administrator dashboard using clearly labeled demo data
-- `database/`: PostgreSQL notes
-- `docs/ARCHITECTURE.md`: component boundaries and trust rules
-- `docs/IMPLEMENTATION_PLAN.md`: staged milestones and demo acceptance criteria
-- `docs/HARDWARE_DECISIONS.md`: confirmed parts, safety notes, and open questions
-- `docs/API.md`: proposed device/admin REST contract
-- `docs/SECURITY.md`: security and physical-safety checklist
-- `docs/PROJECT_STATUS.md`: progress and next priorities
-- `CONTRIBUTING.md`: suggested component ownership and shared-team workflow
+- `firmware/`: ESP32 code. `lib/hbr_logic` = PC-tested logic, `src/` = hardware glue. [README](firmware/README.md)
+- `backend/`: REST API, security, migrations, tests. [README](backend/README.md)
+- `frontend/`: admin dashboard + phone-style app preview. [README](frontend/README.md)
+- `tools/device_simulator.py`: fake rack for demos/tests
+- `docs/notes/`: **learning notes**: start with [overview.md](docs/notes/overview.md)
+- `docs/BUILD_PLAN.md`: what was built, in order, with the progress log
+- `docs/API.md`: the REST contract · `docs/ARCHITECTURE.md` · `docs/SECURITY.md`
+- `docs/HARDWARE_DECISIONS.md` · `docs/PROJECT_STATUS.md` · `docs/DEMO_SCRIPT.md`
+- `firmware/KNOWNBUGS.txt`: known limitations
+- `CONTRIBUTING.md`: team workflow
 
-## Architecture
-The ESP32 is intended to make access decisions using a versioned local authorization cache so routine access can continue during Wi-Fi outages, subject to a defined cache-freshness policy. It should queue events locally and upload them through authenticated, idempotent requests when connectivity returns. The backend is the central source of truth for rack records, credentials/permissions, reports, and security events.
-
-## Safety and security
-- Do not treat NFC UID alone as strong authentication; identify the exact card technology first.
-- Do not power the MG90S from an ESP32 GPIO. Bench-test it with a suitable supply and disconnected linkage.
-- A typical three-wire hobby servo does not report actual lock position; commanded angle is not proof of engagement.
-- Do not let accelerometer events directly actuate the servo.
-- Do not commit Wi-Fi credentials, device keys, database passwords, or real access data.
-- Device/admin authentication, snapshot integrity, offline revocation behavior, and full API persistence remain to be implemented.
+## Key safety and security points
+- The rack decides locally from a card list that's valid for **72 h**; after that, or with an unknown clock, it **denies everyone** (fail-secure).
+- Raw card IDs never leave the ESP32; only an HMAC "credential reference" does. Cloned cards are **not** stopped (UID-based cards).
+- Tamper events never move the lock.
+- Never power the servo from an ESP32 pin; use a separate 5 V supply with a shared ground.
+- Never commit `firmware/include/config.h`, `.env` files, or device tokens.

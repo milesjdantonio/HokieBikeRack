@@ -1,25 +1,45 @@
 # ESP32 firmware
 
-C++ / PlatformIO scaffold for a standard ESP32 development board. The team reports a PN532 reader/card kit, an MG90S 9 g hobby servo, and a 3-axis accelerometer. Exact board, NFC card technology, and accelerometer module are not yet known.
+C++ / PlatformIO for an ESP32 DevKit with a PN532 (I2C), MPU-6050 (I2C), MG90S servo,
+red/green LEDs and an active buzzer. Concepts explained in [../docs/notes/firmware.md](../docs/notes/firmware.md).
 
-## Planned responsibilities
-- PN532 credential reading (read-only bring-up first).
-- Local authorization decisions using a versioned, integrity-protected cache.
-- Accelerometer sampling and calibrated tamper-event detection.
-- A bounded servo-control abstraction after power and mechanical safety review.
-- Durable event queue and authenticated API synchronization.
+## Commands (from this folder)
+```bash
+pio test -e native      # 37 logic tests on your PC (needs g++; MSYS2 on Windows)
+pio run                 # build
+pio run -t upload       # flash
+pio device monitor      # serial console, 115200 baud
+```
+On Windows without `pio` on PATH: `~/.platformio/penv/Scripts/pio.exe`.
 
-## Current status
-`src/main.cpp` remains a serial-only placeholder. It does not initialize NFC, Wi-Fi, sensors, or the servo. No lock action is implemented.
+## Setup
+1. Copy `include/config.example.h` to `include/config.h` (git-ignored).
+2. Fill in Wi-Fi, `HBR_API_BASE_URL`, device ID + token (dashboard → Racks → Add device), `HBR_CARD_KEY`.
+3. Leave `HBR_ENABLE_SERVO 0` until the servo bench test passes.
+Without `config.h` it still builds and runs offline, denying every card.
 
-## Bring-up order
-1. Identify exact ESP32 board, PN532 breakout/card type, and accelerometer chip/module.
-2. Decide I2C/SPI interfaces and pin assignments from module documentation.
-3. Test PN532 in read-only mode with non-sensitive sample cards.
-4. Read accelerometer samples, inspect axis orientation/noise, and establish a baseline.
-5. Unit-test authorization and tamper-detection policy without physical lock control.
-6. Bench-test the MG90S with linkage disconnected and a suitable external supply; verify travel and startup behavior.
-7. Integrate a simulated actuator, then only after review conduct supervised mechanism tests.
+## Layout
+- `lib/hbr_logic/`: hardware-free logic (access rules, tamper detector, LED/buzzer patterns, lock timer, helpers)
+- `src/`: hardware glue + `main.cpp`
+- `include/`: headers, `pins.h`, `config.example.h`, `device_config.h`
+- `test/`: Unity tests for `lib/hbr_logic`
+- `KNOWNBUGS.txt`: known limitations
 
-## Servo safety
-Do not power the MG90S from an ESP32 GPIO or assume the board's 3.3 V rail can handle servo transients. Use an appropriately rated supply and confirm voltage/current requirements from the specific servo documentation. Common ground is normally required for the control signal, subject to the selected wiring design. A hobby servo can move unexpectedly at boot; keep it mechanically unloaded during initial tests. Position feedback is not available from a typical three-wire MG90S, so do not assume commanded angle proves that the lock engaged.
+## Serial console
+`status`, `sync`, `forget-snapshot`, `clear-queue`, `reboot`, `i2c-scan`, `accel`,
+and (with `HBR_ENABLE_SERIAL_SIM 1`) `tap <hex-id>`, `shake`.
+
+## What the lights mean
+| Pattern | Meaning |
+|---|---|
+| Red+green flash + beep at power-on | booting |
+| Short green blip every 5 s | ready (has a valid card list, reader OK) |
+| Short red blip every 5 s | not ready (no list yet, expired, no clock, no card key, reader fault) |
+| Green + short beep, green stays 5 s | access granted, unlocked |
+| Red + two beeps | access denied |
+| Red blinks + 3 quick chirps | tamper warning |
+| Flashing red + siren for 10 s | tamper alarm (an allowed card stops it) |
+
+## Safety
+Servo power from a separate 5 V supply, never an ESP32 pin. Test with the linkage
+disconnected first. Commanded position is not proof the latch moved.
