@@ -288,7 +288,9 @@ function rackDetail(rack, revision) {
   if (state.canEdit && !form) {
     parts.push(h("p", { class: "actions" },
       btn("edit", () => { state.rackForm = { rackId: r.id, kind: "rename" }; loadRacks(); }),
-      btn("add device", () => { state.rackForm = { rackId: r.id, kind: "device" }; loadRacks(); })));
+      btn("add device", () => { state.rackForm = { rackId: r.id, kind: "device" }; loadRacks(); }),
+      // Clicking the spot on a satellite map is easier than typing coordinates.
+      btn("place on map", () => window.open(`/app/?mode=staff#rack/${r.id}/place`, "_blank", "noopener"))));
   }
   if (form === "rename") parts.push(renameForm(r));
   if (form === "device") parts.push(addDeviceForm(r));

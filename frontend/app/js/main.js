@@ -94,7 +94,7 @@ function shell() {
 
 function route() {
   if (!ctx.me) return;
-  const [name, arg] = (location.hash.slice(1) || TABS[0][0]).split("/");
+  const [name, arg, arg2] = (location.hash.slice(1) || TABS[0][0]).split("/");
   const tabKey = name === "rack" ? TABS[0][0] : name;
   for (const t of document.querySelectorAll(".tab")) {
     if (t.dataset.tab === tabKey) t.setAttribute("aria-current", "page");
@@ -112,7 +112,7 @@ function route() {
     : { racks: rider.racks, rack: rider.rack, card: rider.card, alerts: rider.alerts, settings };
   const screen = screens[name] || screens[TABS[0][0]];
   try {
-    current = screen(screenEl, ctx, arg) || null;
+    current = screen(screenEl, ctx, arg, arg2) || null;
   } catch (err) {
     screenEl.append(h("p", { class: "empty" }, `Something went wrong: ${err.message}`));
     current = null;

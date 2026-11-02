@@ -236,3 +236,21 @@ button.row:hover, .row.selected { background: var(--panel-2); }
 .lab { display: grid; gap: 8px; max-width: 760px; }
 .lab-mark { width: 160px; height: 160px; }
 .lab-controls { margin-top: 14px; }
+
+/* ---------- placing a rack on the map (app/js/placer.js) ---------- */
+.placing { gap: 12px; border-radius: var(--radius); }
+.map-place { height: clamp(320px, 52vh, 560px); }
+.map-place .maplibregl-canvas { cursor: crosshair; }
+.place-hint { color: var(--ink); }
+.place-readout { min-height: 1.4em; }
+.place-search { position: relative; }
+.place-results { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 6px); display: grid; gap: var(--gap);
+  border-radius: var(--radius-small); overflow: hidden; background: var(--ground); box-shadow: var(--float-shadow); }
+.place-result { display: grid; gap: 2px; padding: 12px 16px; border: 0; background: var(--panel-3); color: var(--ink); text-align: left; cursor: pointer; }
+.place-result:hover, .place-result:focus-visible { background: var(--panel-2); }
+.place-none { padding: 12px 16px; background: var(--panel-3); }
+.marker-pin .marker-disc { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); cursor: grab; }
+.marker-pin:active .marker-disc { cursor: grabbing; }
+.heading-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.heading-row .display { margin: 12px 0 18px; }
+.block .map-small { margin: 14px 0 12px; }

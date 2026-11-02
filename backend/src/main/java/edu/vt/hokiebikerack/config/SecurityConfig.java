@@ -98,10 +98,11 @@ public class SecurityConfig {
             // 'wasm-unsafe-eval' lets the Rive animation runtime (WebAssembly) start; it does
             // NOT allow eval() of JavaScript strings. The rack map loads tiles from two providers
             // only (OpenFreeMap streets/buildings, Esri satellite), the same ones as Miles's
-            // TerraSim; MapLibre runs its worker from this server.
+            // TerraSim; MapLibre runs its worker from this server. Place search (finding a
+            // building when placing a rack) uses Photon, komoot's OpenStreetMap search, also as in TerraSim.
             .contentSecurityPolicy(c -> c.policyDirectives(
                 "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; "
-                    + "connect-src 'self' " + MAP_HOSTS + "; img-src 'self' data: blob: " + MAP_HOSTS + "; "
+                    + "connect-src 'self' " + MAP_HOSTS + " https://photon.komoot.io; img-src 'self' data: blob: " + MAP_HOSTS + "; "
                     + "object-src 'none'; frame-ancestors 'self'"))
             // The admin terminal shows the customer app inside a phone frame, so our own pages
             // may frame each other. Other sites still can't frame us (clickjacking).

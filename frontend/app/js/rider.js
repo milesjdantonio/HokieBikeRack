@@ -4,6 +4,7 @@ import { api } from "../../js/api.js";
 import { DENY_REASONS, ago, h, renderIfChanged, shortRef, when } from "../../js/dom.js";
 import { riveIcon } from "../../js/rive.js";
 import { rackMap } from "./map.js";
+import { placementPanel } from "./placer.js";
 import { STATUS_CLASS, STATUS_WORD, button, icon, row, sceneState, sound } from "./ui.js";
 
 const startOfToday = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return d.toISOString(); };
@@ -62,7 +63,7 @@ function sentence(rack, devices, lastTamper) {
   return [h("strong", {}, "Ready."), " Hold your card flat on the reader. A green light and one beep means it's open for 5 seconds."];
 }
 
-export function rack(el, ctx, id) {
+export function rack(el, ctx, id, action) {
   const back = h("button", { type: "button", class: "back", onClick: () => history.length > 1 ? history.back() : ctx.go("#") },
     icon("back"), ctx.mode === "staff" ? "Health" : "Racks");
   const scene = riveIcon("rack", { size: 600, height: 400, inputs: { state: 0 }, label: "The rack, its lock and reader" });
@@ -129,19 +130,65 @@ export function rack(el, ctx, id) {
       fact("Tamper alerts", h("span", { class: tamper.total ? "warning" : "" }, String(tamper.total))),
     ]);
     if (ctx.mode === "staff") renderDevices(devicesBlock, detail, ctx, refresh);
-    if (!map) {
-      where.append(h("h2", {}, "Where"), h("p", { class: "muted" }, r.locationDescription || "No location set."));
-      if (r.latitude != null) {
-        const mapEl = h("div", { class: "map-small" });
-        mapEl.style.marginTop = "14px";
-        where.append(mapEl);
-        map = rackMap(mapEl, { interactive: true, focus: r });
-      }
-    }
+    renderWhere(r);
     if (map) map.setRacks([r]);
   }
+
+  // "Where": a small map of the rack, or (staff) placing it by clicking the map.
+  let placing = action === "place" && ctx.mode === "staff" && ctx.canEdit;
+  let placer = null;
+  let whereSig = "";
+  function renderWhere(r) {
+    const sig = JSON.stringify([r.latitude, r.longitude, r.locationDescription, placing]);
+    if (sig === whereSig) return;
+    whereSig = sig;
+    if (map) { map.destroy(); map = null; }
+    if (placer) { placer.destroy(); placer = null; }
+    const canPlace = ctx.mode === "staff" && ctx.canEdit;
+    const placed = r.latitude != null;
+    const parts = [h("h2", {}, "Where"), h("p", { class: "muted" }, r.locationDescription || "No description yet.")];
+    if (placing) {
+      placer = placementPanel({
+        initial: placed ? r : null,
+        onSave: async (p) => {
+          await api(`/racks/${r.id}`, { method: "PATCH", body: p });
+          ctx.toast(placed ? "Moved on the map" : "Placed on the map");
+          placing = false;
+          if (location.hash.endsWith("/place")) history.replaceState(null, "", `#rack/${r.id}`);
+          await refresh();
+        },
+        onCancel: () => {
+          placing = false;
+          if (location.hash.endsWith("/place")) history.replaceState(null, "", `#rack/${r.id}`);
+          renderWhere(r);
+        },
+      });
+      parts.push(placer.el);
+    } else {
+      if (placed) {
+        const mapEl = h("div", { class: "map-small" });
+        parts.push(mapEl);
+        map = rackMap(mapEl, { interactive: true, focus: r });
+      } else {
+        parts.push(h("p", { class: "empty" }, canPlace ? "This rack isn't on the map yet." : "This rack isn't on the map yet. Staff will add it."));
+      }
+      if (canPlace) {
+        parts.push(h("div", { class: "btn-row" },
+          button(placed ? "Move on Map" : "Place on Map", () => { placing = true; renderWhere(r); }, { kind: placed ? "" : "primary", small: true }),
+          placed ? button("Take Off Map", async () => {
+            try {
+              await api(`/racks/${r.id}`, { method: "PATCH", body: { clearCoordinates: true } });
+              ctx.toast("Taken off the map");
+              await refresh();
+            } catch (e) { ctx.toast(e.message); }
+          }, { kind: "quiet", small: true }) : null));
+      }
+    }
+    where.replaceChildren(...parts);
+  }
+
   refresh().catch((e) => { title.textContent = "Rack not found"; status.textContent = e.message; });
-  return { refresh, destroy: () => { clearTimeout(demoTimer); if (map) map.destroy(); document.title = "HokieBikeRack"; } };
+  return { refresh, destroy: () => { clearTimeout(demoTimer); if (map) map.destroy(); if (placer) placer.destroy(); document.title = "HokieBikeRack"; } };
 }
 
 function fact(label, value) {

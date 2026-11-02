@@ -143,3 +143,82 @@ export function rackMap(container, { interactive = true, onSelect, focus = null 
 
   return { setRacks, select, destroy };
 }
+
+/**
+ * Picking where a rack stands, the way TerraSim picks land: click the map to drop the pin, drag it
+ * to adjust. Starts looking straight down (easier to be exact) close in over campus or the rack.
+ * onPick({ latitude, longitude }) runs on every click or drag. Returns { flyTo, setPoint, destroy }.
+ */
+export function placeMap(container, { initial = null, onPick } = {}) {
+  container.classList.add("map", "map-place");
+  let map = null;
+  let marker = null;
+  let destroyed = false;
+  const pinEl = () => h("span", { class: "marker marker-pin" }, h("span", { class: "marker-disc" }, icon("racks")));
+
+  function setPoint(lngLat, notify = true) {
+    if (!map) return;
+    if (!marker) {
+      marker = new maplibregl.Marker({ element: pinEl(), anchor: "center", draggable: true }).setLngLat(lngLat).addTo(map);
+      marker.on("dragend", () => {
+        const p = marker.getLngLat();
+        if (onPick) onPick({ latitude: round(p.lat), longitude: round(p.lng) });
+      });
+    } else {
+      marker.setLngLat(lngLat);
+    }
+    if (notify && onPick) onPick({ latitude: round(lngLat[1] ?? lngLat.lat), longitude: round(lngLat[0] ?? lngLat.lng) });
+  }
+
+  (async () => {
+    let style;
+    try { style = darken(await loadStyle()); } catch { container.replaceChildren(h("p", { class: "map-fallback" }, "The map couldn't load. Try again when you're online.")); return; }
+    if (destroyed) return;
+    const start = initial ? [initial.longitude, initial.latitude] : CAMPUS.center;
+    try {
+      map = new maplibregl.Map({ container, style, attributionControl: { compact: true }, center: start,
+        zoom: initial ? 18.6 : 17, pitch: 0, bearing: 0, maxPitch: 70, canvasContextAttributes: { antialias: true } });
+    } catch {
+      container.replaceChildren(h("p", { class: "map-fallback" }, "This browser can't show the map (WebGL is off)."));
+      return;
+    }
+    map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "top-right");
+    map.getCanvas().style.cursor = "crosshair";
+    map.on("load", () => {
+      container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+      if (initial) setPoint([initial.longitude, initial.latitude], false);
+    });
+    map.on("click", (e) => setPoint([e.lngLat.lng, e.lngLat.lat]));
+    map.on("error", () => {});
+  })();
+
+  return {
+    setPoint,
+    flyTo(lng, lat) { if (map) map.flyTo({ center: [lng, lat], zoom: 18.6, pitch: 0, bearing: 0, duration: 900 }); },
+    destroy() { destroyed = true; if (marker) marker.remove(); if (map) map.remove(); },
+  };
+}
+
+// 6 decimal places is about 10 cm: plenty for a bike rack.
+const round = (n) => Math.round(n * 1e6) / 1e6;
+
+/**
+ * Place search, like TerraSim's: Photon (komoot's OpenStreetMap search, free, no key), biased
+ * toward Blacksburg. Returns [{ name, detail, lng, lat }].
+ */
+export async function searchPlaces(query) {
+  const url = new URL("https://photon.komoot.io/api/");
+  url.searchParams.set("q", query);
+  url.searchParams.set("lat", "37.2284");
+  url.searchParams.set("lon", "-80.4234");
+  url.searchParams.set("limit", "6");
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Search isn't available right now.");
+  const data = await res.json();
+  return (data.features || []).map((f) => {
+    const p = f.properties || {};
+    const detail = [p.street && `${p.housenumber ? `${p.housenumber} ` : ""}${p.street}`, p.city || p.town || p.village, p.state]
+      .filter(Boolean).join(", ");
+    return { name: p.name || p.street || "Unnamed place", detail, lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] };
+  });
+}

@@ -127,6 +127,17 @@ Decisions: admin page = ONE black page that looks like a terminal (monospace, ev
 - [x] 8.6 Rack map (Miles: "racks could be visualized, TerraSim APIs"): Flyway V3 lat/lng, MapLibre + OpenFreeMap 3D buildings + Esri imagery, still markers
 - [x] 8.5 Headless checks (terminal as admin + viewer, /app, lab), docs, commit, push
 
+### Phase 9: click to place, bug sweep, tutorial, UX (Miles, 2026-11-02)
+Miles: "can the user click for where the bike rack is, similar to how it's done in TerraSim";
+"go through again and find any bugs and add any new features you can think about";
+"maybe also add a tutorial because I was confused when doing the old UI"; "focus heavily on UX".
+- [x] 9.1 Click-to-place racks (staff app): click map, drag pin, Enter/Escape, live hint, Photon place search (TerraSim's), Add Rack, Move/Take Off Map; terminal [place on map]
+- [ ] 9.2 Tutorial: first-visit guided tour for each app (rider, staff) + the terminal; replayable from Settings / `[help]`
+- [ ] 9.3 UX pass: empty states that say what to do next, error recovery, loading states, keyboard, one accent per screen, phone widths
+- [ ] 9.4 Bug sweep: read every page's code + headless run of every flow; fix what's found (list them in the log)
+- [ ] 9.5 New features (UX-led): ideas listed in docs/notes/open-questions.md, build the best ones
+- [ ] 9.6 Checks (backend tests, headless phone/desktop/admin/viewer), docs, commit, push
+
 ## Progress log
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
 - 2026-11-02: Phase 1 done. 37 PC unit tests pass (`pio test -e native`).

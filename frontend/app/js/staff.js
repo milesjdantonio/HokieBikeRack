@@ -3,6 +3,7 @@
 import { api } from "../../js/api.js";
 import { ago, h, renderIfChanged, shortRef, when } from "../../js/dom.js";
 import { rackMap } from "./map.js";
+import { placementPanel } from "./placer.js";
 import { statusIcon } from "./rider.js";
 import { STATUS_CLASS, STATUS_WORD, button, icon, row } from "./ui.js";
 
@@ -12,7 +13,42 @@ export function health(el, ctx) {
   const lede = h("p", { class: "lede" });
   const mapEl = h("div");
   const list = h("div", { class: "list" }, h("div", { class: "skeleton" }), h("div", { class: "skeleton" }));
-  el.append(h("h1", { class: "display" }, "Rack Health"), lede, h("div", { class: "split" }, mapEl, list));
+  const adding = h("div");
+  let placer = null;
+
+  // Add a rack: name it, then click the map where it stands (TerraSim-style).
+  function openAdd() {
+    const name = h("input", { class: "input", required: true, maxlength: 120, placeholder: "Torgersen Hall North", autocomplete: "off" });
+    const where = h("input", { class: "input", maxlength: 255, placeholder: "By the bridge entrance", autocomplete: "off" });
+    placer = placementPanel({
+      saveLabel: "Add Rack",
+      fields: [
+        h("h2", { class: "title" }, "New Rack"),
+        h("label", { class: "field" }, h("span", {}, "Name"), name),
+        h("label", { class: "field" }, h("span", {}, "Description for riders"), where),
+      ],
+      onSave: async (p) => {
+        if (!name.value.trim()) { name.focus(); throw new Error("Give the rack a name first."); }
+        const res = await api("/racks", { method: "POST", body: { name: name.value.trim(), locationDescription: where.value.trim() || null, ...p } });
+        closeAdd();
+        ctx.toast("Rack added. Add its lock module in the admin console.");
+        ctx.go(`#rack/${res.rack.id}`);
+      },
+      onCancel: closeAdd,
+    });
+    adding.replaceChildren(placer.el);
+    addBtn.hidden = true;
+    setTimeout(() => name.focus(), 0);
+  }
+  function closeAdd() {
+    if (placer) placer.destroy();
+    placer = null;
+    adding.replaceChildren();
+    addBtn.hidden = false;
+  }
+  const addBtn = ctx.canEdit ? button("Add Rack", openAdd, { small: true }) : h("span");
+  el.append(h("div", { class: "heading-row" }, h("h1", { class: "display" }, "Rack Health"), addBtn), lede, adding,
+    h("div", { class: "split" }, mapEl, list));
   const map = rackMap(mapEl, { onSelect: (r) => ctx.go(`#rack/${r.id}`) });
 
   async function refresh() {
@@ -27,6 +63,7 @@ export function health(el, ctx) {
       const parts = [`${r.onlineDeviceCount} of ${r.deviceCount} online`];
       if (r.openAlerts) parts.push(`${r.openAlerts} open ${r.openAlerts === 1 ? "alert" : "alerts"}`);
       if (r.sensorFault) parts.push("a sensor isn't responding");
+      if (r.latitude == null) parts.push("not on the map");
       return row({
         lead: statusIcon(r.status),
         title: r.name,
@@ -39,7 +76,7 @@ export function health(el, ctx) {
     map.setRacks(racks);
   }
   refresh().catch((e) => list.replaceChildren(h("p", { class: "empty" }, e.message)));
-  return { refresh, destroy: () => map.destroy() };
+  return { refresh, destroy: () => { map.destroy(); if (placer) placer.destroy(); } };
 }
 
 // ---------- Alerts ----------
