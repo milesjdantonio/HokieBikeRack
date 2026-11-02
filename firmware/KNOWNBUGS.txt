@@ -1,0 +1,17 @@
+HokieBikeRack firmware - known bugs and limitations
+==================================================
+
+1. Event upload can freeze the main loop for up to 8 seconds
+   Where:  src/backend_sync.cpp, syncEvents()
+   What:   Every 15 seconds, queued events are uploaded with http.POST().
+           That call waits for the server to answer, with an 8-second timeout
+           (http.setTimeout(8000)). While it waits, loop() is stuck, so card
+           taps, tamper checks, and the lock's auto re-lock timer are not handled.
+   When:   Only when Wi-Fi is connected and there are events to send, and the
+           backend is slow or unreachable. A fast, healthy server answers quickly.
+   Impact: A card tap may be ignored, a shake may be missed, or the lock may stay
+           open a few seconds longer than UNLOCK_DURATION_MS.
+   Possible fixes (later):
+     - Lower the timeout (e.g. 2-3 seconds) as a quick improvement.
+     - Run uploads in a separate FreeRTOS task so loop() never waits on the network.
+   Status: Open. Acceptable for the demo.
