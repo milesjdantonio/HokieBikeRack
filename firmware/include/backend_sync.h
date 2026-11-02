@@ -3,10 +3,10 @@
 // The lock must keep working safely when the network is down.
 
 // Call once from setup().
-void networkSetup();
+void backendSyncSetup();
 
 // Call every loop(): reconnects Wi-Fi if needed, and every 15 seconds
 // uploads queued events.
-void networkUpdate();
+void backendSyncUpdate();
 
-bool networkIsConnected();
+bool backendSyncWifiConnected();

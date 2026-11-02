@@ -10,4 +10,10 @@
 #define HBR_DEVICE_ID ""
 #define HBR_DEVICE_TOKEN ""
 // PEM root CA for the API host. Never use an insecure TLS client in production.
-static const char HBR_API_ROOT_CA[] PROGMEM = "";
+// Must be a #define (like the values above) so device_config.h can see it.
+// Paste one quoted line per certificate line, each ending in \n, for example:
+//   #define HBR_API_ROOT_CA \
+//     "-----BEGIN CERTIFICATE-----\n" \
+//     "MIIF...\n" \
+//     "-----END CERTIFICATE-----\n"
+#define HBR_API_ROOT_CA ""

@@ -1,4 +1,4 @@
-#include "network.h"
+#include "backend_sync.h"
 
 #include <ArduinoJson.h>
 #include <HTTPClient.h>
@@ -11,18 +11,26 @@
 
 namespace {
 constexpr size_t kBatchLimit = 10;
+constexpr uint32_t kSyncIntervalMs = 15000;
+constexpr uint32_t kWifiRetryIntervalMs = 10000;
 uint32_t lastSyncAttempt = 0;
+uint32_t lastWifiAttempt = 0;
+bool wifiStarted = false;
 
 bool configured() {
   return strlen(HBR_DEVICE_ID) && strlen(HBR_DEVICE_TOKEN) && strlen(HBR_API_ROOT_CA) &&
          strncmp(HBR_API_BASE_URL, "https://", 8) == 0;
 }
 
+// Starts connecting, or retries at most every 10 seconds. Calling WiFi.begin()
+// every loop would restart the connection before it ever finishes.
 void connectNetwork() {
-  if (configured() && WiFi.status() != WL_CONNECTED) {
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(HBR_WIFI_SSID, HBR_WIFI_PASSWORD);
-  }
+  if (!configured() || WiFi.status() == WL_CONNECTED) return;
+  if (wifiStarted && millis() - lastWifiAttempt < kWifiRetryIntervalMs) return;
+  wifiStarted = true;
+  lastWifiAttempt = millis();
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(HBR_WIFI_SSID, HBR_WIFI_PASSWORD);
 }
 
 bool syncEvents() {
@@ -54,18 +62,18 @@ bool syncEvents() {
 }
 }  // namespace
 
-void networkSetup() {
+void backendSyncSetup() {
   connectNetwork();
 }
 
-void networkUpdate() {
+void backendSyncUpdate() {
   connectNetwork();
-  if (millis() - lastSyncAttempt >= 15000) {
+  if (millis() - lastSyncAttempt >= kSyncIntervalMs) {
     lastSyncAttempt = millis();
     syncEvents();
   }
 }
 
-bool networkIsConnected() {
+bool backendSyncWifiConnected() {
   return WiFi.status() == WL_CONNECTED;
 }

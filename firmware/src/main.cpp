@@ -8,10 +8,10 @@
 #include <Arduino.h>
 
 #include "access_policy.h"
+#include "backend_sync.h"
 #include "card_reader.h"
 #include "event_queue.h"
 #include "lock.h"
-#include "network.h"
 #include "tamper_sensor.h"
 
 void setup() {
@@ -25,7 +25,7 @@ void setup() {
   lockSetup();
   cardReaderSetup();
   tamperSensorSetup();
-  networkSetup();
+  backendSyncSetup();
 }
 
 void loop() {
@@ -46,9 +46,11 @@ void loop() {
     // TODO: eventQueuePush(...) for a tamper event.
   }
 
-  networkUpdate();
+  lockUpdate();
+  backendSyncUpdate();
 
-  // TODO: shorten once card reading needs faster response. networkUpdate()
-  // will then need its own timer so it doesn't restart Wi-Fi every loop.
-  delay(1000);
+  // Short pause so the loop runs ~100 times a second: fast enough to catch a
+  // card tap or a shake, while giving the ESP32's background Wi-Fi work time to run.
+  // Avoid long delay() calls anywhere: they freeze everything else.
+  delay(10);
 }
