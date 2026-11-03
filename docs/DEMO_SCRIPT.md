@@ -35,7 +35,7 @@ using the simulator. Rehearse once the day before.
    Turn it back on → events appear (no duplicates).
 7. **Spots (30 s)**: tap in and the rack's open spots go down; tap out and they come back.
 8. **Under the hood (1 min)**: admin Reports and Audit Log; the terminal (`help`, Commands page).
-   Mention tests: 37 firmware logic tests, 20 backend integration tests on a real database.
+   Mention tests: 37 firmware logic tests, 19 backend tests on a real database.
 9. **Honest limits (30 s)**: cloned cards, no battery clock, HTTP on the hotspot,
    servo has no position feedback (KNOWNBUGS.txt).
 
