@@ -61,14 +61,14 @@ async function renderIncident(body, id) {
       e.preventDefault();
       try {
         await api(`/incidents/${i.id}/status`, { method: "POST", body: { status: next[0], note: note.value.trim() || null } });
-        toast(next[0] === "RESOLVED" ? "Resolved. Thank you." : `Marked: ${next[1]}`);
+        toast(next[0] === "RESOLVED" ? "Resolved. The rack's alarm is stopped." : `Marked: ${next[1]}`);
         await live.refresh();
         renderIncident(body, i.id);
       } catch (err) { toast(err.message, true); }
     } }, note, h("div", { class: "panel-actions" }, h("button", { class: `btn ${next[0] === "RESOLVED" ? "btn-primary" : "btn-police"} big-btn`, type: "submit" }, next[1]),
       next[0] !== "RESOLVED" ? btn("Resolved", async () => {
-        if (!confirm("Mark this incident resolved?")) return;
-        try { await api(`/incidents/${i.id}/status`, { method: "POST", body: { status: "RESOLVED", note: note.value.trim() || null } }); toast("Resolved. Thank you."); await live.refresh(); renderIncident(body, i.id); } catch (err) { toast(err.message, true); }
+        if (!confirm("Mark this incident resolved? This also stops the rack's alarm.")) return;
+        try { await api(`/incidents/${i.id}/status`, { method: "POST", body: { status: "RESOLVED", note: note.value.trim() || null } }); toast("Resolved. The rack's alarm is stopped."); await live.refresh(); renderIncident(body, i.id); } catch (err) { toast(err.message, true); }
       }, "btn-quiet") : null,
       dirs ? h("a", { class: "btn btn-quiet", href: dirs, target: "_blank", rel: "noopener" }, "Directions") : null))
       : h("p", { class: "state" }, `Resolved ${ago(i.resolvedAt)}.`),

@@ -1063,7 +1063,7 @@ live.on("rack", ({ rack: r, before: b }) => {
 });
 live.on("incident", ({ incident: i, before }) => {
   if (!before) return;   // a new one is logged by whoever pressed Alert Authorities
-  log("police", [{ b: slug(i.rackName) }, ` ${AGENCY}: ${INCIDENT_WORD[i.status].toLowerCase()}`]);
+  log("police", [{ b: slug(i.rackName) }, ` ${AGENCY}: ${INCIDENT_WORD[i.status].toLowerCase()}${i.status === "RESOLVED" ? ". alarm stopped" : ""}`]);
 });
 let wasDown = false;
 live.on("connection", (ok, message) => {

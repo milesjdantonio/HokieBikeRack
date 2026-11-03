@@ -400,7 +400,9 @@ class ApiIntegrationTest {
     assertThat(resolved.get("updates").size()).isEqualTo(4);
     assertThat(resolved.get("rackEvents").toString()).contains("TAMPER_ALARM");
     json(jsonBody(post(statusPath), "{\"status\":\"RESOLVED\"}").with(ADMIN), 409);
-    assertThat(json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200).at("/rack/incidentStatus").isNull()).isTrue();
+    JsonNode after = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);
+    assertThat(after.at("/rack/incidentStatus").isNull()).isTrue();
+    assertThat(after.at("/rack/openAlarms").asLong()).isZero();   // resolving stops the alarm
     assertThat(json(get("/api/v1/incidents").with(ADMIN), 200).toString()).doesNotContain(id);
     assertThat(json(get("/api/v1/incidents?open=false").with(ADMIN), 200).toString()).contains(id);
     assertThat(json(get("/api/v1/audit-log").with(ADMIN), 200).toString()).contains("AUTHORITIES_ALERTED");

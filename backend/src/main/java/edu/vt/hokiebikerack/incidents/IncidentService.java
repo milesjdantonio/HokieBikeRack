@@ -137,6 +137,16 @@ public class IncidentService {
     details.put("from", from.name());
     details.put("to", req.status().name());
     if (note != null) details.put("note", note);
+    if (req.status() == Status.RESOLVED) {
+      // Resolved by the police = the alarm is over (Miles): mark the rack's open shake/tamper alerts
+      // handled, so its pin, panel and the rider page stop showing an alarm.
+      int stopped = jdbc.sql("""
+              UPDATE security_events SET acknowledged_at = :now, acknowledged_by = :actor
+              WHERE rack_id = :rackId AND event_type IN ('TAMPER_WARNING', 'TAMPER_ALARM') AND acknowledged_at IS NULL
+              """)
+          .param("now", Db.ts(now)).param("actor", actor).param("rackId", current.rackId()).update();
+      details.put("alarmsStopped", stopped);
+    }
     audit.record(actor, "INCIDENT_" + req.status().name(), "INCIDENT", id, details);
     return get(id);
   }
