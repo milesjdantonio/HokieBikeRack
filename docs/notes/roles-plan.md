@@ -45,8 +45,17 @@ Bottom tabs, one job each:
 5. Staff (browser + app). 6. Police (browser + app). 7. Rider, new design (browser + app).
 8. `/` chooser, remove the old pages, docs, demo script, checks, push.
 
+## Also asked for while building (2026-11-02)
+- Every rack shows **open spots** and **alarm (active now / last alarm)**, above all for riders.
+  Spots are counted from taps (park / leave alternate); admins set the number and can reset it.
+- A **rename** option (racks, cards, lock modules; `rename <rack> <new name>`).
+- An **Add Rack** button and an `add <name>` command.
+- Every admin function works, including Reports and the Audit Log.
+
 ## Open questions (defaults in use)
 - Staff vs admin: is the split above right? (Default: staff respond, admin configures.)
 - Police: should they see every tamper alarm, or only ones an admin/staff alerted them about?
   (Default: alerted incidents first, live alarms below as "not reported yet".)
 - Should riders see that police were alerted at a rack? (Default: no, just "Alarm, staff alerted".)
+- Spots: one per lock module unless an admin sets a number. Is tap-in / tap-out the right way to count
+  until the rack has a bike sensor?

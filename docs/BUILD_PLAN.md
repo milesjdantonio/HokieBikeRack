@@ -160,10 +160,10 @@ browser; a more intuitive admin app; police-notified pins flash red and blue.
 - [x] 11.3 Backend: incidents (alert authorities, police status) + rack openAlarms/incident + tests
 - [x] 11.4 Shared front-end (theme, map, live polling, app tab bar)
 - [x] 11.5 Admin, real data: browser + app (tabs: Now, Racks, Terminal, More)
-- [ ] 11.6 Staff: browser + app
-- [ ] 11.7 Police: browser + app
-- [ ] 11.8 Rider (new design): browser + app
-- [ ] 11.9 `/` chooser, remove old pages, docs, demo script, checks, push
+- [x] 11.6 Staff: browser + app
+- [x] 11.7 Police: browser + app
+- [x] 11.8 Rider (new design): browser + app
+- [x] 11.9 `/` chooser, remove old pages, docs, demo script, checks, push
 
 ## Progress log
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
@@ -172,6 +172,7 @@ browser; a more intuitive admin app; police-notified pins flash red and blue.
 - 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).
 - 2026-11-02: Phase 4 written (vanilla JS modules, no build). Browser check happens in 5.2.
 - 2026-11-02: Phase 5 done. Backend (embedded) + simulator demo + headless-Edge check of every page as admin and viewer: no console errors. Fixed: blank app preview, unreadable Sign out, table action column, favicon 404.
+- 2026-11-02: Phase 11 done. Four versions on live data (admin, staff, police, rider), each browser + app. Police incidents (V5), open spots + last alarm (V6), rename everywhere, add-rack button + `add` command, Reports and Audit Log pages work. Old terminal page, old app and mockups removed (git history). 20 backend tests.
 - 2026-11-02: Round 3 (Miles's notes): rack back from offline must be confirmed (V4 needs_confirm, UNCONFIRMED status, POST /racks/{id}/confirm-online, test); website login off for the demo (hbr.login-required=false, DemoAdminFilter, NoLoginDemoTest; 17 backend tests pass); setup snippet fills in the laptop's Wi-Fi address; rack-to-server path checked end to end over the Wi-Fi IP with the simulator, firmware builds. Mockup v3: Needs You list, shake/alarm drop panel, Alert Authorities (police.riv), Move on Map, Confirm Online, Commands page, app view (?view=app), bike icon, VT map bounds, no in-site hardware test buttons. See frontend-plan.md "Round 3".
 - 2026-11-02: Miles chose B1. New Rive files pin.riv, badge.riv, signal.riv (tools/rive/art). rackMap: Rive pins (shared with the rider app), setInset() so a selected rack centres in the visible part of the map beside the panel, flash(id, unlock|deny). Mockup is now B1 only and clickable. Bug found: setting marker className wiped MapLibre's positioning classes (pins stacked 60 px apart).
 - 2026-11-02: Talked through every page with Miles; agreed plan saved in docs/notes/frontend-plan.md (Phase 10).

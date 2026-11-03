@@ -1,22 +1,49 @@
 <!doctype html>
-<!--
-  HokieBikeRack admin terminal. One black page, everything stacked, like a terminal.
-  Served by the backend at http://localhost:8080/. Logic: js/terminal.js. Look: css/terminal.css.
-  The customer app lives at /app (and opens here in a phone frame).
--->
+<!-- HokieBikeRack: pick a version (docs/notes/roles-plan.md). Each opens in the browser layout, or
+     the phone app layout with "App". Login is off for the demo. -->
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>hokiebikerack admin</title>
+  <title>HokieBikeRack</title>
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="css/terminal.css">
-  <script type="module" src="js/terminal.js"></script>
+  <link rel="stylesheet" href="shared/tokens.css">
+  <link rel="stylesheet" href="shared/theme.css">
+  <script src="vendor/rive/rive.js" defer></script>
+  <script type="module" src="shared/chooser.js"></script>
 </head>
-<body>
-  <main id="term" class="term">
-    <noscript><p>hokiebikerack admin needs JavaScript.</p></noscript>
+<body class="chooser-page">
+  <main class="chooser">
+    <div><span class="brand-mark" id="mark"></span></div>
+    <h1>HokieBikeRack</h1>
+    <p class="lead">Smart bike racks for Virginia Tech. Pick who you are. Each version has a browser layout and a phone app layout.</p>
+    <div class="versions">
+      <section class="version" data-pin="0">
+        <span class="v-icon"></span>
+        <b>Rider</b>
+        <p>Find a rack with open spots, see if it has an alarm, and how to park with your card.</p>
+        <div class="panel-actions"><a class="btn btn-primary" href="/rider/?view=desktop">Browser</a><a class="btn" href="/rider/?view=app">App</a></div>
+      </section>
+      <section class="version" data-pin="1">
+        <span class="v-icon"></span>
+        <b>Staff</b>
+        <p>Respond on campus: alarms, cards waiting to be registered, racks back online, alert the police.</p>
+        <div class="panel-actions"><a class="btn btn-primary" href="/staff/?view=desktop">Browser</a><a class="btn" href="/staff/?view=app">App</a></div>
+      </section>
+      <section class="version" data-pin="4">
+        <span class="v-icon"></span>
+        <b>Police</b>
+        <p>Incidents reported by staff: where, what the rack saw, and On My Way, On Scene, Resolved.</p>
+        <div class="panel-actions"><a class="btn btn-primary" href="/police/?view=desktop">Browser</a><a class="btn" href="/police/?view=app">App</a></div>
+      </section>
+      <section class="version" data-pin="2">
+        <span class="v-icon"></span>
+        <b>Admin</b>
+        <p>Everything: racks, lock modules and setup codes, cards, the terminal, reports and the audit log.</p>
+        <div class="panel-actions"><a class="btn btn-primary" href="/admin/?view=desktop">Browser</a><a class="btn" href="/admin/?view=app">App</a></div>
+      </section>
+    </div>
   </main>
 </body>
 </html>

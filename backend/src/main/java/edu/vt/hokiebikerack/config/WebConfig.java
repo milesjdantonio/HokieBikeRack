@@ -5,16 +5,17 @@ import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
- * Page addresses. Spring serves frontend/index.html at "/" by itself; the customer app lives in
- * frontend/app/, so "/app" needs to be pointed at it. The trailing slash matters: the app's
- * pages load "css/app.css" relative to the address, which must be /app/css/app.css.
+ * Page addresses. Spring serves frontend/index.html (the version chooser) at "/" by itself. Each
+ * version is a folder; "/admin" redirects to "/admin/" because its page loads files relative to
+ * that address (../shared/...).
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
   @Override
   public void addViewControllers(ViewControllerRegistry registry) {
-    registry.addRedirectViewController("/app", "/app/");
-    registry.addViewController("/app/").setViewName("forward:/app/index.html");
+    // The old customer app's address now opens the rider version.
+    registry.addRedirectViewController("/app", "/rider/");
+    registry.addRedirectViewController("/app/", "/rider/");
     // The four versions (docs/notes/roles-plan.md), each a folder with its own index.html.
     for (String version : new String[] {"admin", "staff", "police", "rider"}) {
       registry.addRedirectViewController("/" + version, "/" + version + "/");

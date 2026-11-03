@@ -15,7 +15,7 @@ The servo output is **off by default** until that test. Not a security-certified
 # 1. Backend + database + dashboard (needs JDK 21+ and Maven; Postgres is downloaded for you)
 cd backend
 mvn spring-boot:run -Dspring-boot.run.profiles=embedded
-# 2. Open http://localhost:8080 (admin terminal) or http://localhost:8080/app (rider app).
+# 2. Open http://localhost:8080 and pick a version: Rider, Staff, Police or Admin (each has an App layout).
 #    No login in the demo. For admin/viewer logins: HBR_LOGIN_REQUIRED=true ADMIN_PASSWORD=... VIEWER_PASSWORD=...
 # 3. In another terminal, pretend to be a rack:
 python tools/device_simulator.py setup
@@ -34,14 +34,13 @@ python tools/device_simulator.py demo
 | Rack | ESP32 DevKit, Arduino core 3 / PlatformIO, PN532 NFC (I2C), MPU-6050 accelerometer (I2C), MG90S servo, red/green LEDs, active buzzer |
 | Backend | Java 21, Spring Boot 3.5, Spring Security, JdbcClient (plain SQL), Flyway |
 | Database | PostgreSQL 17 (embedded for dev/demo, or your own) |
-| Admin terminal | One black monospace page at `/`, HTML/CSS/JS modules, no build step |
-| Customer app | Rider app at `/app`, staff app at `/app?mode=staff`; Rive animations, MapLibre 3D campus map (OpenFreeMap + Esri imagery) |
+| Web | Four versions at `/rider/`, `/staff/`, `/police/`, `/admin/` (browser + app layouts), HTML/CSS/JS modules, no build step; Rive animations, MapLibre 3D campus map (OpenFreeMap + Esri imagery) |
 | Simulator | Python 3 standard library |
 
 ## Repository map
 - `firmware/`: ESP32 code. `lib/hbr_logic` = PC-tested logic, `src/` = hardware glue. [README](firmware/README.md)
 - `backend/`: REST API, security, migrations, tests. [README](backend/README.md)
-- `frontend/`: admin terminal (`/`), customer app (`/app`), Rive lab (`/lab`). [README](frontend/README.md)
+- `frontend/`: the four versions + `/` chooser, Rive lab (`/lab`). [README](frontend/README.md)
 - `tools/device_simulator.py`: fake rack for demos/tests
 - `docs/notes/`: **learning notes**: start with [overview.md](docs/notes/overview.md); design rules in [design.md](docs/notes/design.md)
 - `docs/BUILD_PLAN.md`: what was built, in order, with the progress log

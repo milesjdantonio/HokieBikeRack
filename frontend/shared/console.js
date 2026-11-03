@@ -7,8 +7,8 @@
 import { h, ago, shortRef, DENY_REASONS } from "../js/dom.js";
 import { api } from "../js/api.js";
 import { riveIcon } from "../js/rive.js";
-import { rackMap, placeMap, searchPlaces } from "../app/js/map.js";
-import { icon } from "../app/js/ui.js";
+import { rackMap, placeMap, searchPlaces } from "./map.js";
+import { icon } from "./icons.js";
 import { createLive, slug, findRack, isAlarm, isUp, pinRack, spotsText, alarmText, INCIDENT_WORD, STATUS_TEXT, bars } from "./live.js";
 
 const ROLE = document.body.dataset.role === "staff" ? "staff" : "admin";

@@ -4,12 +4,12 @@
 // buildings extruded in a dark tone, labels in the app's ink.
 //
 // If the map can't load (offline, no WebGL), a plain message stands in and the list still works.
-import * as maplibregl from "../../vendor/maplibre/maplibre-gl.mjs";
-import { h } from "../../js/dom.js";
-import { icon } from "./ui.js";
-import { riveIcon } from "../../js/rive.js";
+import * as maplibregl from "../vendor/maplibre/maplibre-gl.mjs";
+import { h } from "../js/dom.js";
+import { icon } from "./icons.js";
+import { riveIcon } from "../js/rive.js";
 
-maplibregl.setWorkerUrl(new URL("../../vendor/maplibre/maplibre-gl-worker.mjs", import.meta.url).href);
+maplibregl.setWorkerUrl(new URL("../vendor/maplibre/maplibre-gl-worker.mjs", import.meta.url).href);
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
 const SATELLITE = {
