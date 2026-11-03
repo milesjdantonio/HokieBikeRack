@@ -20,6 +20,8 @@ team can look back, review, and learn from the decisions. Read in this order:
 Hands-on guides:
 - [wiring-guide.md](wiring-guide.md): what connects to which pin.
 - [hardware-test-checklist.md](hardware-test-checklist.md): the bench test, in order.
+- [firmware-model.md](firmware-model.md): the Rack Model page, the real firmware running in the
+  browser on emulated parts. Try the firmware before the ESP32 is on the bench.
 - [../DEMO_SCRIPT.md](../DEMO_SCRIPT.md): the Tuesday demo, step by step.
 - [../BUILD_PLAN.md](../BUILD_PLAN.md): what was built, in which order, and the progress log.
 

@@ -12,6 +12,9 @@ pio device monitor      # serial console, 115200 baud
 ```
 On Windows without `pio` on PATH: `~/.platformio/penv/Scripts/pio.exe`.
 
+No ESP32 yet? `node tools/model/build.mjs` (from the repo root) compiles this firmware to WebAssembly
+for the Rack Model page: http://localhost:8080/model/. See [model/README.md](model/README.md).
+
 ## Setup
 1. Copy `include/config.example.h` to `include/config.h` (git-ignored).
 2. Fill in Wi-Fi, `HBR_API_BASE_URL`, device ID + token (dashboard → Racks → Add device), `HBR_CARD_KEY`.
