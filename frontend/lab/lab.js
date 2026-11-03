@@ -8,7 +8,7 @@ const ANIMATIONS = [
     controls: [["state", [0, 1, 2, 3, 4], ["Idle", "Granted", "Denied", "Alarm", "Offline"]]] },
   { name: "logo", size: 160, inputs: {}, controls: [], triggers: [["play", "Play"]] },
   { name: "pin", size: 168, inputs: { status: 0 },
-    controls: [["status", [0, 1, 2, 3, 4], ["Online", "Warning", "Alarm", "Offline", "Police"]], ["selected", [true, false], ["Select", "Deselect"]]],
+    controls: [["status", [0, 1, 2, 3, 4, 5, 6, 7], ["Online", "Warning", "Alarm", "Offline", "Police", "Few Spots", "Full", "Reported"]], ["selected", [true, false], ["Select", "Deselect"]]],
     triggers: [["unlock", "Unlock"], ["deny", "Deny"]] },
   { name: "badge", size: 128, inputs: { kind: 0 },
     controls: [["kind", [0, 1, 2, 3, 4, 5, 6], ["Info", "OK", "Denied", "Warning", "Alarm", "Offline", "Card"]]] },

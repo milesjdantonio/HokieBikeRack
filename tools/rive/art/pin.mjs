@@ -6,6 +6,9 @@
 //                    2 alarm (red ring flashing red/orange, the pin shudders, red badge)
 //                    3 offline (grey ring, the pin fades back)
 //                    4 police (authorities alerted: ring and badge flash red and blue, like police lights)
+//                    rider map, coloured by open spots (no connection states for riders):
+//                    5 few (yellow: under 25% of spots open)  6 full (red)
+//                    7 reported (a report was made: the ring flashes red and a slash crosses the pin)
 //   trigger `unlock` the glyph turns into a check that draws itself, the ring flashes green
 //   trigger `deny`   the glyph turns into a cross, the pin shakes no, the ring flashes red
 //   bool `selected`  the disc fills Burnt Orange with a small settle
@@ -17,6 +20,7 @@ const S = 56, C = 28;            // artboard size and centre
 const GROUND = '#0f1318', INK = '#e6edf3', ACCENT = '#e5751f', ACCENT_INK = '#1a0d04';
 const GREEN = '#3fd68a', AMBER = '#ffb547', RED = '#ff6b6b', ORANGE = '#ff9a3c', GREY = '#7d8896';
 const POLICE_RED = '#ff3b3b', POLICE_BLUE = '#2f81f7';
+const YELLOW = '#f5d142', FULL_RED = '#ff5a5a', DARK_RED = '#5c1414';
 const hex = (c, a = 1) => c + Math.round(a * 255).toString(16).padStart(2, '0');
 
 export default function build() {
@@ -66,6 +70,15 @@ export default function build() {
   const crossStroke = ab.stroke(crossShape, RED, 3);
   const crossTrim = ab.trim(crossStroke, { end: 0, mode: 2 });
 
+  // A slash across the pin (half an X) for a rack that was reported: don't use it for now.
+  const slash = ab.node(shaker, { name: 'slash' });
+  const slashUnder = ab.shape(slash);
+  ab.path(slashUnder, [[-15, -15], [15, 15]], { closed: false });
+  ab.stroke(slashUnder, GROUND, 6.5);
+  const slashTop = ab.shape(slash);
+  ab.path(slashTop, [[-15, -15], [15, 15]], { closed: false });
+  ab.stroke(slashTop, FULL_RED, 3.4);
+
   // Badge on the top-right of the disc for warnings and alarms.
   const badge = ab.node(shaker, { name: 'badge', x: 13, y: -13 });
   const badgeDisc = ab.shape(badge);
@@ -86,6 +99,9 @@ export default function build() {
     alarm: { duration: 40, loop: 1 },
     offline: { duration: 30 },
     police: { duration: 40, loop: 1 },
+    few: { duration: 24 },
+    full: { duration: 24 },
+    reported: { duration: 40, loop: 1 },
   }, [
     { target: ring, prop: 'colorValue', base: hex(GREEN), poses: {
       warning: [[0, hex(GREY), EASE.out], [14, hex(AMBER)]],
@@ -93,7 +109,13 @@ export default function build() {
       offline: [[0, hex(GREEN), EASE.inOut], [24, hex(GREY)]],
       online: [[0, hex(GREY), EASE.out], [14, hex(GREEN)]],
       police: [[0, hex(POLICE_RED), 'hold'], [10, hex(POLICE_BLUE), 'hold'], [20, hex(POLICE_RED), 'hold'], [30, hex(POLICE_BLUE), 'hold'], [40, hex(POLICE_RED)]],
+      few: [[0, hex(GREY), EASE.out], [14, hex(YELLOW)]],
+      full: [[0, hex(GREY), EASE.out], [14, hex(FULL_RED)]],
+      reported: [[0, hex(FULL_RED), 'hold'], [20, hex(DARK_RED), 'hold'], [40, hex(FULL_RED)]],
     } },
+    { target: slash, prop: 'opacity', base: 0, poses: { reported: 1 } },
+    { target: slash, prop: 'scaleX', base: 1, poses: { reported: [[0, 0.2, EASE.out], [12, 1, 'hold'], [40, 1]] } },
+    { target: slash, prop: 'scaleY', base: 1, poses: { reported: [[0, 0.2, EASE.out], [12, 1, 'hold'], [40, 1]] } },
     { target: badge, prop: 'scaleX', base: 0, poses: {
       warning: [[0, 0, EASE.back], [16, 1]], alarm: 1, police: 1,
     } },
@@ -156,7 +178,7 @@ export default function build() {
   const selected = sm.bool('selected', false);
 
   const l1 = sm.layer('Status');
-  const order = ['online', 'warning', 'alarm', 'offline', 'police'];
+  const order = ['online', 'warning', 'alarm', 'offline', 'police', 'few', 'full', 'reported'];
   const st = order.map((n) => l1.state(status[n]));
   l1.transition(l1.entry, st[0]);
   st.forEach((from, i) => st.forEach((to, j) => {

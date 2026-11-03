@@ -33,7 +33,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-STATE_FILE = Path(__file__).with_name(".sim-device.json")
+# HBR_SIM_DEVICE_FILE lets one laptop pretend to be several racks (one file per rack).
+STATE_FILE = Path(os.environ.get("HBR_SIM_DEVICE_FILE") or Path(__file__).with_name(".sim-device.json"))
 DEFAULT_URL = os.environ.get("HBR_API_BASE_URL", "http://localhost:8080")
 # Must equal HBR_CARD_KEY in firmware/include/config.h if you want real cards
 # and simulated taps to produce the same references.

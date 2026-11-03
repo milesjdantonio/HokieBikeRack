@@ -477,3 +477,10 @@ body.chooser-page { display: block; overflow: auto; }
 a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .steps-head > div { display: grid; gap: 2px; }
 .big-facts .fact b { font-size: 1.6rem; }
+/* rider: spots colours match the map (green plenty, yellow under 25%, red full, reported) */
+.rc-spots.few { background: #3a3310; color: #f5d142; }
+.rc-spots.full { background: #3a1214; color: #ff8a8a; }
+.rc-spots.reported { background: #5c1414; color: #fff; }
+.rc-spots.reported b { font-size: 1rem; font-family: var(--text); font-weight: 600; }
+.fact.few b { color: #f5d142; }
+.fact.full b, .fact.reported b { color: var(--negative); }

@@ -1,12 +1,14 @@
 // RIDER version (/rider/): for the everyday bike user. No login. Every rack answers the two things a
 // rider wants first (Miles): how many open spots, and is there an alarm (and when was the last one).
 // Browser: rack list beside the campus map. App (phone, ?view=app): tabs Racks / Map / My Card / Alerts.
-// Riders never see police status or anyone's card (roles-plan.md).
+// Riders never see anyone's card, and don't need to know about the rack's connection (Miles).
+// Map pins (Miles): green = plenty of spots, yellow = under 25% open, red = full,
+// flashing red with a slash = a report was made (police incident open): use another rack.
 import { h, ago } from "../js/dom.js";
 import { riveIcon } from "../js/rive.js";
 import { rackMap } from "./map.js";
 import { icon } from "./icons.js";
-import { createLive, isAlarm, isUp } from "./live.js";
+import { createLive, isAlarm } from "./live.js";
 
 const params = new URLSearchParams(location.search);
 const APP = params.get("view") === "app" || (params.get("view") !== "desktop" && matchMedia("(max-width: 760px)").matches);
@@ -21,10 +23,13 @@ let openId = null;
 
 // ---------- words riders read ----------
 const installed = (r) => r.deviceCount > 0;
+const reported = (r) => Boolean(r.incidentStatus);
+const few = (r) => r.openSpots > 0 && r.openSpots / r.capacity < 0.25;
 function spots(r) {
   if (!installed(r)) return { big: "-", small: "Not open yet", cls: "muted" };
+  if (reported(r)) return { big: "Closed", small: "Reported", cls: "reported" };
   if (r.openSpots === 0) return { big: "Full", small: `${r.capacity} of ${r.capacity} in use`, cls: "full" };
-  return { big: String(r.openSpots), small: `of ${r.capacity} spot${r.capacity === 1 ? "" : "s"} open`, cls: "open" };
+  return { big: String(r.openSpots), small: `of ${r.capacity} spot${r.capacity === 1 ? "" : "s"} open`, cls: few(r) ? "few" : "open" };
 }
 function alarm(r) {
   if (isAlarm(r)) return { text: "Alarm now", sub: "Staff have been alerted", cls: "alarm" };
@@ -33,9 +38,10 @@ function alarm(r) {
 }
 function sentence(r) {
   if (!installed(r)) return "This rack isn't open yet.";
+  if (reported(r)) return "This rack was reported to the police. Please use another rack for now.";
   if (isAlarm(r)) return "Someone tampered with this rack. Bikes stay locked; staff are on it.";
-  if (r.status === "OFFLINE" || r.status === "UNCONFIRMED") return "The rack's connection is down. Registered cards still work.";
   if (r.openSpots === 0) return "Full right now. Try a nearby rack.";
+  if (few(r)) return "Almost full. Tap your card on the reader: a green light and one beep, and it's open for 5 seconds.";
   return "Ready. Tap your card on the reader: a green light and one beep, and it's open for 5 seconds.";
 }
 const distKm = (r) => (here && r.latitude != null ? haversine(here.lat, here.lng, r.latitude, r.longitude) : null);
@@ -45,14 +51,16 @@ function haversine(a, b, c, d) {
   return 2 * R * Math.asin(Math.sqrt(x));
 }
 const walk = (km) => (km < 0.05 ? "right here" : `${Math.max(1, Math.round((km * 1000) / 80))} min walk`);
-const riderPin = (r) => ({ ...r, alarm: isAlarm(r), police: false, status: installed(r) ? r.status : "UNKNOWN",
-  label: `${r.name} · ${!installed(r) ? "not open" : r.openSpots === 0 ? "full" : `${r.openSpots} open`}` });
+// pin.riv states: 0 green, 5 yellow, 6 red, 7 flashing red + slash, 3 grey (not open yet).
+const riderPin = (r) => ({ ...r,
+  pin: !installed(r) ? 3 : reported(r) ? 7 : r.openSpots === 0 ? 6 : few(r) ? 5 : 0,
+  label: `${r.name} · ${!installed(r) ? "not open" : reported(r) ? "reported" : r.openSpots === 0 ? "full" : `${r.openSpots} open`}` });
 
 function sorted() {
   const list = S.racks.filter((r) => r.latitude != null || installed(r));
   return list.sort((a, b) => {
     if (here) return (distKm(a) ?? 1e9) - (distKm(b) ?? 1e9);
-    const score = (r) => (!installed(r) ? -2 : r.openSpots === 0 ? -1 : r.openSpots);
+    const score = (r) => (!installed(r) ? -3 : reported(r) ? -2 : r.openSpots === 0 ? -1 : r.openSpots);
     return score(b) - score(a) || a.name.localeCompare(b.name);
   });
 }
@@ -61,7 +69,7 @@ function sorted() {
 function rackCard(r, onOpen) {
   const sp = spots(r), al = alarm(r), km = distKm(r);
   return h("button", { type: "button", class: `rider-card${r.id === openId ? " current" : ""}`, onClick: () => onOpen(r.id) },
-    h("span", { class: `rc-spots ${sp.cls}` }, h("b", {}, sp.big), h("small", {}, sp.big === "Full" || sp.big === "-" ? "" : "open")),
+    h("span", { class: `rc-spots ${sp.cls}` }, h("b", {}, sp.big), h("small", {}, ["Full", "-", "Closed"].includes(sp.big) ? "" : "open")),
     h("span", { class: "rc-main" }, h("b", {}, r.name), h("span", {}, [r.locationDescription, km != null ? walk(km) : null].filter(Boolean).join(" · ")),
       h("span", { class: `rc-alarm ${al.cls}` }, al.text)),
     icon("back"));
@@ -69,7 +77,7 @@ function rackCard(r, onOpen) {
 function detail(body, r) {
   const sp = spots(r), al = alarm(r);
   const scene = riveIcon("rack", { size: 440, height: 200, fit: "cover", align: "BottomCenter",
-    inputs: { state: isAlarm(r) ? 3 : isUp(r) && installed(r) ? 0 : 4 }, label: `${r.name}, live` });
+    inputs: { state: isAlarm(r) || reported(r) ? 3 : installed(r) ? 0 : 4 }, label: `${r.name}, live` });
   const dirs = r.latitude != null ? `https://www.openstreetmap.org/directions?to=${r.latitude},${r.longitude}#map=18/${r.latitude}/${r.longitude}` : null;
   fill(body,
     h("div", { class: "panel-scene app-scene" }, scene.el),
@@ -77,10 +85,10 @@ function detail(body, r) {
       h("h1", { class: "panel-title" }, r.name),
       r.locationDescription ? h("p", { class: "panel-sub" }, r.locationDescription) : null,
       h("div", { class: "facts big-facts" },
-        h("div", { class: `fact ${sp.cls === "full" ? "full" : ""}` }, h("span", {}, "Open Spots"), h("b", {}, sp.big === "-" ? "-" : sp.big === "Full" ? "Full" : `${sp.big} of ${r.capacity}`)),
+        h("div", { class: `fact ${sp.cls}` }, h("span", {}, "Open Spots"), h("b", {}, ["-", "Full", "Closed"].includes(sp.big) ? sp.big : `${sp.big} of ${r.capacity}`)),
         h("div", { class: `fact ${al.cls === "alarm" ? "alarm" : ""}` }, h("span", {}, "Alarm"), h("b", {}, isAlarm(r) ? "Active now" : r.lastAlarmAt ? ago(r.lastAlarmAt) : "None"),
           h("small", {}, isAlarm(r) ? "Staff have been alerted" : r.lastAlarmAt ? "since the last alarm" : "never had one"))),
-      h("p", { class: `state ${isAlarm(r) ? "state-alarm" : r.openSpots === 0 ? "state-warning" : ""}` }, sentence(r)),
+      h("p", { class: `state ${isAlarm(r) || reported(r) ? "state-alarm" : r.openSpots === 0 || few(r) ? "state-warning" : ""}` }, sentence(r)),
       h("div", { class: "panel-actions" }, dirs ? h("a", { class: "btn btn-primary", href: dirs, target: "_blank", rel: "noopener" }, "Directions") : null),
       h("h2", {}, "How It Works"),
       h("ol", { class: "how" },
@@ -100,17 +108,17 @@ function myCard() {
       h("li", {}, h("b", {}, "Park and leave"), " with a tap each time. Your first tap parks, your next tap leaves.")),
     h("h2", {}, "Good to Know"),
     h("ul", { class: "how plain" },
-      h("li", {}, "If a rack loses its connection, your card still works there for up to 3 days."),
       h("li", {}, "Shaking or forcing a rack sets off its alarm and alerts staff."),
       h("li", {}, "Lost your card? Tell staff so they can turn it off.")));
 }
 function alertsPage() {
-  const alarms = S.racks.filter(isAlarm), down = S.racks.filter((r) => installed(r) && (r.status === "OFFLINE" || r.status === "UNCONFIRMED"));
-  const full = S.racks.filter((r) => installed(r) && r.openSpots === 0 && !isAlarm(r));
+  const reports = S.racks.filter((r) => installed(r) && reported(r));
+  const alarms = S.racks.filter((r) => isAlarm(r) && !reported(r));
+  const full = S.racks.filter((r) => installed(r) && r.openSpots === 0 && !isAlarm(r) && !reported(r));
   const row = (r, text, kind) => h("button", { type: "button", class: "inc-row", onClick: () => openRack(r.id) },
     riveIcon("badge", { size: 26, inputs: { kind } }).el, h("span", { class: "needs-main" }, h("b", {}, r.name), h("span", {}, text)));
-  const items = [...alarms.map((r) => row(r, "Alarm now. Staff have been alerted.", 4)), ...down.map((r) => row(r, "Connection down. Cards still work.", 5)),
-    ...full.map((r) => row(r, "Full right now.", 3))];
+  const items = [...reports.map((r) => row(r, "Reported to the police. Use another rack for now.", 2)),
+    ...alarms.map((r) => row(r, "Alarm now. Staff have been alerted.", 4)), ...full.map((r) => row(r, "Full right now.", 3))];
   return h("div", { class: "sheet-inner rider-page" }, h("h1", {}, "Alerts"),
     items.length ? h("div", { class: "inc-list" }, items)
       : h("div", { class: "all-clear" }, riveIcon("badge", { size: 56, inputs: { kind: 1 } }).el, h("b", {}, "All good"), h("span", {}, "Every rack is working.")));
@@ -238,7 +246,6 @@ function render() {
 }
 
 live.on("change", render);
-live.on("connection", (ok) => document.body.classList.toggle("disconnected", !ok));
 const root = document.querySelector("#root");
 root.append(toasts);
 if (APP) buildApp(root); else buildDesktop(root);

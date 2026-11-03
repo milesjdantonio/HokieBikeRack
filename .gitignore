@@ -18,5 +18,5 @@ frontend/dist/
 Thumbs.db
 .vscode/
 # Simulator's saved device token
-tools/.sim-device.json
+tools/.sim-device*.json
 __pycache__/
