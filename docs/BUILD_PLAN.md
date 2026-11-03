@@ -152,6 +152,19 @@ and staff app) and the rider app (no login to see racks).
 - [ ] 10.7 Rider app cleanup (no login, no tours, simpler)
 - [ ] 10.8 Remove old pages, docs, demo script, checks, push
 
+### Phase 11: four versions (docs/notes/roles-plan.md)
+Miles: make the B1 mockup the real admin; new rider, police and staff versions; each with app +
+browser; a more intuitive admin app; police-notified pins flash red and blue.
+- [x] 11.1 Plan with default roles (roles-plan.md)
+- [ ] 11.2 pin.riv police state (flashing red/blue) + mockup
+- [ ] 11.3 Backend: incidents (alert authorities, police status) + rack openAlarms/incident + tests
+- [ ] 11.4 Shared front-end (theme, map, live polling, app tab bar)
+- [ ] 11.5 Admin, real data: browser + app (tabs: Now, Racks, Terminal, More)
+- [ ] 11.6 Staff: browser + app
+- [ ] 11.7 Police: browser + app
+- [ ] 11.8 Rider (new design): browser + app
+- [ ] 11.9 `/` chooser, remove old pages, docs, demo script, checks, push
+
 ## Progress log
 - 2026-11-02: Phase 0 done. Questions answered (see Decisions).
 - 2026-11-02: Phase 1 done. 37 PC unit tests pass (`pio test -e native`).
