@@ -35,12 +35,18 @@ public class EventService {
   private final ObjectMapper mapper;
   private final AuditService audit;
   private final Clock clock;
+  private final org.springframework.context.ApplicationEventPublisher publisher;
 
-  public EventService(JdbcClient jdbc, ObjectMapper mapper, AuditService audit, Clock clock) {
+  /** Published for every NEW refused tap of a card; riders use it to link a Hokie Passport. */
+  public record CardRefused(String credentialReference, java.util.UUID rackId) {}
+
+  public EventService(JdbcClient jdbc, ObjectMapper mapper, AuditService audit, Clock clock,
+                      org.springframework.context.ApplicationEventPublisher publisher) {
     this.jdbc = jdbc;
     this.mapper = mapper;
     this.audit = audit;
     this.clock = clock;
+    this.publisher = publisher;
   }
 
   /**
@@ -74,7 +80,7 @@ public class EventService {
       String ref = details.path("credentialReference").asText(null);
       if (ref != null && !CREDENTIAL_REF.matcher(ref).matches()) ref = null;
 
-      accepted += jdbc.sql("""
+      int stored = jdbc.sql("""
               INSERT INTO security_events (id, device_id, rack_id, event_type, severity, occurred_at,
                   received_at, details, credential_reference, time_source, firmware_version)
               VALUES (:id, :deviceId, :rackId, :type, :severity, :occurredAt, :receivedAt,
@@ -93,6 +99,10 @@ public class EventService {
           .param("timeSource", trustDeviceTime ? "DEVICE" : "SERVER")
           .param("fw", e.firmwareVersion())
           .update();
+      accepted += stored;
+      if (stored == 1 && ref != null && "ACCESS_DENIED".equals(e.eventType())) {
+        publisher.publishEvent(new CardRefused(ref, device.rackId()));
+      }
     }
     return new IngestResult(accepted, events.size() - accepted);
   }

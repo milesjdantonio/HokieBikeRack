@@ -341,6 +341,40 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void riderRequestsAccessOnlineThenLinksTheirHokiePassportWithOneTap() throws Exception {
+    // The online form (stand-in for StarRez): no login, bad input is refused.
+    json(jsonBody(post("/api/v1/rider/request"), "{\"name\":\"Sam\",\"email\":\"not-an-email\"}"), 400);
+    JsonNode req = json(jsonBody(post("/api/v1/rider/request"),
+        "{\"name\":\"Sam Hokie\",\"email\":\"sam@vt.edu\",\"hokiePassportId\":\"906123456\"}"), 201);
+    String code = req.get("code").asText();
+    assertThat(json(get("/api/v1/rider/me").header("X-Rider-Code", code), 200).get("status").asText()).isEqualTo("PENDING");
+    // Linking before approval is refused.
+    json(post("/api/v1/rider/link").header("X-Rider-Code", code), 409);
+
+    JsonNode pending = json(get("/api/v1/access-requests?status=PENDING").with(VIEWER), 200);
+    String riderId = null;
+    for (JsonNode r : pending) if ("sam@vt.edu".equals(r.get("email").asText())) riderId = r.get("id").asText();
+    assertThat(riderId).isNotNull();
+    json(post("/api/v1/access-requests/" + riderId + "/approve").with(VIEWER), 403);
+    json(post("/api/v1/access-requests/" + riderId + "/approve").with(ADMIN), 200);
+    json(post("/api/v1/access-requests/" + riderId + "/approve").with(ADMIN), 409);   // already decided
+
+    // Link: open the window, then tap the Hokie Passport on any rack (an unknown card -> refused).
+    assertThat(json(post("/api/v1/rider/link").header("X-Rider-Code", code), 200).get("linkUntil").isNull()).isFalse();
+    Device d = newRackWithDevice("Link Rack");
+    String hokieRef = "d".repeat(64);
+    json(asDevice(jsonBody(post("/api/v1/devices/" + d.deviceId() + "/events"), "{\"events\":[" + event("ACCESS_DENIED", "LOW", null,
+        "{\"credentialReference\":\"" + hokieRef + "\",\"reason\":\"NOT_LISTED\"}") + "]}"), d), 200);
+    JsonNode me = json(get("/api/v1/rider/me").header("X-Rider-Code", code), 200);
+    assertThat(me.get("status").asText()).isEqualTo("APPROVED");
+    assertThat(me.get("cards").size()).isEqualTo(1);
+    assertThat(me.get("linkUntil").isNull()).isTrue();
+    JsonNode cards = json(get("/api/v1/credentials").with(ADMIN), 200);
+    assertThat(cards.toString()).contains("Sam Hokie's HokieP");
+    assertThat(json(get("/api/v1/audit-log").with(ADMIN), 200).toString()).contains("HOKIEP_LINKED");
+  }
+
+  @Test
   void riderCodeShowsWhereTheBikeIsAndWarnsAboutAlarms() throws Exception {
     Device d = newRackWithDevice("Rider Rack");
     String ref = "c".repeat(64);

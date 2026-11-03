@@ -4,6 +4,10 @@ import edu.vt.hokiebikerack.audit.AuditService;
 import edu.vt.hokiebikerack.common.ApiException;
 import edu.vt.hokiebikerack.common.Db;
 import edu.vt.hokiebikerack.common.Tokens;
+import edu.vt.hokiebikerack.credentials.CredentialModels.CreateCredential;
+import edu.vt.hokiebikerack.credentials.CredentialService;
+import edu.vt.hokiebikerack.events.EventService.CardRefused;
+import org.springframework.context.event.EventListener;
 import edu.vt.hokiebikerack.racks.RackService;
 import java.security.SecureRandom;
 import java.time.Clock;
@@ -30,14 +34,22 @@ public class RiderService {
   private final JdbcClient jdbc;
   private final AuditService audit;
   private final RackService racks;
+  private final CredentialService credentials;
   private final Clock clock;
+  static final Duration LINK_WINDOW = Duration.ofMinutes(2);
 
-  public RiderService(JdbcClient jdbc, AuditService audit, RackService racks, Clock clock) {
+  public RiderService(JdbcClient jdbc, AuditService audit, RackService racks, CredentialService credentials, Clock clock) {
     this.jdbc = jdbc;
     this.audit = audit;
     this.racks = racks;
+    this.credentials = credentials;
     this.clock = clock;
   }
+
+  public record AccessRequest(UUID id, String name, String email, String hokiePassportId, String note, String status,
+                              Instant requestedAt, Instant decidedAt, String decidedBy) {}
+
+  public record RequestResult(String code, String status) {}
 
   public record RiderCode(UUID riderId, String name, String code) {}
 
@@ -47,7 +59,8 @@ public class RiderService {
   public record Parked(UUID rackId, String rackName, String rackLocation, Instant since, boolean alarm,
                        boolean reported, Instant lastAlarmAt) {}
 
-  public record RiderView(String name, List<Card> cards, List<Parked> parked) {}
+  /** status: PENDING (waiting for staff), APPROVED, DENIED. linkUntil: the HokieP link window, if open. */
+  public record RiderView(String name, String status, List<Card> cards, List<Parked> parked, Instant linkUntil) {}
 
   static String newCode() {
     StringBuilder sb = new StringBuilder();
@@ -96,9 +109,7 @@ public class RiderService {
   public RiderView me(String rawCode) {
     String code = normalize(rawCode);
     if (code.length() != 9) throw ApiException.notFound("Rider code");
-    Map<String, Object> rider = jdbc.sql("SELECT id, name FROM riders WHERE code_hash = :hash")
-        .param("hash", Tokens.sha256Hex(code)).query().listOfRows().stream().findFirst()
-        .orElseThrow(() -> ApiException.notFound("Rider code"));
+    Map<String, Object> rider = findByCode(rawCode);
     UUID riderId = (UUID) rider.get("id");
     List<Card> cards = jdbc.sql("""
             SELECT display_label, active AND revoked_at IS NULL AS usable FROM credentials
@@ -129,6 +140,97 @@ public class RiderService {
       return new Parked(rack.id(), rack.name(), rack.locationDescription(), sinceAt, rack.openAlarms() > 0,
           rack.incidentStatus() != null, rack.lastAlarmAt());
     }).toList();
-    return new RiderView((String) rider.get("name"), cards, parked);
+    Instant linkUntil = toInstant(rider.get("link_until"));
+    if (linkUntil != null && !linkUntil.isAfter(now)) linkUntil = null;
+    return new RiderView((String) rider.get("name"), (String) rider.get("status"), cards, parked, linkUntil);
+  }
+
+  private Map<String, Object> findByCode(String rawCode) {
+    String code = normalize(rawCode);
+    if (code.length() != 9) throw ApiException.notFound("Rider code");
+    return jdbc.sql("SELECT id, name, status, link_until FROM riders WHERE code_hash = :hash")
+        .param("hash", Tokens.sha256Hex(code)).query().listOfRows().stream().findFirst()
+        .orElseThrow(() -> ApiException.notFound("Rider code"));
+  }
+
+  private static Instant toInstant(Object v) {
+    return v instanceof java.sql.Timestamp t ? t.toInstant() : v instanceof java.time.OffsetDateTime o ? o.toInstant() : null;
+  }
+
+  // ---------- requests (the stand-in for a StarRez form) ----------
+
+  /** A rider asks for access online. Returns their private code (the phone keeps it). */
+  @Transactional
+  public RequestResult request(String name, String email, String hokieId, String note) {
+    UUID id = UUID.randomUUID();
+    String code = newCode();
+    jdbc.sql("""
+            INSERT INTO riders (id, name, code_hash, status, email, hokie_passport_id, note, created_at)
+            VALUES (:id, :name, :hash, 'PENDING', :email, :hokie, :note, :now)
+            """)
+        .param("id", id).param("name", name.trim()).param("hash", Tokens.sha256Hex(code))
+        .param("email", email.trim().toLowerCase()).param("hokie", hokieId == null ? null : hokieId.trim())
+        .param("note", note == null || note.isBlank() ? null : note.trim()).param("now", Db.ts(clock.instant())).update();
+    audit.record("rider:" + name.trim(), "ACCESS_REQUESTED", "RIDER", id, Map.of("email", email.trim().toLowerCase()));
+    return new RequestResult(code, "PENDING");
+  }
+
+  public List<AccessRequest> requests(String status) {
+    String where = status == null || status.isBlank() ? "" : " WHERE status = :status";
+    var q = jdbc.sql("""
+            SELECT id, name, email, hokie_passport_id, note, status, created_at, decided_at, decided_by FROM riders
+            """ + where + " ORDER BY created_at DESC LIMIT 200");
+    if (!where.isEmpty()) q = q.param("status", status.toUpperCase());
+    return q.query((rs, n) -> new AccessRequest(Db.uuid(rs, "id"), rs.getString("name"), rs.getString("email"),
+        rs.getString("hokie_passport_id"), rs.getString("note"), rs.getString("status"), Db.instant(rs, "created_at"),
+        Db.instant(rs, "decided_at"), rs.getString("decided_by"))).list();
+  }
+
+  @Transactional
+  public AccessRequest decide(UUID riderId, boolean approve, String actor) {
+    int n = jdbc.sql("""
+            UPDATE riders SET status = :status, decided_at = :now, decided_by = :actor
+            WHERE id = :id AND status = 'PENDING'
+            """)
+        .param("status", approve ? "APPROVED" : "DENIED").param("now", Db.ts(clock.instant()))
+        .param("actor", actor).param("id", riderId).update();
+    if (n == 0) throw ApiException.conflict("That request was already decided (or doesn't exist).");
+    audit.record(actor, approve ? "ACCESS_APPROVED" : "ACCESS_DENIED", "RIDER", riderId, Map.of());
+    return requests(null).stream().filter((r) -> r.id().equals(riderId)).findFirst().orElseThrow();
+  }
+
+  /** Opens a 2-minute window: the next unknown card tapped on any rack becomes this rider's HokieP. */
+  @Transactional
+  public RiderView startLink(String rawCode) {
+    Map<String, Object> rider = findByCode(rawCode);
+    if (!"APPROVED".equals(rider.get("status"))) throw ApiException.conflict("Your request hasn't been approved yet.");
+    jdbc.sql("UPDATE riders SET link_until = :until WHERE id = :id")
+        .param("until", Db.ts(clock.instant().plus(LINK_WINDOW))).param("id", rider.get("id")).update();
+    return me(rawCode);
+  }
+
+  /**
+   * A rack refused an unknown card. If exactly one approved rider is waiting to link, that card is
+   * theirs: register it for all racks under their name. (Two riders linking in the same 2 minutes is
+   * ambiguous, so nothing happens and they try again.)
+   */
+  @EventListener
+  public void onCardRefused(CardRefused tap) {
+    boolean known = jdbc.sql("SELECT count(*) FROM credentials WHERE credential_reference = :ref")
+        .param("ref", tap.credentialReference()).query(Long.class).single() > 0;
+    if (known) return;
+    List<Map<String, Object>> waiting = jdbc.sql("""
+            SELECT id, name FROM riders WHERE status = 'APPROVED' AND link_until > :now ORDER BY link_until DESC
+            """)
+        .param("now", Db.ts(clock.instant())).query().listOfRows();
+    if (waiting.size() != 1) return;
+    UUID riderId = (UUID) waiting.get(0).get("id");
+    String name = (String) waiting.get(0).get("name");
+    var card = credentials.create(new CreateCredential(tap.credentialReference(), name + "'s HokieP", true, List.of(), null, null),
+        "rider:" + name);
+    jdbc.sql("UPDATE credentials SET rider_id = :rider WHERE id = :id").param("rider", riderId).param("id", card.id()).update();
+    jdbc.sql("UPDATE riders SET link_until = NULL WHERE id = :id").param("id", riderId).update();
+    audit.record("rider:" + name, "HOKIEP_LINKED", "RIDER", riderId,
+        Map.of("credentialId", card.id().toString(), "rackId", String.valueOf(tap.rackId())));
   }
 }

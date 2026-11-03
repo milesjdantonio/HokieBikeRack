@@ -21,6 +21,41 @@ public class RiderController {
 
   public record IssueCode(@Size(max = 120) String name) {}
 
+  /** The online request form (stand-in for StarRez). */
+  public record RequestAccess(
+      @jakarta.validation.constraints.NotBlank @Size(max = 120) String name,
+      @jakarta.validation.constraints.NotBlank @jakarta.validation.constraints.Email @Size(max = 160) String email,
+      @jakarta.validation.constraints.Pattern(regexp = "^$|\\d{9}", message = "is the 9-digit number on your Hokie Passport")
+      String hokiePassportId,
+      @Size(max = 500) String note) {}
+
+  @PostMapping("/rider/request")
+  @ResponseStatus(HttpStatus.CREATED)
+  public RiderService.RequestResult request(@jakarta.validation.Valid @RequestBody RequestAccess body) {
+    return riders.request(body.name(), body.email(), body.hokiePassportId(), body.note());
+  }
+
+  /** Approved riders: open the 2-minute window to link their Hokie Passport with one tap. */
+  @PostMapping("/rider/link")
+  public RiderService.RiderView link(@RequestHeader("X-Rider-Code") String code) {
+    return riders.startLink(code);
+  }
+
+  @GetMapping("/access-requests")
+  public java.util.List<RiderService.AccessRequest> requests(@RequestParam(required = false) String status) {
+    return riders.requests(status);
+  }
+
+  @PostMapping("/access-requests/{riderId}/approve")
+  public RiderService.AccessRequest approve(@PathVariable UUID riderId, Principal user) {
+    return riders.decide(riderId, true, user.getName());
+  }
+
+  @PostMapping("/access-requests/{riderId}/deny")
+  public RiderService.AccessRequest deny(@PathVariable UUID riderId, Principal user) {
+    return riders.decide(riderId, false, user.getName());
+  }
+
   /** Makes (or replaces) the card owner's rider code. The code is in this response only. */
   @PostMapping("/credentials/{credentialId}/rider-code")
   @ResponseStatus(HttpStatus.CREATED)
