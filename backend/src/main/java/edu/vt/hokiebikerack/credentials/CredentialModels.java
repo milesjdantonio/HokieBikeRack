@@ -17,7 +17,8 @@ public final class CredentialModels {
   public record CredentialView(UUID id, String credentialReference, String displayLabel, String status,
                                boolean active, boolean allRacks, List<UUID> rackIds,
                                Instant validFrom, Instant validUntil, Instant createdAt, Instant updatedAt,
-                               Instant revokedAt, Instant lastUsedAt, long grantedCount) {}
+                               Instant revokedAt, Instant lastUsedAt, long grantedCount,
+                               String riderName) {}   // null = no rider code made for this card yet
 
   /** The reference comes from an ACCESS_DENIED event (tap-then-register) or the serial monitor. */
   public record CreateCredential(

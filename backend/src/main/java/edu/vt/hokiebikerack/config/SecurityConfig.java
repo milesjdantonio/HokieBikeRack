@@ -86,6 +86,8 @@ public class SecurityConfig {
         .httpBasic(b -> b.authenticationEntryPoint(JSON_401))
         .authorizeHttpRequests(a -> a
             .requestMatchers(HttpMethod.GET, "/api/v1/health").permitAll()
+            // The rider app: the private rider code in the X-Rider-Code header is the key.
+            .requestMatchers(HttpMethod.GET, "/api/v1/rider/me").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN", "VIEWER")
             .anyRequest().hasRole("ADMIN"))
         .exceptionHandling(e -> e.authenticationEntryPoint(JSON_401).accessDeniedHandler(JSON_403))

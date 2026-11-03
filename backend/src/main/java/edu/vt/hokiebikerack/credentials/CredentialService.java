@@ -48,7 +48,8 @@ public class CredentialService {
              (SELECT max(e.occurred_at) FROM security_events e
                WHERE e.credential_reference = c.credential_reference AND e.event_type = 'ACCESS_GRANTED') AS last_used_at,
              (SELECT count(*) FROM security_events e
-               WHERE e.credential_reference = c.credential_reference AND e.event_type = 'ACCESS_GRANTED') AS granted_count
+               WHERE e.credential_reference = c.credential_reference AND e.event_type = 'ACCESS_GRANTED') AS granted_count,
+             (SELECT r.name FROM riders r WHERE r.id = c.rider_id) AS rider_name
       FROM credentials c
       """;
 
@@ -69,7 +70,7 @@ public class CredentialService {
     return new CredentialView(Db.uuid(rs, "id"), rs.getString("credential_reference"),
         rs.getString("display_label"), status, active, rs.getBoolean("all_racks"), rackIds, validFrom,
         validUntil, Db.instant(rs, "created_at"), Db.instant(rs, "updated_at"), revokedAt,
-        Db.instant(rs, "last_used_at"), rs.getLong("granted_count"));
+        Db.instant(rs, "last_used_at"), rs.getLong("granted_count"), rs.getString("rider_name"));
   }
 
   public List<CredentialView> list() {

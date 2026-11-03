@@ -341,6 +341,41 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void riderCodeShowsWhereTheBikeIsAndWarnsAboutAlarms() throws Exception {
+    Device d = newRackWithDevice("Rider Rack");
+    String ref = "c".repeat(64);
+    JsonNode card = json(jsonBody(post("/api/v1/credentials"), "{\"credentialReference\":\"" + ref
+        + "\",\"displayLabel\":\"Jane Doe\",\"allRacks\":true}").with(ADMIN), 201);
+    String cardId = card.get("id").asText();
+    String issuePath = "/api/v1/credentials/" + cardId + "/rider-code";
+    json(jsonBody(post(issuePath), "{}").with(VIEWER), 403);
+    String code = json(jsonBody(post(issuePath), "{}").with(ADMIN), 201).get("code").asText();
+    assertThat(code).matches("[A-Z2-9]{4}-[A-Z2-9]{4}");
+    assertThat(json(get("/api/v1/credentials/" + cardId).with(ADMIN), 200).get("riderName").asText()).isEqualTo("Jane Doe");
+
+    // No login needed: the code is the key. Typed loosely still works.
+    String loose = code.toLowerCase().replace("-", " ");
+    JsonNode me = json(get("/api/v1/rider/me").header("X-Rider-Code", loose), 200);
+    assertThat(me.get("name").asText()).isEqualTo("Jane Doe");
+    assertThat(me.get("parked").size()).isZero();
+    json(get("/api/v1/rider/me").header("X-Rider-Code", "AAAA-AAAA"), 404);
+
+    String events = "/api/v1/devices/" + d.deviceId() + "/events";
+    json(asDevice(jsonBody(post(events), "{\"events\":[" + event("ACCESS_GRANTED", "INFO", null,
+        "{\"credentialReference\":\"" + ref + "\"}") + "]}"), d), 200);
+    JsonNode parked = json(get("/api/v1/rider/me").header("X-Rider-Code", code), 200);
+    assertThat(parked.at("/parked/0/rackName").asText()).isEqualTo("Rider Rack");
+    assertThat(parked.at("/parked/0/alarm").asBoolean()).isFalse();
+    json(asDevice(jsonBody(post(events), "{\"events\":[" + event("TAMPER_ALARM", "HIGH", null, "{}") + "]}"), d), 200);
+    assertThat(json(get("/api/v1/rider/me").header("X-Rider-Code", code), 200).at("/parked/0/alarm").asBoolean()).isTrue();
+
+    // A new code replaces the old one.
+    String second = json(jsonBody(post(issuePath), "{}").with(ADMIN), 201).get("code").asText();
+    json(get("/api/v1/rider/me").header("X-Rider-Code", code), 404);
+    json(get("/api/v1/rider/me").header("X-Rider-Code", second), 200);
+  }
+
+  @Test
   void openSpotsCountTapInTapOutAndLastAlarm() throws Exception {
     Device d = newRackWithDevice("Spots");
     String rackPath = "/api/v1/racks/" + d.rackId();
