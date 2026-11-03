@@ -3,7 +3,7 @@
 // Browser: rack list beside the campus map. App (phone, ?view=app): tabs Racks / Map / My Card / Alerts.
 // Riders never see anyone's card, and don't need to know about the rack's connection (Miles).
 // Map pins (Miles): green = plenty of spots, yellow = under 25% open, red = full,
-// flashing red with a slash = a report was made (police incident open): use another rack.
+// flashing red with a slash and a red pulse = an alarm or a report (police incident open).
 import { h, ago } from "../js/dom.js";
 import { riveIcon } from "../js/rive.js";
 import { rackMap } from "./map.js";
@@ -28,6 +28,7 @@ const few = (r) => r.openSpots > 0 && r.openSpots / r.capacity < 0.25;
 function spots(r) {
   if (!installed(r)) return { big: "-", small: "Not open yet", cls: "muted" };
   if (reported(r)) return { big: "Closed", small: "Reported", cls: "reported" };
+  if (isAlarm(r)) return { big: "Alarm", small: "Alarm now", cls: "reported" };
   if (r.openSpots === 0) return { big: "Full", small: `${r.capacity} of ${r.capacity} in use`, cls: "full" };
   return { big: String(r.openSpots), small: `of ${r.capacity} spot${r.capacity === 1 ? "" : "s"} open`, cls: few(r) ? "few" : "open" };
 }
@@ -53,14 +54,14 @@ function haversine(a, b, c, d) {
 const walk = (km) => (km < 0.05 ? "right here" : `${Math.max(1, Math.round((km * 1000) / 80))} min walk`);
 // pin.riv states: 0 green, 5 yellow, 6 red, 7 flashing red + slash, 3 grey (not open yet).
 const riderPin = (r) => ({ ...r,
-  pin: !installed(r) ? 3 : reported(r) ? 7 : r.openSpots === 0 ? 6 : few(r) ? 5 : 0,
-  label: `${r.name} · ${!installed(r) ? "not open" : reported(r) ? "reported" : r.openSpots === 0 ? "full" : `${r.openSpots} open`}` });
+  pin: !installed(r) ? 3 : reported(r) || isAlarm(r) ? 7 : r.openSpots === 0 ? 6 : few(r) ? 5 : 0,
+  label: `${r.name} · ${!installed(r) ? "not open" : reported(r) ? "reported" : isAlarm(r) ? "alarm" : r.openSpots === 0 ? "full" : `${r.openSpots} open`}` });
 
 function sorted() {
   const list = S.racks.filter((r) => r.latitude != null || installed(r));
   return list.sort((a, b) => {
     if (here) return (distKm(a) ?? 1e9) - (distKm(b) ?? 1e9);
-    const score = (r) => (!installed(r) ? -3 : reported(r) ? -2 : r.openSpots === 0 ? -1 : r.openSpots);
+    const score = (r) => (!installed(r) ? -3 : reported(r) || isAlarm(r) ? -2 : r.openSpots === 0 ? -1 : r.openSpots);
     return score(b) - score(a) || a.name.localeCompare(b.name);
   });
 }
@@ -69,7 +70,7 @@ function sorted() {
 function rackCard(r, onOpen) {
   const sp = spots(r), al = alarm(r), km = distKm(r);
   return h("button", { type: "button", class: `rider-card${r.id === openId ? " current" : ""}`, onClick: () => onOpen(r.id) },
-    h("span", { class: `rc-spots ${sp.cls}` }, h("b", {}, sp.big), h("small", {}, ["Full", "-", "Closed"].includes(sp.big) ? "" : "open")),
+    h("span", { class: `rc-spots ${sp.cls}` }, h("b", {}, sp.big), h("small", {}, ["Full", "-", "Closed", "Alarm"].includes(sp.big) ? "" : "open")),
     h("span", { class: "rc-main" }, h("b", {}, r.name), h("span", {}, [r.locationDescription, km != null ? walk(km) : null].filter(Boolean).join(" · ")),
       h("span", { class: `rc-alarm ${al.cls}` }, al.text)),
     icon("back"));
@@ -85,7 +86,8 @@ function detail(body, r) {
       h("h1", { class: "panel-title" }, r.name),
       r.locationDescription ? h("p", { class: "panel-sub" }, r.locationDescription) : null,
       h("div", { class: "facts big-facts" },
-        h("div", { class: `fact ${sp.cls}` }, h("span", {}, "Open Spots"), h("b", {}, ["-", "Full", "Closed"].includes(sp.big) ? sp.big : `${sp.big} of ${r.capacity}`)),
+        h("div", { class: `fact ${sp.cls}` }, h("span", {}, "Open Spots"), h("b", {}, ["-", "Full", "Closed"].includes(sp.big) ? sp.big
+          : sp.big === "Alarm" ? (r.openSpots === 0 ? "Full" : `${r.openSpots} of ${r.capacity}`) : `${sp.big} of ${r.capacity}`)),
         h("div", { class: `fact ${al.cls === "alarm" ? "alarm" : ""}` }, h("span", {}, "Alarm"), h("b", {}, isAlarm(r) ? "Active now" : r.lastAlarmAt ? ago(r.lastAlarmAt) : "None"),
           h("small", {}, isAlarm(r) ? "Staff have been alerted" : r.lastAlarmAt ? "since the last alarm" : "never had one"))),
       h("p", { class: `state ${isAlarm(r) || reported(r) ? "state-alarm" : r.openSpots === 0 || few(r) ? "state-warning" : ""}` }, sentence(r)),

@@ -8,7 +8,7 @@
 //                    4 police (authorities alerted: ring and badge flash red and blue, like police lights)
 //                    rider map, coloured by open spots (no connection states for riders):
 //                    5 few (yellow: under 25% of spots open)  6 full (red)
-//                    7 reported (a report was made: the ring flashes red and a slash crosses the pin)
+//                    7 reported (alarm or report: the ring flashes red, a slash crosses the pin, a red pulse spreads)
 //   trigger `unlock` the glyph turns into a check that draws itself, the ring flashes green
 //   trigger `deny`   the glyph turns into a cross, the pin shakes no, the ring flashes red
 //   bool `selected`  the disc fills Burnt Orange with a small settle
@@ -29,6 +29,12 @@ export default function build() {
 
   const root = ab.node(null, { name: 'root' });
   const shaker = ab.node(root, { name: 'shaker', x: C, y: C });     // status: alarm shudder
+  // Pulse behind the pin for a reported / alarming rack on the rider map. The one pulse in the
+  // project: Miles asked for it here (riders must notice it), everything else stays still.
+  const pulse = ab.node(shaker, { name: 'pulse' });
+  const pulseShape = ab.shape(pulse);
+  ab.ellipse(pulseShape, { w: 34, h: 34 });
+  const pulseStroke = ab.stroke(pulseShape, FULL_RED, 3, { alpha: 0 });
   const nudge = ab.node(shaker, { name: 'nudge' });                  // events: "no" shake
   const core = ab.node(nudge, { name: 'core' });                     // selected: settle
 
@@ -114,6 +120,9 @@ export default function build() {
       reported: [[0, hex(FULL_RED), 'hold'], [20, hex(DARK_RED), 'hold'], [40, hex(FULL_RED)]],
     } },
     { target: slash, prop: 'opacity', base: 0, poses: { reported: 1 } },
+    { target: pulse, prop: 'scaleX', base: 1, poses: { reported: [[0, 1, EASE.out], [40, 1.5]] } },
+    { target: pulse, prop: 'scaleY', base: 1, poses: { reported: [[0, 1, EASE.out], [40, 1.5]] } },
+    { target: pulseStroke, prop: 'colorValue', base: hex(FULL_RED, 0), poses: { reported: [[0, hex(FULL_RED, 0.9), EASE.out], [40, hex(FULL_RED, 0)]] } },
     { target: slash, prop: 'scaleX', base: 1, poses: { reported: [[0, 0.2, EASE.out], [12, 1, 'hold'], [40, 1]] } },
     { target: slash, prop: 'scaleY', base: 1, poses: { reported: [[0, 0.2, EASE.out], [12, 1, 'hold'], [40, 1]] } },
     { target: badge, prop: 'scaleX', base: 0, poses: {

@@ -69,3 +69,8 @@ dark ground. Markers are still (no pulses); the ring colour carries the status.
 - Black `#000`, text `#c9d1d9`, dim `#6e7681`, green `#3fb950` OK, amber `#d29922` warning, red `#f85149` alarm, cyan `#58a6ff` links/buttons.
 - System monospace (`ui-monospace`, Cascadia Mono, Consolas).
 - Sections are "commands" (`$ racks`, `$ events --tail 50`) with plain tables and `█` bars. No animations beyond a blinking cursor.
+
+## Exception: the rider alarm pin pulses (Miles, 2026-11-02)
+Pulses stay banned everywhere else (they read as AI-made). On the **rider map**, a rack with an alarm
+or a police report gets the slashed, flashing red pin **with a red pulse**, because Miles wants riders
+to notice it and stay away. pin.riv state 7; nothing else in the project pulses.
