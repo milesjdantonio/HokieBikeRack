@@ -34,6 +34,8 @@ hbr:
   device-online-window: 3m
   # Time zone used for "per day" report buckets.
   report-zone: America/New_York
+  # Demo: no sign-in on the website (Miles: not needed for the demo). true = admin/viewer logins below.
+  login-required: ${HBR_LOGIN_REQUIRED:false}
   users:
     admin-username: ${ADMIN_USERNAME:admin}
     admin-password: ${ADMIN_PASSWORD:}     # empty = a random one is generated and logged

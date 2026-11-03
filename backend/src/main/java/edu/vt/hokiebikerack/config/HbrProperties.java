@@ -13,6 +13,9 @@ public record HbrProperties(
     @DefaultValue("72h") Duration snapshotValidity,
     @DefaultValue("3m") Duration deviceOnlineWindow,
     @DefaultValue("America/New_York") String reportZone,
+    // false (the demo default) = no usernames or passwords: everyone using the website acts as admin.
+    // Racks still need their device tokens. Set HBR_LOGIN_REQUIRED=true for anything beyond the demo.
+    @DefaultValue("false") boolean loginRequired,
     @DefaultValue Users users,
     @DefaultValue EmbeddedDb embeddedDb) {
 

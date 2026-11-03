@@ -343,6 +343,13 @@ class ApiIntegrationTest {
   @Test
   void deviceProvisioningReturnsConfigSnippetOnce() throws Exception {
     Device d = newRackWithDevice("Snippet");
+    JsonNode rack = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);
+    JsonNode creds = json(post("/api/v1/racks/" + d.rackId() + "/devices/" + d.deviceId() + "/rotate-token").with(ADMIN), 200);
+    String snippet = creds.get("configSnippet").asText();
+    // Ready to paste: id, token, and a real address for this laptop (never "localhost").
+    assertThat(snippet).contains("HBR_DEVICE_ID \"" + d.deviceId() + "\"").contains("HBR_API_BASE_URL \"http://")
+        .doesNotContain("localhost");
+    assertThat(rack.toString()).doesNotContain(creds.get("deviceToken").asText());
     JsonNode detail = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);
     // The token is never returned again by normal reads.
     assertThat(detail.toString()).doesNotContain(d.token());

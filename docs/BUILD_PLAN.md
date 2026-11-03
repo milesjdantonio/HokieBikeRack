@@ -147,7 +147,7 @@ and staff app) and the rider app (no login to see racks).
 - [ ] 10.2 Public read-only racks API for riders (+ tests)
 - [ ] 10.3 Admin site: shell, map, terminal feed
 - [ ] 10.4 Rack panel (status, alerts, module, cards, register, move, add module)
-- [ ] 10.5 Needs-you strip + terminal commands (incl. demo tap/shake)
+- [ ] 10.5 Needs You list + terminal commands + Commands page (no simulated hardware commands)
 - [ ] 10.6 Rive warnings (map pin, pop-up card, terminal badges) + Reports + Audit log
 - [ ] 10.7 Rider app cleanup (no login, no tours, simpler)
 - [ ] 10.8 Remove old pages, docs, demo script, checks, push
@@ -159,6 +159,7 @@ and staff app) and the rider app (no login to see racks).
 - 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).
 - 2026-11-02: Phase 4 written (vanilla JS modules, no build). Browser check happens in 5.2.
 - 2026-11-02: Phase 5 done. Backend (embedded) + simulator demo + headless-Edge check of every page as admin and viewer: no console errors. Fixed: blank app preview, unreadable Sign out, table action column, favicon 404.
+- 2026-11-02: Round 3 (Miles's notes): rack back from offline must be confirmed (V4 needs_confirm, UNCONFIRMED status, POST /racks/{id}/confirm-online, test); website login off for the demo (hbr.login-required=false, DemoAdminFilter, NoLoginDemoTest; 17 backend tests pass); setup snippet fills in the laptop's Wi-Fi address; rack-to-server path checked end to end over the Wi-Fi IP with the simulator, firmware builds. Mockup v3: Needs You list, shake/alarm drop panel, Alert Authorities (police.riv), Move on Map, Confirm Online, Commands page, app view (?view=app), bike icon, VT map bounds, no in-site hardware test buttons. See frontend-plan.md "Round 3".
 - 2026-11-02: Miles chose B1. New Rive files pin.riv, badge.riv, signal.riv (tools/rive/art). rackMap: Rive pins (shared with the rider app), setInset() so a selected rack centres in the visible part of the map beside the panel, flash(id, unlock|deny). Mockup is now B1 only and clickable. Bug found: setting marker className wiped MapLibre's positioning classes (pins stacked 60 px apart).
 - 2026-11-02: Talked through every page with Miles; agreed plan saved in docs/notes/frontend-plan.md (Phase 10).
 - 2026-11-02: Phase 9 done. Click-to-place + Add Rack + place search (TerraSim style); tours for both apps + terminal $ help; Find Nearest, directions, connection banner, clearer sign-in, rack-not-found, recent activity, mark all handled, card search. 7 bugs fixed (listed in docs/notes/frontend.md). 15 backend tests; headless flow check, no errors.

@@ -204,18 +204,17 @@ function settings(el) {
       }),
       h("a", { class: "btn", href: appHref(otherMode) }, otherMode === "staff" ? "Open Staff App" : "Open Rider App"),
       MODE === "staff" ? h("a", { class: "btn", href: "/", target: EMBED ? "_top" : null }, "Admin Console") : null),
-    h("div", { class: "block" }, button("Sign Out", () => { clearCredentials(); ctx.me = null; signIn(); }, { kind: "quiet" })),
+    ctx.me?.loginRequired === false ? null
+      : h("div", { class: "block" }, button("Sign Out", () => { clearCredentials(); ctx.me = null; signIn(); }, { kind: "quiet" })),
     h("p", { class: "block small faint" }, "Map data © OpenStreetMap contributors, OpenFreeMap. Imagery © Esri, Maxar, Earthstar Geographics. Place search by Photon (komoot). Fonts: Fraunces and Hanken Grotesk (SIL Open Font License)."));
   return null;
 }
 
 // ---------- go ----------
 
-if (hasCredentials()) {
-  start().then((result) => {
-    if (result === "offline") signIn("Can't reach HokieBikeRack. Check that the server is running, then sign in again.");
-    else if (result !== "ok") signIn();
-  });
-} else {
-  signIn();
-}
+// Always try first: in demo mode (no website login) the server answers without a password, so
+// nobody sees a sign-in screen. If it needs a login, this fails and the sign-in screen shows.
+start().then((result) => {
+  if (result === "offline") signIn("Can't reach HokieBikeRack. Check that the server is running, then sign in again.");
+  else if (result !== "ok") signIn();
+});

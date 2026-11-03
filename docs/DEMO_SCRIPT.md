@@ -8,15 +8,15 @@ using the simulator. Rehearse once the day before.
 2. Backend:
    ```powershell
    cd backend
-   $env:ADMIN_PASSWORD="pick-one"; $env:VIEWER_PASSWORD="pick-another"
    mvn spring-boot:run "-Dspring-boot.run.profiles=embedded"
    ```
-3. Browser tab 1: http://localhost:8080 (admin terminal) → sign in as `admin`.
+   No usernames or passwords in the demo (login is off; `HBR_LOGIN_REQUIRED=true` turns it back on).
+3. Browser tab 1: http://localhost:8080 (admin terminal), no sign-in.
    Tab 2: http://localhost:8080/app (rider app). The rack should have map coordinates
    (terminal → `$ racks` → `[details]` → `[edit]` → `map lat, lng`).
 4. Rack powered, terminal shows it **online**, idle blip green.
 5. Have: one registered card ("Demo rider"), one unregistered card.
-6. Fallback ready in a terminal: `python tools/device_simulator.py setup --admin-password <pw>` (once).
+6. Fallback ready in a terminal: `python tools/device_simulator.py setup` (once).
 
 ## The story
 1. **The problem (30 s)**: bikes get stolen from racks; campus has no visibility.
@@ -40,7 +40,7 @@ using the simulator. Rehearse once the day before.
 
 ## No-hardware fallback
 ```bash
-python tools/device_simulator.py demo --admin-password <pw> --pause 4
+python tools/device_simulator.py demo --pause 4
 ```
 Narrate each printed step while the app and terminal update. Simulated events are marked `sim`.
 Single actions: `tap 04a1b2c3d4e5f6`, `shake`, `shake --alarm`, `online` (keeps it ONLINE).
@@ -52,4 +52,5 @@ Single actions: `tap 04a1b2c3d4e5f6`, `shake`, `shake --alarm`, `online` (keeps 
 | Card denied `NO_SNAPSHOT` / `CLOCK_NOT_SET` | Rack hasn't synced yet: wait, or `sync`. Hotspot needs internet for the clock. |
 | Card denied `NOT_LISTED` after registering | Registered for the wrong rack? `sync`. |
 | ESP32 resets when servo moves | Brownout: servo on separate 5 V supply, shared GND, capacitor. Or set `HBR_ENABLE_SERVO 0`. |
-| Dashboard login fails | Use the password you set, or the generated one printed in the backend log. |
+| A sign-in screen appears | Login was turned on (`HBR_LOGIN_REQUIRED=true`). Unset it and restart, or use the password from the backend log. |
+| Rack shows "Back, Not Confirmed" | It was offline and reconnected. Check it, then Confirm Online. |

@@ -24,11 +24,14 @@ The Rive lab stays as a developer tool only (not linked from either site).
 - **Terminal panel:** a live feed of every tap, alarm and check-in, plus a **prompt for typed
   commands**. Everything a command does also has a button somewhere. Includes **demo commands** that
   fake a tap or a shake at a rack (marked simulated), so the demo works even if the hardware doesn't.
-  Draft command list: `help`, `racks`, `tap <rack> [card]`, `shake <rack>`, `register <card> <name> [rack]`,
-  `ack <rack|all>`, `revoke <name>`, `place <rack>`, `clear`.
+  Command list (see the mockup's Commands page): `help`, `racks`, `open <rack>`, `ack <rack>`,
+  `alert <rack> confirm`, `register <rack> [name]`, `confirm <rack>`, `move <rack>`, `clear`.
+  ~~Demo commands that fake a tap or shake~~ dropped: hardware is tested in person.
 - **Rive for warnings:** (1) the rack's pin on the map animates when it's alarming, (2) a **big pop-up
   card** slides in when a new alarm happens, (3) animated badges next to alarm lines in the terminal.
-- **Sign-in:** one login screen. **No tours**; each screen says what to do next in plain words.
+- **Sign-in:** none for the demo (Miles, 2026-11-02: "not needed for the demo"). The backend's
+  `hbr.login-required` (env `HBR_LOGIN_REQUIRED`, default false) keeps the old admin/viewer logins
+  available behind a switch. **No tours**; each screen says what to do next in plain words.
 - **Look:** two mockups to compare first (Miles: "show me both"): A = same family as the rider app
   (maroon-black, orange actions); B = darker "control room" (near-black, cooler greys, brighter status).
 - **Chosen: B1 "floating"** (2026-11-02, over A, B2 docked and B3 night map). Miles's notes: "needs
@@ -39,8 +42,27 @@ The Rive lab stays as a developer tool only (not linked from either site).
     line / Needs You item / alert / card, `signal.riv` for module Wi-Fi and the terminal header
     (flicks on each new line), `logo.riv` in the top bar. Motion only answers events; nothing idles.
   - Map: `rackMap().setInset({ left: panel + gaps, bottom: tray })` when the panel opens.
-  - Needs You is a floating tray along the bottom of the map with a count; the alarm pop-up shows
-    a 10 s siren countdown; the panel has demo buttons (Test Tap / Wrong Card / Shake).
+  - ~~Needs You tray along the bottom~~ It overflowed and couldn't be navigated, so Needs You is a
+    grouped, scrollable list at the top of the right column (Alarms, Back Online: Confirm, Cards to
+    Register, Alerts, Offline), foldable, each row a button.
+  - **No hardware test buttons or simulated hardware commands on the real site** (Miles: hardware is
+    tested in person). The mockup keeps tap/deny/shake/alarm/reconnect as labelled previews only.
+
+### Round 3 additions (Miles, 2026-11-02)
+- **Shake panel from the top:** a panel drops in from the top of the map when a rack is shaken
+  (amber, `shake.riv`), and turns red when it becomes a tamper alarm (siren countdown).
+- **Alert Authorities** on alarms (drop panel, rack panel, app, `alert <rack> confirm`): always asks
+  first, then `police.riv` plays (shield sends, then a check), and the terminal logs it (shield badge).
+  Real site: record it in the audit log; actually contacting VT Police is a later integration.
+- **Back online needs confirming:** a rack that was offline and checks in again is UNCONFIRMED
+  ("Back, Not Confirmed") until an admin presses Confirm Online / `confirm <rack>` (backend V4).
+- **Move on Map** works: click the map or drag the pin, then Save Spot / Cancel (`rackMap().startMove`).
+- **Commands page** in the top bar: every command with what it does, an example and Insert.
+- **App view** (admin on a phone, `?view=app`): no map; alarm next steps at the top (siren done →
+  go and look → Alert Authorities → mark handled), Needs You, the terminal, then a data card per rack
+  (signal, last check-in, unlocks today, open alerts, cards, waiting card, actions).
+- **Bike icon** for racks everywhere (pin.riv glyph and the app icon set).
+- **Map stays on VT:** `maxBounds` around campus plus a margin of Blacksburg, min zoom 14.
 
 ## Rider app
 - **No login to see racks**: anyone can open the map and rack pages (names, locations, status only;

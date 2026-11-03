@@ -1,6 +1,7 @@
 # Used by tests together with the "embedded" profile: a brand-new temporary
 # PostgreSQL on a random port, wiped each run.
 hbr:
+  login-required: true   # the login rules are tested; NoLoginDemoTest covers the demo mode
   users:
     admin-password: test-admin-pass
     viewer-password: test-viewer-pass

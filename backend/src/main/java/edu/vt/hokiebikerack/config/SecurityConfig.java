@@ -71,7 +71,14 @@ public class SecurityConfig {
 
   @Bean
   @Order(2)
-  SecurityFilterChain apiChain(HttpSecurity http) throws Exception {
+  SecurityFilterChain apiChain(HttpSecurity http, HbrProperties props) throws Exception {
+    if (!props.loginRequired()) {
+      log.warn("\n\n  Website login is OFF (demo mode): anyone who can reach this server acts as admin.\n"
+          + "  Set HBR_LOGIN_REQUIRED=true to require the admin/viewer logins again.\n");
+      // Anyone without a login is treated as the admin. A request that does send a login still
+      // uses it (BasicAuthenticationFilter runs first), so the old accounts keep working.
+      http.addFilterBefore(new DemoAdminFilter(props.users().adminUsername()), AnonymousAuthenticationFilter.class);
+    }
     return http
         .securityMatcher("/api/**")
         .csrf(c -> c.disable())

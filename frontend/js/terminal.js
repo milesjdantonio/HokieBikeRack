@@ -133,8 +133,9 @@ function buildConsole() {
     h("span", {}, h("b", {}, "hokiebikerack"), ` ${VERSION}   ${state.me.username}@${location.host} `,
       h("span", { class: state.canEdit ? "ok" : "warn" }, state.canEdit ? "(admin)" : "(read-only)")),
     h("span", {}, live, h("span", { class: "cursor", "aria-hidden": "true" }), "  ",
-      btn("help", () => toggleHelp()), " ",
-      btn("sign out", () => { clearCredentials(); clearInterval(timer); showLogin(); })));
+      btn("help", () => toggleHelp()),
+      state.me.loginRequired === false ? null   // demo mode: no login, so nothing to sign out of
+        : [" ", btn("sign out", () => { clearCredentials(); clearInterval(timer); showLogin(); })]));
   term.append(top);
   S.live = live;
 
@@ -689,5 +690,5 @@ async function loadAudit() {
 
 // ---------- go ----------
 
-if (hasCredentials()) start(null);
-else showLogin();
+// Always try first: in demo mode (no website login) the server answers without a password.
+start(null);

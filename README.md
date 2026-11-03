@@ -14,12 +14,12 @@ The servo output is **off by default** until that test. Not a security-certified
 ```bash
 # 1. Backend + database + dashboard (needs JDK 21+ and Maven; Postgres is downloaded for you)
 cd backend
-export ADMIN_PASSWORD=change-me VIEWER_PASSWORD=change-me-too   # PowerShell: $env:ADMIN_PASSWORD="change-me"
 mvn spring-boot:run -Dspring-boot.run.profiles=embedded
-# 2. Open http://localhost:8080 (admin terminal) or http://localhost:8080/app (rider app)
+# 2. Open http://localhost:8080 (admin terminal) or http://localhost:8080/app (rider app).
+#    No login in the demo. For admin/viewer logins: HBR_LOGIN_REQUIRED=true ADMIN_PASSWORD=... VIEWER_PASSWORD=...
 # 3. In another terminal, pretend to be a rack:
-python tools/device_simulator.py setup --admin-password change-me
-python tools/device_simulator.py demo  --admin-password change-me
+python tools/device_simulator.py setup
+python tools/device_simulator.py demo
 ```
 
 ## With the real rack

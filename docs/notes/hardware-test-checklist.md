@@ -37,11 +37,18 @@ Type commands + Enter.
 - [ ] Unplug the PN532 SDA wire for 5 s → `[nfc] reader stopped answering`. Plug back → `reader is back` (within ~15 s).
 
 ## 3. Network + dashboard
-- [ ] Laptop: start the backend (`mvn spring-boot:run -Dspring-boot.run.profiles=embedded`), log in at http://localhost:8080.
-- [ ] Laptop and ESP32 on the **phone hotspot** (2.4 GHz!). Get laptop IP: `ipconfig` → "IPv4 Address".
-- [ ] Windows firewall may block port 8080 from the hotspot: allow Java when prompted (Private networks).
-- [ ] Dashboard → Racks → create rack → **Add device** → copy snippet into `config.h`.
-      Set `HBR_WIFI_SSID/PASSWORD`, `HBR_API_BASE_URL "http://<laptop-ip>:8080"`, `HBR_ALLOW_INSECURE_HTTP 1`. Re-flash.
+- [ ] Laptop **joined to the phone hotspot first** (2.4 GHz!), then start the backend
+      (`mvn spring-boot:run -Dspring-boot.run.profiles=embedded`) and open http://localhost:8080 (no login in demo mode).
+- [ ] Windows firewall: the JDK that runs the server needs an inbound allow rule. On 2026-11-02 there
+      was one for `jdk-25.0.5` (Public). If Windows asks when the server starts, allow it.
+- [ ] Dashboard → Racks → create rack → **Add device** → copy the snippet into `config.h`. The snippet
+      now fills in `HBR_API_BASE_URL` with this laptop's address on its current Wi-Fi (never `localhost`,
+      which on the ESP32 means the ESP32 itself). That's why the laptop joins the hotspot BEFORE you add
+      the device. Add `HBR_WIFI_SSID/PASSWORD` and `HBR_CARD_KEY`. Re-flash.
+- [ ] Not sure the laptop is reachable? From a phone on the same hotspot open
+      `http://<laptop-ip>:8080/api/v1/health`; it should say `"status":"ok"`.
+      Checked 2026-11-02 with the simulator over the Wi-Fi address: boot, card list, tap, alarm and
+      heartbeat all reached the server.
 - [ ] Monitor: `[net] Wi-Fi connected`, then a card list download. `status` shows clock set + card list.
 - [ ] Dashboard: rack **ONLINE**, device health shows Reader OK / Accel OK / Clock set.
 - [ ] Idle blip turns **green**.

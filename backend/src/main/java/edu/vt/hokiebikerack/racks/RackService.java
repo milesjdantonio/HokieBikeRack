@@ -28,8 +28,11 @@ public class RackService {
   private final AuditService audit;
   private final Clock clock;
   private final Duration onlineWindow;
+  private final int serverPort;
 
-  public RackService(JdbcClient jdbc, ObjectMapper mapper, AuditService audit, Clock clock, HbrProperties props) {
+  public RackService(JdbcClient jdbc, ObjectMapper mapper, AuditService audit, Clock clock, HbrProperties props,
+                     @org.springframework.beans.factory.annotation.Value("${server.port:8080}") int serverPort) {
+    this.serverPort = serverPort;
     this.jdbc = jdbc;
     this.mapper = mapper;
     this.audit = audit;
@@ -241,13 +244,43 @@ public class RackService {
     return device(rackId, deviceId);
   }
 
-  private static String configSnippet(UUID deviceId, String token) {
+  private String configSnippet(UUID deviceId, String token) {
+    // The rack can't use "localhost" (that would be the ESP32 itself), so offer this laptop's
+    // address on the Wi-Fi it's sharing with the rack (the phone hotspot).
+    List<String> urls = lanAddresses().stream().map(ip -> "http://" + ip + ":" + serverPort).toList();
+    String base = urls.isEmpty() ? "http://<laptop-ip>:" + serverPort : urls.get(0);
+    String others = urls.size() > 1
+        ? "\n// Other addresses of this laptop: " + String.join(", ", urls.subList(1, urls.size())) : "";
     return """
         // Paste into firmware/include/config.h (never commit that file)
         #define HBR_DEVICE_ID "%s"
         #define HBR_DEVICE_TOKEN "%s"
-        // and set HBR_API_BASE_URL to this laptop, e.g. "http://<laptop-ip>:8080"
-        """.formatted(deviceId, token);
+        // This laptop on its current network. Use the one on the same Wi-Fi as the rack.%s
+        #define HBR_API_BASE_URL "%s"
+        #define HBR_ALLOW_INSECURE_HTTP 1
+        """.formatted(deviceId, token, others, base);
+  }
+
+  /** This computer's IPv4 addresses on local networks (Wi-Fi first), skipping loopback and virtual adapters. */
+  static List<String> lanAddresses() {
+    List<String> wifi = new java.util.ArrayList<>();
+    List<String> other = new java.util.ArrayList<>();
+    try {
+      for (var nic : java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())) {
+        if (!nic.isUp() || nic.isLoopback() || nic.isVirtual()) continue;
+        String name = (nic.getName() + " " + nic.getDisplayName()).toLowerCase();
+        if (name.matches(".*(vethernet|virtualbox|vmware|hyper-v|wsl|docker|tailscale|zerotier|bluetooth).*")) continue;
+        for (var addr : java.util.Collections.list(nic.getInetAddresses())) {
+          if (addr instanceof java.net.Inet4Address && addr.isSiteLocalAddress()) {
+            (name.matches(".*(wi-?fi|wlan|wireless).*") ? wifi : other).add(addr.getHostAddress());
+          }
+        }
+      }
+    } catch (java.net.SocketException e) {
+      return List.of();
+    }
+    wifi.addAll(other);
+    return wifi;
   }
 
   private static String blankToNull(String s) {

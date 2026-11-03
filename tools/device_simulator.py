@@ -77,8 +77,9 @@ def request(method, url, body=None, headers=None):
 
 
 def admin_headers(args):
+    # No password = the server's demo mode (website login off), which needs no Authorization.
     if not args.admin_password:
-        sys.exit("This needs --admin-password (or env ADMIN_PASSWORD).")
+        return {}
     token = base64.b64encode(f"{args.admin_user}:{args.admin_password}".encode()).decode()
     return {"Authorization": f"Basic {token}"}
 
