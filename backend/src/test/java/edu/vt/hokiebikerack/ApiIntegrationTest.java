@@ -341,6 +341,36 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void openSpotsCountTapInTapOutAndLastAlarm() throws Exception {
+    Device d = newRackWithDevice("Spots");
+    String rackPath = "/api/v1/racks/" + d.rackId();
+    JsonNode fresh = json(get(rackPath).with(VIEWER), 200);
+    assertThat(fresh.at("/rack/capacity").asInt()).isEqualTo(1);       // one lock module = one spot
+    assertThat(fresh.at("/rack/openSpots").asInt()).isEqualTo(1);
+    assertThat(fresh.at("/rack/lastAlarmAt").isNull()).isTrue();
+
+    json(jsonBody(patch(rackPath), "{\"capacity\":3}").with(ADMIN), 200);
+    String a = "a".repeat(64), b = "b".repeat(64);
+    String events = "/api/v1/devices/" + d.deviceId() + "/events";
+    // Card A taps in, card B taps in: 2 parked. Card A taps out: 1 parked.
+    for (String ref : new String[] {a, b, a}) {
+      json(asDevice(jsonBody(post(events), "{\"events\":[" + event("ACCESS_GRANTED", "INFO", null,
+          "{\"credentialReference\":\"" + ref + "\"}") + "]}"), d), 200);
+    }
+    JsonNode parked = json(get(rackPath).with(VIEWER), 200);
+    assertThat(parked.at("/rack/spotsInUse").asInt()).isEqualTo(1);
+    assertThat(parked.at("/rack/openSpots").asInt()).isEqualTo(2);
+
+    json(asDevice(jsonBody(post(events), "{\"events\":[" + event("TAMPER_ALARM", "HIGH", null, "{}") + "]}"), d), 200);
+    assertThat(json(get(rackPath).with(VIEWER), 200).at("/rack/lastAlarmAt").isNull()).isFalse();
+
+    json(post(rackPath + "/reset-spots").with(VIEWER), 403);
+    assertThat(json(post(rackPath + "/reset-spots").with(ADMIN), 200).at("/rack/openSpots").asInt()).isEqualTo(3);
+    JsonNode back = json(jsonBody(patch(rackPath), "{\"clearCapacity\":true}").with(ADMIN), 200);
+    assertThat(back.at("/rack/capacity").asInt()).isEqualTo(1);
+  }
+
+  @Test
   void alertAuthoritiesOpensAnIncidentThatPoliceMoveForward() throws Exception {
     Device d = newRackWithDevice("Incident");
     json(asDevice(jsonBody(post("/api/v1/devices/" + d.deviceId() + "/events"),

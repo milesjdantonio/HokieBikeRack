@@ -43,7 +43,16 @@ public class RackService {
   // One query for all racks. The sub-selects count devices and recent alerts per rack.
   // "Open alerts" = MEDIUM or worse, not acknowledged, received in the last 24 h.
   private static final String RACK_SUMMARY_SQL = """
-      SELECT r.id, r.name, r.location_description, r.latitude, r.longitude, r.created_at,
+      SELECT r.id, r.name, r.location_description, r.latitude, r.longitude, r.created_at, r.capacity AS capacity_setting,
+        (SELECT count(*) FROM devices d WHERE d.rack_id = r.id AND d.active) AS active_devices,
+        -- Bikes parked = cards with an odd number of unlocks here (tap in, tap out) since the last
+        -- reset, within a week. The rack has no bike sensor, so this is the best it can know.
+        (SELECT count(*) FROM (
+            SELECT e.credential_reference FROM security_events e
+            WHERE e.rack_id = r.id AND e.event_type = 'ACCESS_GRANTED' AND e.credential_reference IS NOT NULL
+              AND e.occurred_at > GREATEST(COALESCE(r.spots_reset_at, :parkSince), :parkSince)
+            GROUP BY e.credential_reference HAVING count(*) % 2 = 1) parked) AS parked,
+        (SELECT max(e.occurred_at) FROM security_events e WHERE e.rack_id = r.id AND e.event_type = 'TAMPER_ALARM') AS last_alarm_at,
         (SELECT count(*) FROM devices d WHERE d.rack_id = r.id AND d.active) AS device_count,
         (SELECT count(*) FROM devices d WHERE d.rack_id = r.id AND d.active
             AND d.last_seen_at > :onlineSince AND NOT d.needs_confirm) AS online_count,
@@ -77,6 +86,9 @@ public class RackService {
     int devices = rs.getInt("device_count");
     int online = rs.getInt("online_count");
     int unconfirmed = rs.getInt("unconfirmed_count");
+    Integer setting = rs.getObject("capacity_setting", Integer.class);
+    int capacity = setting != null ? setting : Math.max(1, rs.getInt("active_devices"));
+    int inUse = Math.min(capacity, rs.getInt("parked"));
     long alerts = rs.getLong("open_alerts");
     boolean fault = rs.getBoolean("sensor_fault");
     return new RackSummary(Db.uuid(rs, "id"), rs.getString("name"), rs.getString("location_description"),
@@ -84,12 +96,13 @@ public class RackService {
         status(devices, online, unconfirmed, alerts, fault), devices, online, unconfirmed,
         Db.instant(rs, "last_seen_at"), alerts, rs.getLong("open_alarms"), rs.getString("incident_status"),
         Db.uuid(rs, "incident_id"), fault,
-        Db.instant(rs, "created_at"));
+        Db.instant(rs, "created_at"), capacity, setting, inUse, capacity - inUse, Db.instant(rs, "last_alarm_at"));
   }
 
   private Map<String, Object> summaryParams() {
     Instant now = clock.instant();
-    return Map.of("onlineSince", Db.ts(now.minus(onlineWindow)), "alertSince", Db.ts(now.minus(Duration.ofHours(24))));
+    return Map.of("onlineSince", Db.ts(now.minus(onlineWindow)), "alertSince", Db.ts(now.minus(Duration.ofHours(24))),
+        "parkSince", Db.ts(now.minus(Duration.ofDays(7))));
   }
 
   public List<RackSummary> list() {
@@ -157,16 +170,25 @@ public class RackService {
     return get(rackId);
   }
 
+  /** "All spots are open now": restarts the tap-in / tap-out count (e.g. someone forgot to tap out). */
+  public RackDetail resetSpots(UUID rackId, String actor) {
+    get(rackId);
+    jdbc.sql("UPDATE racks SET spots_reset_at = :now WHERE id = :id")
+        .param("now", Db.ts(clock.instant())).param("id", rackId).update();
+    audit.record(actor, "RACK_SPOTS_RESET", "RACK", rackId, Map.of());
+    return get(rackId);
+  }
+
   @Transactional
   public RackDetail create(CreateRack req, String actor) {
     checkPair(req.latitude(), req.longitude());
     UUID id = UUID.randomUUID();
     jdbc.sql("""
-            INSERT INTO racks (id, name, location_description, status, latitude, longitude)
-            VALUES (:id, :name, :loc, 'UNKNOWN', :lat, :lng)
+            INSERT INTO racks (id, name, location_description, status, latitude, longitude, capacity)
+            VALUES (:id, :name, :loc, 'UNKNOWN', :lat, :lng, :cap)
             """)
         .param("id", id).param("name", req.name().trim()).param("loc", blankToNull(req.locationDescription()))
-        .param("lat", req.latitude()).param("lng", req.longitude())
+        .param("lat", req.latitude()).param("lng", req.longitude()).param("cap", req.capacity())
         .update();
     audit.record(actor, "RACK_CREATED", "RACK", id, Map.of("name", req.name().trim()));
     return get(id);
@@ -182,12 +204,16 @@ public class RackService {
     if (req.locationDescription() != null) changes.put("locationDescription", req.locationDescription().trim());
     if (req.latitude() != null) changes.put("coordinates", req.latitude() + "," + req.longitude());
     if (clear) changes.put("coordinates", "removed");
+    boolean clearCap = Boolean.TRUE.equals(req.clearCapacity());
+    if (req.capacity() != null) changes.put("capacity", req.capacity());
+    if (clearCap) changes.put("capacity", "one per lock module");
     jdbc.sql("""
             UPDATE racks SET
               name = COALESCE(:name, name),
               location_description = CASE WHEN :locSet THEN :loc ELSE location_description END,
               latitude = CASE WHEN :clear THEN NULL ELSE COALESCE(:lat, latitude) END,
               longitude = CASE WHEN :clear THEN NULL ELSE COALESCE(:lng, longitude) END,
+              capacity = CASE WHEN :clearCap THEN NULL ELSE COALESCE(:cap, capacity) END,
               updated_at = :now
             WHERE id = :id
             """)
@@ -195,6 +221,7 @@ public class RackService {
         .param("locSet", req.locationDescription() != null)
         .param("loc", blankToNull(req.locationDescription()))
         .param("clear", clear).param("lat", req.latitude()).param("lng", req.longitude())
+        .param("clearCap", clearCap).param("cap", req.capacity())
         .param("now", Db.ts(clock.instant()))
         .param("id", rackId)
         .update();

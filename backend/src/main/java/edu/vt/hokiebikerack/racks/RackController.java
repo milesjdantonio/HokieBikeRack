@@ -42,6 +42,12 @@ public class RackController {
     return racks.update(rackId, body, user.getName());
   }
 
+  /** "All spots are open now": restarts the tap-in / tap-out count. */
+  @PostMapping("/{rackId}/reset-spots")
+  public RackDetail resetSpots(@PathVariable UUID rackId, Principal user) {
+    return racks.resetSpots(rackId, user.getName());
+  }
+
   /** "It's really back": clears UNCONFIRMED after a rack returns from being offline. */
   @PostMapping("/{rackId}/confirm-online")
   public RackDetail confirmOnline(@PathVariable UUID rackId, Principal user) {

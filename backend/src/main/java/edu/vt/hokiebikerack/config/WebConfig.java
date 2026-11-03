@@ -15,6 +15,11 @@ public class WebConfig implements WebMvcConfigurer {
   public void addViewControllers(ViewControllerRegistry registry) {
     registry.addRedirectViewController("/app", "/app/");
     registry.addViewController("/app/").setViewName("forward:/app/index.html");
+    // The four versions (docs/notes/roles-plan.md), each a folder with its own index.html.
+    for (String version : new String[] {"admin", "staff", "police", "rider"}) {
+      registry.addRedirectViewController("/" + version, "/" + version + "/");
+      registry.addViewController("/" + version + "/").setViewName("forward:/" + version + "/index.html");
+    }
     registry.addRedirectViewController("/lab", "/lab/rive.html");
   }
 }

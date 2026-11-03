@@ -18,11 +18,14 @@ public final class RackModels {
    * UNCONFIRMED = it went offline and has checked in again, but an admin hasn't confirmed it yet.
    * openAlarms = unhandled tamper alarms (last 24 h). incidentStatus/incidentId = the open police
    * incident (ALERTED, EN_ROUTE, ON_SCENE) or null.
+   * capacity = spots (the admin's capacitySetting, or one per active lock module). spotsInUse is
+   * counted from card taps (park / leave alternate), see RackService. lastAlarmAt = newest tamper alarm ever.
    */
   public record RackSummary(UUID id, String name, String locationDescription, Double latitude, Double longitude,
                             String status, int deviceCount, int onlineDeviceCount, int unconfirmedDeviceCount,
                             Instant lastSeenAt, long openAlerts, long openAlarms, String incidentStatus,
-                            UUID incidentId, boolean sensorFault, Instant createdAt) {}
+                            UUID incidentId, boolean sensorFault, Instant createdAt,
+                            int capacity, Integer capacitySetting, int spotsInUse, int openSpots, Instant lastAlarmAt) {}
 
   public record DeviceView(UUID id, UUID rackId, String label, String firmwareVersion, Instant lastSeenAt,
                            boolean online, boolean needsConfirm, boolean active, long authorizationRevision,
@@ -34,14 +37,17 @@ public final class RackModels {
   public record CreateRack(@NotBlank @Size(max = 120) String name,
                            @Size(max = 255) String locationDescription,
                            @DecimalMin("-90") @DecimalMax("90") Double latitude,
-                           @DecimalMin("-180") @DecimalMax("180") Double longitude) {}
+                           @DecimalMin("-180") @DecimalMax("180") Double longitude,
+                           @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(200) Integer capacity) {}
 
   /** clearCoordinates = true takes the rack off the map. */
   public record UpdateRack(@Size(min = 1, max = 120) String name,
                            @Size(max = 255) String locationDescription,
                            @DecimalMin("-90") @DecimalMax("90") Double latitude,
                            @DecimalMin("-180") @DecimalMax("180") Double longitude,
-                           Boolean clearCoordinates) {}
+                           Boolean clearCoordinates,
+                           @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(200) Integer capacity,
+                           Boolean clearCapacity) {}
 
   public record CreateDevice(@NotBlank @Size(max = 120) String label) {}
 
