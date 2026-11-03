@@ -31,6 +31,16 @@ The Rive lab stays as a developer tool only (not linked from either site).
 - **Sign-in:** one login screen. **No tours**; each screen says what to do next in plain words.
 - **Look:** two mockups to compare first (Miles: "show me both"): A = same family as the rider app
   (maroon-black, orange actions); B = darker "control room" (near-black, cooler greys, brighter status).
+- **Chosen: B1 "floating"** (2026-11-02, over A, B2 docked and B3 night map). Miles's notes: "needs
+  work", "a lot of Rive animations", and a selected rack must centre in the part of the map you can
+  see beside the panel, not the middle of the window. Build from `frontend/mockups/` (B1):
+  - Rive: `pin.riv` on every rack (status colour, alarm shudder, check/cross on taps, selection),
+    `rack.riv` scene at the top of the panel and in the alarm pop-up, `badge.riv` on every terminal
+    line / Needs You item / alert / card, `signal.riv` for module Wi-Fi and the terminal header
+    (flicks on each new line), `logo.riv` in the top bar. Motion only answers events; nothing idles.
+  - Map: `rackMap().setInset({ left: panel + gaps, bottom: tray })` when the panel opens.
+  - Needs You is a floating tray along the bottom of the map with a count; the alarm pop-up shows
+    a 10 s siren countdown; the panel has demo buttons (Test Tap / Wrong Card / Shake).
 
 ## Rider app
 - **No login to see racks**: anyone can open the map and rack pages (names, locations, status only;

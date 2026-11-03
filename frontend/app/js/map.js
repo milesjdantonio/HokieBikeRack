@@ -7,6 +7,7 @@
 import * as maplibregl from "../../vendor/maplibre/maplibre-gl.mjs";
 import { h } from "../../js/dom.js";
 import { icon } from "./ui.js";
+import { riveIcon } from "../../js/rive.js";
 
 maplibregl.setWorkerUrl(new URL("../../vendor/maplibre/maplibre-gl-worker.mjs", import.meta.url).href);
 
@@ -82,19 +83,32 @@ function darken(style, look = {}) {
   return style;
 }
 
+/** Rive pin status number for a rack (see tools/rive/art/pin.mjs). */
+const PIN_STATUS = { ONLINE: 0, WARNING: 1, ALARM: 2, OFFLINE: 3, UNKNOWN: 3 };
+const pinStatus = (r) => (r.alarm ? 2 : PIN_STATUS[r.status] ?? 3);
+
 /**
- * Mounts a map in `container`. Returns { setRacks(racks), select(id), destroy() }.
+ * Mounts a map in `container`.
+ * Returns { setRacks(racks), select(id), setInset(px), fitAll(), flash(id, event), destroy() }.
  * onSelect(rack) is called when a marker is clicked.
+ *
+ * Pins are Rive animations (pin.riv): they change colour, shudder on an alarm, and show a check or a
+ * cross when a card is tapped (flash(id, "unlock" | "deny")). Each pin is made once and then only
+ * told what changed, so a status change animates instead of popping.
+ *
+ * setInset({ left, right, top, bottom }) tells the map how much of it is covered (by a side panel),
+ * so "centre on this rack" means the middle of the part you can see, not the middle of the window.
  */
 export function rackMap(container, { interactive = true, onSelect, focus = null, look = {}, view = {} } = {}) {
   const cam = { ...CAMPUS, ...view };
   container.classList.add("map");
-  const markers = new Map();   // rack id -> { marker, el, sig }
+  const markers = new Map();   // rack id -> { marker, el, pin, label, rack }
   let map = null;
   let pending = null;
   let selected = null;
   let destroyed = false;
   let fitted = false;
+  let inset = { left: 0, right: 0, top: 0, bottom: 0 };
 
   const fallback = (text) => container.replaceChildren(h("p", { class: "map-fallback" }, text));
 
@@ -113,6 +127,7 @@ export function rackMap(container, { interactive = true, onSelect, focus = null,
       fallback("This browser can't show the map (WebGL is off). The list below still works.");
       return;
     }
+    map.setPadding(inset);
     if (interactive) map.addControl(new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }), "top-right");
     map.on("load", () => {
       container.querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
@@ -121,52 +136,84 @@ export function rackMap(container, { interactive = true, onSelect, focus = null,
     map.on("error", () => { /* a missing tile shouldn't break the page */ });
   })();
 
+  function makeMarker(r) {
+    const pin = riveIcon("pin", { size: 60, inputs: { status: pinStatus(r), selected: r.id === selected } });
+    const label = h("span", { class: "marker-label" }, r.name);
+    // The plain disc is the fallback if Rive can't load; CSS hides it once the pin is drawn.
+    const el = h("button", { type: "button", class: "marker marker-rive",
+      onClick: (e) => { e.stopPropagation(); select(r.id); if (onSelect) onSelect(markers.get(r.id)?.rack || r); } },
+    pin.el, h("span", { class: "marker-disc" }, icon("racks")), label);
+    const marker = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([r.longitude, r.latitude]).addTo(map);
+    return { marker, el, pin, label, rack: r };
+  }
+
   function setRacks(racks) {
     pending = racks;
     if (!map || !map.loaded()) return;
     const placed = racks.filter((r) => r.latitude != null && r.longitude != null);
     for (const [id, m] of markers) {
-      if (!placed.some((r) => r.id === id)) { m.marker.remove(); markers.delete(id); }
+      if (!placed.some((r) => r.id === id)) { m.marker.remove(); m.pin.destroy(); markers.delete(id); }
     }
     for (const r of placed) {
-      const sig = `${r.latitude},${r.longitude},${r.status},${r.name}`;
-      const existing = markers.get(r.id);
-      if (existing && existing.sig === sig) continue;
-      if (existing) existing.marker.remove();
-      // A still marker: the rack drawn in a disc, its ring coloured by status. No pulsing.
-      const el = h("button", { type: "button", class: `marker marker-${r.status.toLowerCase()}${r.id === selected ? " selected" : ""}`,
-        "aria-label": `${r.name}, ${r.status.toLowerCase()}`,
-        onClick: (e) => { e.stopPropagation(); select(r.id); if (onSelect) onSelect(r); } },
-      h("span", { class: "marker-disc" }, icon("racks")), h("span", { class: "marker-label" }, r.name));
-      const marker = new maplibregl.Marker({ element: el, anchor: "center" }).setLngLat([r.longitude, r.latitude]).addTo(map);
-      markers.set(r.id, { marker, el, sig });
+      let m = markers.get(r.id);
+      if (!m) { m = makeMarker(r); markers.set(r.id, m); }
+      m.rack = r;
+      m.marker.setLngLat([r.longitude, r.latitude]);
+      m.label.textContent = r.name;
+      m.pin.set("status", pinStatus(r));
+      const word = r.alarm ? "alarm" : String(r.status || "unknown").toLowerCase();
+      // classList, not className: MapLibre's own marker classes (its positioning) must stay.
+      for (const c of [...m.el.classList]) if (c.startsWith("marker-") && c !== "marker-rive" && c !== "marker-label") m.el.classList.remove(c);
+      m.el.classList.add(`marker-${word}`);
+      m.el.classList.toggle("selected", r.id === selected);
+      m.el.setAttribute("aria-label", `${r.name}, ${word}`);
     }
     if (!fitted && placed.length && !focus) {
       fitted = true;
-      if (placed.length === 1) map.jumpTo({ center: [placed[0].longitude, placed[0].latitude], zoom: 17 });
-      else {
-        const b = new maplibregl.LngLatBounds();
-        for (const r of placed) b.extend([r.longitude, r.latitude]);
-        map.fitBounds(b, { padding: 70, maxZoom: 17.3, duration: 0, pitch: cam.pitch, bearing: cam.bearing });
-      }
+      fitAll(0);
     }
   }
 
-  function select(id) {
+  /** Shows every placed rack inside the visible part of the map. */
+  function fitAll(duration = 800) {
+    const placed = [...markers.values()].map((m) => m.rack);
+    if (!map || !placed.length) return;
+    if (placed.length === 1) { map.easeTo({ center: [placed[0].longitude, placed[0].latitude], zoom: 17, duration }); return; }
+    const b = new maplibregl.LngLatBounds();
+    for (const r of placed) b.extend([r.longitude, r.latitude]);
+    map.fitBounds(b, { padding: 80, maxZoom: 17.3, duration, pitch: cam.pitch, bearing: cam.bearing });
+  }
+
+  function select(id, { move = true } = {}) {
     selected = id;
-    for (const [rid, m] of markers) m.el.classList.toggle("selected", rid === id);
+    for (const [rid, m] of markers) {
+      m.el.classList.toggle("selected", rid === id);
+      m.pin.set("selected", rid === id);
+    }
     const m = markers.get(id);
-    if (m && map) map.easeTo({ center: m.marker.getLngLat(), duration: 700, zoom: Math.max(map.getZoom(), 16.6) });
+    if (m && map && move) map.easeTo({ center: m.marker.getLngLat(), duration: 700, zoom: Math.max(map.getZoom(), 16.6) });
+  }
+
+  function setInset(next, { duration = 500 } = {}) {
+    inset = { left: 0, right: 0, top: 0, bottom: 0, ...next };
+    if (!map) return;
+    // Easing only the padding keeps the same spot in the middle, now the middle of the visible part.
+    map.easeTo({ padding: inset, duration });
+  }
+
+  /** Plays a one-off event on a rack's pin: "unlock" (check) or "deny" (cross). */
+  function flash(id, event) {
+    markers.get(id)?.pin.fire(event);
   }
 
   function destroy() {
     destroyed = true;
-    for (const m of markers.values()) m.marker.remove();
+    for (const m of markers.values()) { m.marker.remove(); m.pin.destroy(); }
     markers.clear();
     if (map) map.remove();
   }
 
-  return { setRacks, select, destroy };
+  return { setRacks, select, setInset, fitAll, flash, destroy };
 }
 
 /**

@@ -121,6 +121,14 @@ button.row:hover, .row.selected { background: var(--panel-2); }
   background: rgba(14, 10, 12, 0.92); color: var(--ink); font: 500 0.75rem / 1.4 var(--text); white-space: nowrap; pointer-events: none;
   opacity: 0; transition: opacity 160ms var(--ease-out); }
 .marker:hover .marker-label, .marker.selected .marker-label, .marker:focus-visible .marker-label { opacity: 1; }
+/* Rive pins (pin.riv). The plain disc underneath is the fallback and hides once the pin is drawn. */
+.marker-rive { width: 60px; height: 60px; }
+.marker-rive .rive-pin { position: absolute; inset: 0; }
+.marker-rive .rive-pin canvas { width: 60px; height: 60px; display: block; }
+.marker-rive .rive-pin.has-rive ~ .marker-disc { visibility: hidden; }
+.marker-rive .marker-label { top: 50px; }
+.marker-rive:hover .marker-disc { transform: none; }
+.marker-rive:focus-visible { outline: 2px solid var(--accent); outline-offset: -6px; border-radius: 50%; }
 
 /* ---------- racks screen: map beside the list on wide screens ---------- */
 .split { display: grid; gap: 20px; }

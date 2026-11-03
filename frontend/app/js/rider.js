@@ -112,7 +112,7 @@ function sentence(rack, devices, lastTamper) {
 export function rack(el, ctx, id, action) {
   const back = h("button", { type: "button", class: "back", onClick: () => ctx.back() },
     icon("back"), ctx.mode === "staff" ? "Health" : "Racks");
-  const scene = riveIcon("rack", { size: 600, height: 400, inputs: { state: 0 }, label: "The rack, its lock and reader" });
+  const scene = riveIcon("rack", { size: 600, height: 400, fluid: true, inputs: { state: 0 }, label: "The rack, its lock and reader" });
   const caption = h("p", { class: "stage-caption", "aria-live": "polite" });
   const stage = h("figure", { class: "stage" }, scene.el, h("div", { class: "stage-fallback" }, icon("racks")), caption);
   const title = h("h1", { class: "display" }, h("span", { class: "faint" }, "Loading"));

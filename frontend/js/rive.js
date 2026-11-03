@@ -14,7 +14,7 @@ if (R) {
   R.Rive.suppressDeprecationWarnings = ["default-state-machine", "state-machine-inputs", "state-machines-param"];
 }
 
-const MACHINES = { rack: "Rack", logo: "Logo" };
+const MACHINES = { rack: "Rack", logo: "Logo", pin: "Pin", badge: "Badge", signal: "Signal" };
 const live = new Set();
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -58,6 +58,10 @@ export function riveIcon(name, opts = {}) {
   const dpr = Math.max(2, Math.ceil(window.devicePixelRatio || 1));
   canvas.width = size * dpr;
   canvas.height = (opts.height || size) * dpr;
+  if (!opts.fluid) {                      // shown at the icon's size whatever the pixel density;
+    canvas.style.width = `${size}px`;     // fluid scenes are sized by their container's CSS instead
+    canvas.style.height = `${opts.height || size}px`;
+  }
   let instance = null;
   try {
     instance = new R.Rive({
@@ -65,7 +69,8 @@ export function riveIcon(name, opts = {}) {
       canvas,
       stateMachines: MACHINES[name],
       autoplay: true,
-      layout: new R.Layout({ fit: R.Fit.Contain, alignment: R.Alignment.Center }),
+      // fit "cover" fills the box (cropping the artboard), anchored by `align` (e.g. "BottomCenter").
+      layout: new R.Layout({ fit: opts.fit === "cover" ? R.Fit.Cover : R.Fit.Contain, alignment: R.Alignment[opts.align || "Center"] }),
       onLoad: () => {
         for (const i of instance.stateMachineInputs(MACHINES[name]) || []) handle.inputs[i.name] = i;
         for (const [k, v] of Object.entries(state)) setInput(k, v);

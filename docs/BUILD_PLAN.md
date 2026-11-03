@@ -143,6 +143,7 @@ Miles: the Phase 8/9 pages were hard to navigate and the design wasn't good. We 
 page by page first. Two front ends: an admin site (map + terminal panel, replaces the terminal page
 and staff app) and the rider app (no login to see racks).
 - [x] 10.1 Two static admin mockups (A same family, B control room) at /mockups/admin.html → Miles picks
+- [x] 10.1b Miles picked **B1 (floating)**, "needs work": Rive everywhere (pin, badge, signal + rack/logo), map centres beside the panel, clickable mockup with demo commands
 - [ ] 10.2 Public read-only racks API for riders (+ tests)
 - [ ] 10.3 Admin site: shell, map, terminal feed
 - [ ] 10.4 Rack panel (status, alerts, module, cards, register, move, add module)
@@ -158,6 +159,7 @@ and staff app) and the rider app (no login to see racks).
 - 2026-11-02: Phase 3 done. Backend uses plain SQL (JdbcClient) instead of JPA. 14 integration tests pass on embedded Postgres 17 (`mvn test`).
 - 2026-11-02: Phase 4 written (vanilla JS modules, no build). Browser check happens in 5.2.
 - 2026-11-02: Phase 5 done. Backend (embedded) + simulator demo + headless-Edge check of every page as admin and viewer: no console errors. Fixed: blank app preview, unreadable Sign out, table action column, favicon 404.
+- 2026-11-02: Miles chose B1. New Rive files pin.riv, badge.riv, signal.riv (tools/rive/art). rackMap: Rive pins (shared with the rider app), setInset() so a selected rack centres in the visible part of the map beside the panel, flash(id, unlock|deny). Mockup is now B1 only and clickable. Bug found: setting marker className wiped MapLibre's positioning classes (pins stacked 60 px apart).
 - 2026-11-02: Talked through every page with Miles; agreed plan saved in docs/notes/frontend-plan.md (Phase 10).
 - 2026-11-02: Phase 9 done. Click-to-place + Add Rack + place search (TerraSim style); tours for both apps + terminal $ help; Find Nearest, directions, connection banner, clearer sign-in, rack-not-found, recent activity, mark all handled, card search. 7 bugs fixed (listed in docs/notes/frontend.md). 15 backend tests; headless flow check, no errors.
 - 2026-11-02: Phase 8 done. All four pages remade: terminal admin (/), rider app (/app), staff app (/app?mode=staff), sign-in for both. Campus map. Pulses removed (Miles). 15 backend tests; headless checks at phone + desktop, admin + viewer, no console errors.

@@ -7,6 +7,13 @@ const ANIMATIONS = [
   { name: "rack", size: 600, height: 400, inputs: { state: 0 },
     controls: [["state", [0, 1, 2, 3, 4], ["Idle", "Granted", "Denied", "Alarm", "Offline"]]] },
   { name: "logo", size: 160, inputs: {}, controls: [], triggers: [["play", "Play"]] },
+  { name: "pin", size: 168, inputs: { status: 0 },
+    controls: [["status", [0, 1, 2, 3], ["Online", "Warning", "Alarm", "Offline"]], ["selected", [true, false], ["Select", "Deselect"]]],
+    triggers: [["unlock", "Unlock"], ["deny", "Deny"]] },
+  { name: "badge", size: 128, inputs: { kind: 0 },
+    controls: [["kind", [0, 1, 2, 3, 4, 5, 6], ["Info", "OK", "Denied", "Warning", "Alarm", "Offline", "Card"]]] },
+  { name: "signal", size: 128, inputs: { level: 4 },
+    controls: [["level", [0, 1, 2, 3, 4], ["Offline", "1 Bar", "2 Bars", "3 Bars", "4 Bars"]]], triggers: [["blip", "Blip"]] },
 ];
 
 window.__rive = {};

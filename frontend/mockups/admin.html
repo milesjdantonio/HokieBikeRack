@@ -1,7 +1,9 @@
 <!doctype html>
 <!--
-  MOCKUP of the new admin site (docs/notes/frontend-plan.md). Sample data, nothing is saved.
-  Styles: ?style=a | b (B1 floating) | b2 (docked) | b3 (night map)
+  MOCKUP of the new admin site (docs/notes/frontend-plan.md), style B1 "floating" chosen by Miles.
+  Sample data only, nothing is saved. Click pins, use the Needs You items, or type in the terminal:
+  help, tap <rack>, deny <rack>, shake <rack>, ack <rack>, open <rack>, racks, clear.
+  (Mockups A, B2 and B3 are in git history at commit 6e1400c.)
 -->
 <html lang="en">
 <head>
@@ -17,14 +19,6 @@
   <script type="module" src="mockup.js"></script>
 </head>
 <body>
-  <div class="mock-switch" role="group" aria-label="Mockup style">
-    <span>Mockup</span>
-    <a href="?style=a" data-style="a">A</a>
-    <a href="?style=b" data-style="b">B1: Floating</a>
-    <a href="?style=b2" data-style="b2">B2: Docked</a>
-    <a href="?style=b3" data-style="b3">B3: Night Map</a>
-  </div>
-
   <header class="top">
     <a class="brand" href="#"><span class="brand-mark" id="brand-mark"></span>HokieBikeRack</a>
     <nav class="top-nav" aria-label="Pages">
@@ -32,6 +26,7 @@
       <a href="#">Reports</a>
       <a href="#">Audit Log</a>
     </nav>
+    <span class="top-summary" id="summary"></span>
     <span class="top-user">admin</span>
   </header>
 
@@ -39,58 +34,39 @@
     <section class="map-area" aria-label="Campus map">
       <div id="map" class="map"></div>
 
-      <!-- Rack panel: slides in over the left of the map when a rack is clicked -->
-      <aside class="panel" aria-label="Squires North">
-        <button class="panel-close" type="button" aria-label="Close">Close</button>
-        <h1 class="panel-title">Squires North</h1>
-        <p class="panel-sub">Squires Student Center, north side</p>
-        <p class="state state-alarm">Alarm. Someone is tampering with this rack.</p>
-
-        <h2>Alerts</h2>
-        <div class="list">
-          <div class="item"><span class="item-main"><b>Tamper alarm</b><span>Jolt of 1.31 g, 2 min ago</span></span><button class="btn">Handled</button></div>
-          <div class="item"><span class="item-main"><b>Rack bumped</b><span>Jolt of 0.62 g, 3 min ago</span></span><button class="btn">Handled</button></div>
-        </div>
-
-        <h2>Lock Module</h2>
-        <div class="list">
-          <div class="item"><span class="item-main"><b>ESP32 #1</b><span>Online, all sensors working, signal -55 dBm</span></span><span class="ok">Online</span></div>
-        </div>
-
-        <h2>Cards That Work Here</h2>
-        <div class="list">
-          <div class="item"><span class="item-main"><b>Demo Rider</b><span>Used 2 min ago</span></span><button class="btn btn-quiet">Turn Off</button></div>
-        </div>
-
-        <div class="panel-actions">
-          <button class="btn">Move on Map</button>
-          <button class="btn">Add Lock Module</button>
-        </div>
+      <!-- Rack panel: slides in over the left of the map when a rack is opened -->
+      <aside class="panel" id="panel" aria-label="Rack" hidden>
+        <div class="panel-scene" id="panel-scene"></div>
+        <button class="panel-close" id="panel-close" type="button">Close</button>
+        <div id="panel-body"></div>
       </aside>
 
-      <!-- New-alarm pop-up (Rive) -->
-      <div class="alarm-pop" role="alert">
+      <!-- New-alarm pop-up -->
+      <div class="alarm-pop" id="alarm-pop" role="alert" hidden>
         <div class="alarm-scene" id="alarm-scene"></div>
         <div class="alarm-text">
-          <b>Tamper alarm</b>
-          <span>Squires North, just now</span>
-          <div class="alarm-actions"><button class="btn btn-primary">Open Rack</button><button class="btn btn-quiet">Dismiss</button></div>
+          <b>Tamper Alarm</b>
+          <span id="alarm-where"></span>
+          <span class="siren"><span class="siren-bar" id="siren-bar"></span></span>
+          <span class="siren-note" id="siren-note">Siren on for 10 s</span>
+          <div class="alarm-actions"><button class="btn btn-primary" id="alarm-open" type="button">Open Rack</button><button class="btn btn-quiet" id="alarm-dismiss" type="button">Dismiss</button></div>
         </div>
       </div>
+
+      <section class="needs" aria-label="Needs you">
+        <span class="needs-title">Needs You</span>
+        <div class="needs-items" id="needs"></div>
+      </section>
     </section>
 
     <section class="term" aria-label="Terminal">
-      <div class="term-head"><span>terminal</span><span class="term-live">live</span></div>
-      <div class="term-feed" id="feed"></div>
-      <div class="term-prompt"><span class="term-ps">admin $</span><span class="term-typed">tap newman</span><span class="term-cursor"></span></div>
+      <div class="term-head"><span class="term-signal" id="term-signal"></span><span>terminal</span><span class="term-hint">type help</span></div>
+      <div class="term-feed" id="feed" aria-live="polite"></div>
+      <form class="term-prompt" id="prompt" autocomplete="off">
+        <label class="term-ps" for="cmd">admin $</label>
+        <input id="cmd" class="term-input" spellcheck="false" autocapitalize="off" placeholder="tap newman">
+      </form>
     </section>
-
-    <footer class="needs" aria-label="Needs you">
-      <span class="needs-title">Needs You</span>
-      <span class="needs-item"><span class="dot dot-alarm"></span>2 tamper alerts at Squires North <button class="link">Open</button></span>
-      <span class="needs-item"><span class="dot dot-warn"></span>New card tapped at Newman Library <button class="link">Register</button></span>
-      <span class="needs-item"><span class="dot dot-off"></span>Torgersen Hall North offline 14 min <button class="link">Open</button></span>
-    </footer>
   </main>
 </body>
 </html>
