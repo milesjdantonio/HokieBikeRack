@@ -78,6 +78,38 @@ Type commands + Enter.
 - [ ] Power-cycle the ESP32 with the hotspot OFF → cards denied with `CLOCK_NOT_SET`. (Expected, KNOWNBUGS #3.) Hotspot on → works again.
 - [ ] Unknown card, repeated taps, holding a card, two cards quickly: behaviour as expected?
 
+## 7. Rider sign-up with a real Hokie Passport (in person)
+Needs sections 2 and 3 done (rack online, card list syncing). Two people is easiest: one "rider"
+with a phone, one "admin" at the laptop. Time: about 10 minutes.
+
+**First, can the rack read a Hokie Passport at all?**
+- [ ] Serial monitor open. Tap the HokieP 3 times. Each tap prints `[card] read a N-byte card ID`
+      and `DENIED NOT_LISTED`, and the admin's Needs You shows the **same** card each time.
+      If the card shows up as a different card on every tap, it uses a random ID (some DESFire
+      cards do) and can't be linked this way: write that down and use a kit card for the rest.
+- [ ] Nothing at all printed? The PN532 can't read that card type (e.g. HID iCLASS). Note it.
+
+**Sign up, approve, link**
+- [ ] Rider's phone on the **same hotspot**. Open `http://<laptop-ip>:8080/rider/` → My Card →
+      **Request Access**: real name, VT email, Hokie Passport number. Page says "Request sent".
+- [ ] Admin (laptop, `/admin/`): a toast and **Needs You → Access Requests** → Review → **Approve**
+      (or type `approve <name>`). Within ~5 s the rider's phone says "You're approved".
+- [ ] Rider stands at the rack, presses **Link My HokieP** (2-minute countdown), taps the HokieP.
+      Rack: red light + two beeps (expected). Phone: "Hi, <name>" with "<name>'s HokieP".
+      Admin: the card appears under Cards That Work Here with "Rider: <name>".
+- [ ] Wait up to 60 s (or type `sync` in the serial monitor), tap again: **green + beep, lock opens**.
+      Phone → My Card → Your Bike: "parked at <rack>". Rider map: that rack shows "Your bike".
+- [ ] Shake the rack until the siren goes. Phone: red **"Alarm at <rack>, where your bike is"**
+      banner + toast; the map pin is the slashed, pulsing red one. Admin: alarm in Needs You.
+- [ ] Admin: Mark Handled (or police Resolved). Phone banner goes away within ~5 s.
+- [ ] Tap the HokieP once more (leave): phone says "Not parked right now"; the rack's open spots go up.
+
+**Edge cases worth one try each**
+- [ ] Deny a request: the phone says it wasn't approved.
+- [ ] Press Link, wait 2 minutes, tap: nothing links (window closed). Press Link again and it works.
+- [ ] Two riders pressing Link at the same time: neither links (can't tell whose card it was). Retry one at a time.
+- [ ] Rider clears their browser: My Card → Already Have a Rider Code? (or admin → card → New Rider Code).
+
 ## Record results
 Add findings to `docs/HARDWARE_DECISIONS.md` (card type, angles, threshold, power notes)
 and new bugs to `firmware/KNOWNBUGS.txt`.

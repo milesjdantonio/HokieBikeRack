@@ -52,10 +52,26 @@ Bottom tabs, one job each:
 - An **Add Rack** button and an `add <name>` command.
 - Every admin function works, including Reports and the Audit Log.
 
+## Riders and sign-up (Miles, 2026-11-02)
+- "It should give a warning if the user's bike is stored there": riders now exist (V7). The rider app
+  shows where your bike is parked (tap in / tap out) and a red warning + toast when that rack has an
+  alarm or a police report.
+- "Someone could register themselves online through StarRez, which we don't have access to, through a
+  form ... it connects to their HokieP": the rider app's **Request Access** form stands in for StarRez
+  (name, VT email, Hokie Passport ID). Admin approves in Needs You (or `approve <name>`). The rider then
+  presses **Link My HokieP** and taps it on any rack within 2 minutes; that tap becomes their card for
+  all racks. The server never sees raw card IDs (only keyed fingerprints), so without a StarRez / Hokie
+  Passport feed this one tap is how the card gets connected. With such a feed the tap step goes away.
+- No passwords: the rider's private code (e.g. K7P2-QM4X) is kept on their phone and is the key.
+  Cards registered by staff can get a code too (Rider Code button on the card).
+- Real-life test steps: hardware-test-checklist.md section 7.
+
 ## Open questions (defaults in use)
 - Staff vs admin: is the split above right? (Default: staff respond, admin configures.)
 - Police: should they see every tamper alarm, or only ones an admin/staff alerted them about?
   (Default: alerted incidents first, live alarms below as "not reported yet".)
 - Should riders see that police were alerted at a rack? (Default: no, just "Alarm, staff alerted".)
+- Hokie Passport: does the PN532 read it with a steady ID? (Checklist 7. If not: kit cards for the demo.)
+- Linking gives the HokieP all racks. Should requests pick specific racks instead?
 - Spots: one per lock module unless an admin sets a number. Is tap-in / tap-out the right way to count
   until the rack has a bike sensor?

@@ -484,3 +484,31 @@ a.btn { display: inline-flex; align-items: center; text-decoration: none; }
 .rc-spots.reported b { font-size: 1rem; font-family: var(--text); font-weight: 600; }
 .fact.few b { color: #f5d142; }
 .fact.full b, .fact.reported b { color: var(--negative); }
+
+/* ---------- riders: requests, codes, warnings ---------- */
+.rider-warning { position: fixed; z-index: 45; top: 64px; left: 50%; transform: translateX(-50%); width: min(640px, calc(100% - 24px));
+  display: grid; grid-template-columns: 30px 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 14px;
+  background: #3a1214; color: #ffe1e1; box-shadow: var(--float-shadow); animation: needs-in 300ms var(--ease-out) both; }
+.rider-warning[hidden] { display: none !important; }
+.rider-warning > div { display: grid; gap: 2px; }
+.rider-warning span { color: #ffb3b3; font-size: 13px; }
+body.view-app .rider-warning { top: 60px; }
+.chip.mine { margin-left: 8px; background: #2a1d4f; color: #d8ccff; vertical-align: middle; }
+.mine-state { color: #d8ccff; background: #1d1636; }
+.form-err { color: var(--negative); font-size: 13px; margin: 0; min-height: 0; }
+.form-err:empty { display: none; }
+.code-big { font-size: 1.6rem !important; letter-spacing: 0.08em; text-align: center; }
+.secret-inline { padding: 12px 14px; border-radius: 12px; background: var(--panel); color: var(--muted); }
+.secret-inline b { color: var(--ink); letter-spacing: 0.06em; }
+.link-now { display: grid; gap: 4px; padding: 16px; border-radius: 14px; background: #12304f; color: #cfe3ff; }
+.link-now span { color: #9fc4ef; font-size: 14px; }
+.field small.hint { margin: 0; }
+.dialog-wrap { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; padding: 16px; background: rgba(0, 0, 0, 0.55); }
+.dialog { width: min(460px, 100%); max-height: calc(100% - 32px); overflow-y: auto; border-radius: 16px; background: var(--panel); box-shadow: var(--float-shadow); }
+.dialog-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 6px 20px; }
+.dialog-head b { font-size: 1.05rem; }
+.dialog-body { display: grid; gap: 12px; padding: 8px 20px 20px; }
+.kv { display: grid; grid-template-columns: 130px 1fr; gap: 6px 12px; margin: 0; }
+.kv dt { color: var(--faint); font-size: 13px; }
+.kv dd { margin: 0; overflow-wrap: anywhere; }
+body.view-app .rider-warning { position: sticky; top: 56px; left: auto; transform: none; width: auto; margin: 0 12px 10px; }

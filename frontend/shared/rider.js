@@ -13,13 +13,47 @@ import { createLive, isAlarm } from "./live.js";
 const params = new URLSearchParams(location.search);
 const APP = params.get("view") === "app" || (params.get("view") !== "desktop" && matchMedia("(max-width: 760px)").matches);
 document.body.classList.toggle("view-app", APP);
-const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
+const fill = (el, ...kids) => (el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false)), el);
 const btn = (label, onClick, cls = "", attrs = {}) => h("button", { class: `btn ${cls}`, type: "button", onClick, ...attrs }, label);
 
 const live = createLive({ every: 5000, want: {} });
 const S = live.state;
 let here = null;   // { lat, lng } after Find Nearest
 let openId = null;
+
+// ---------- you: your rider code (kept on this phone), where your bike is, warnings ----------
+// Riders ask for access online (the stand-in for StarRez); staff approve; the rider links their Hokie
+// Passport with one tap on any rack. The private code is the key, so it's kept only on this device.
+const CODE_KEY = "hbr.riderCode";
+let myCode = localStorage.getItem(CODE_KEY);
+let me = null;          // GET /rider/me
+let meError = "";
+const warned = new Set();
+async function riderApi(path, { method = "GET", body } = {}) {
+  const headers = { Accept: "application/json" };
+  if (myCode) headers["X-Rider-Code"] = myCode;
+  if (body) headers["Content-Type"] = "application/json";
+  let res;
+  try { res = await fetch(`/api/v1${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined }); }
+  catch { throw new Error("Can't reach HokieBikeRack right now."); }
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const err = new Error((data && (data.detail || data.message)) || `Error ${res.status}`);
+    err.status = res.status;
+    err.fields = data && data.errors;
+    throw err;
+  }
+  return data;
+}
+async function refreshMe() {
+  if (!myCode) { me = null; return; }
+  try { me = await riderApi("/rider/me"); meError = ""; }
+  catch (e) { if (e.status === 404) { meError = "That rider code doesn't match anyone. Check it, or request access."; me = null; } }
+}
+const myRackIds = () => new Set((me?.parked || []).map((p) => p.rackId));
+function myWarnings() {
+  return (me?.parked || []).filter((p) => p.alarm || p.reported);
+}
 
 // ---------- words riders read ----------
 const installed = (r) => r.deviceCount > 0;
@@ -71,7 +105,8 @@ function rackCard(r, onOpen) {
   const sp = spots(r), al = alarm(r), km = distKm(r);
   return h("button", { type: "button", class: `rider-card${r.id === openId ? " current" : ""}`, onClick: () => onOpen(r.id) },
     h("span", { class: `rc-spots ${sp.cls}` }, h("b", {}, sp.big), h("small", {}, ["Full", "-", "Closed", "Alarm"].includes(sp.big) ? "" : "open")),
-    h("span", { class: "rc-main" }, h("b", {}, r.name), h("span", {}, [r.locationDescription, km != null ? walk(km) : null].filter(Boolean).join(" · ")),
+    h("span", { class: "rc-main" }, h("b", {}, r.name, myRackIds().has(r.id) ? h("span", { class: "chip mine" }, "Your bike") : null),
+      h("span", {}, [r.locationDescription, km != null ? walk(km) : null].filter(Boolean).join(" · ")),
       h("span", { class: `rc-alarm ${al.cls}` }, al.text)),
     icon("back"));
 }
@@ -90,6 +125,7 @@ function detail(body, r) {
           : sp.big === "Alarm" ? (r.openSpots === 0 ? "Full" : `${r.openSpots} of ${r.capacity}`) : `${sp.big} of ${r.capacity}`)),
         h("div", { class: `fact ${al.cls === "alarm" ? "alarm" : ""}` }, h("span", {}, "Alarm"), h("b", {}, isAlarm(r) ? "Active now" : r.lastAlarmAt ? ago(r.lastAlarmAt) : "None"),
           h("small", {}, isAlarm(r) ? "Staff have been alerted" : r.lastAlarmAt ? "since the last alarm" : "never had one"))),
+      myRackIds().has(r.id) ? h("p", { class: "state mine-state" }, `Your bike is parked here${(() => { const p = me.parked.find((x) => x.rackId === r.id); return p?.since ? ` since ${new Date(p.since).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""; })()}.`) : null,
       h("p", { class: `state ${isAlarm(r) || reported(r) ? "state-alarm" : r.openSpots === 0 || few(r) ? "state-warning" : ""}` }, sentence(r)),
       h("div", { class: "panel-actions" }, dirs ? h("a", { class: "btn btn-primary", href: dirs, target: "_blank", rel: "noopener" }, "Directions") : null),
       h("h2", {}, "How It Works"),
@@ -99,20 +135,97 @@ function detail(body, r) {
         h("li", {}, h("b", {}, "Red light, two beeps?"), " Your card isn't registered for this rack. See My Card."))));
 }
 function myCard() {
-  return h("div", { class: "sheet-inner rider-page" },
-    h("h1", {}, "My Card"),
-    h("div", { class: "card-art" }, riveIcon("badge", { size: 72, inputs: { kind: 6 } }).el,
-      h("div", {}, h("b", {}, "Your campus card works the racks"), h("span", {}, "Register it once, then tap in and tap out."))),
-    h("h2", {}, "Get Set Up"),
+  const page = h("div", { class: "sheet-inner rider-page rider-me-live" }, h("h1", {}, "My Card"));
+  const forget = () => { if (!confirm("Forget your rider code on this device? Keep a copy first if you want to use it again.")) return;
+    localStorage.removeItem(CODE_KEY); myCode = null; me = null; warned.clear(); renderBanner(); render(true); };
+
+  // 1. Not set up on this device: request access online, or enter a code you already have.
+  if (!myCode || (!me && meError)) {
+    const name = h("input", { class: "input", required: true, maxlength: "120", autocomplete: "name", placeholder: "Full name" });
+    const email = h("input", { class: "input", required: true, type: "email", maxlength: "160", autocomplete: "email", placeholder: "pid@vt.edu" });
+    const hokie = h("input", { class: "input", inputmode: "numeric", pattern: "\\d{9}", maxlength: "9", placeholder: "906123456 (optional)" });
+    const note = h("input", { class: "input", maxlength: "500", placeholder: "Where you usually park (optional)" });
+    const err = h("p", { class: "form-err", role: "alert" });
+    const codeIn = h("input", { class: "input", maxlength: "12", placeholder: "K7P2-QM4X", autocapitalize: "characters", spellcheck: "false" });
+    const codeErr = h("p", { class: "form-err", role: "alert" }, meError);
+    const field = (label, input, hint) => h("label", { class: "field" }, h("span", {}, label), input, hint ? h("small", { class: "hint" }, hint) : null);
+    return fill(page,
+      h("div", { class: "card-art" }, riveIcon("badge", { size: 72, inputs: { kind: 6 } }).el,
+        h("div", {}, h("b", {}, "Use your Hokie Passport on the racks"), h("span", {}, "Request access online. Once staff approve it, link your HokieP with one tap."))),
+      h("h2", {}, "Request Access"),
+      h("form", { class: "stack-form", onSubmit: async (e) => {
+        e.preventDefault();
+        err.textContent = "";
+        try {
+          const res = await riderApi("/rider/request", { method: "POST", body: { name: name.value.trim(), email: email.value.trim(),
+            hokiePassportId: hokie.value.trim() || null, note: note.value.trim() || null } });
+          myCode = res.code;
+          localStorage.setItem(CODE_KEY, myCode);
+          toast("Request sent. Staff will approve it.");
+          await refreshMe();
+          render(true);
+        } catch (x) { err.textContent = x.fields ? Object.entries(x.fields).map(([k, v]) => `${k}: ${v}`).join(". ") : x.message; }
+      } },
+      field("Name", name), field("VT Email", email), field("Hokie Passport ID", hokie, "The 9-digit number on your card."), field("Note", note), err,
+      h("button", { class: "btn btn-primary", type: "submit" }, "Send Request")),
+      h("p", { class: "hint" }, "This stands in for the StarRez form. Requests go to HokieBikeRack staff."),
+      h("h2", {}, "Already Have a Rider Code?"),
+      h("form", { class: "inline-form", onSubmit: async (e) => {
+        e.preventDefault();
+        myCode = codeIn.value.trim();
+        localStorage.setItem(CODE_KEY, myCode);
+        await refreshMe();
+        if (!me) { localStorage.removeItem(CODE_KEY); myCode = null; }
+        render(true);
+      } }, codeIn, h("button", { class: "btn", type: "submit" }, "Use Code")),
+      codeErr);
+  }
+  if (!me) return fill(page, h("p", { class: "empty" }, "Loading…"));
+
+  const codeLine = h("p", { class: "hint" }, "Your rider code is saved on this device. ", btn("Forget This Device", forget, "btn-quiet"));
+  // 2. Waiting for staff.
+  if (me.status === "PENDING") {
+    return fill(page, h("div", { class: "card-art" }, riveIcon("badge", { size: 72, inputs: { kind: 0 } }).el,
+      h("div", {}, h("b", {}, `Request sent, ${me.name.split(" ")[0]}`), h("span", {}, "Staff will review it. This page updates by itself."))),
+    h("p", { class: "secret-inline" }, "Your rider code: ", h("b", {}, myCode), ". Keep it to use another phone."), codeLine);
+  }
+  if (me.status === "DENIED") {
+    return fill(page, h("p", { class: "state state-alarm" }, "Your request wasn't approved. Ask HokieBikeRack staff why."), codeLine);
+  }
+  // 3. Approved, no card yet: link the Hokie Passport with one tap.
+  if (!me.cards.length) {
+    const left = me.linkUntil ? Math.max(0, Math.round((Date.parse(me.linkUntil) - Date.now()) / 1000)) : 0;
+    return fill(page,
+      h("div", { class: "card-art" }, riveIcon("badge", { size: 72, inputs: { kind: 1 } }).el,
+        h("div", {}, h("b", {}, `You're approved, ${me.name.split(" ")[0]}`), h("span", {}, "Last step: link your Hokie Passport."))),
+      left > 0
+        ? h("div", { class: "link-now" }, h("b", {}, "Tap your Hokie Passport on any rack now"), h("span", {}, `Waiting… ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} left. It will beep red once; that's fine, it's being linked.`))
+        : h("div", { class: "stack-form" },
+          h("ol", { class: "how" }, h("li", {}, "Walk to any HokieBikeRack."), h("li", {}, "Press Link My HokieP below."), h("li", {}, "Within 2 minutes, tap your Hokie Passport on the reader.")),
+          btn("Link My HokieP", async () => {
+            try { me = await riderApi("/rider/link", { method: "POST" }); render(true); } catch (x) { toast(x.message); }
+          }, "btn-primary big-btn")),
+      codeLine);
+  }
+  // 4. All set: your card and where your bike is.
+  const parked = me.parked;
+  return fill(page,
+    h("div", { class: "card-art" }, riveIcon("badge", { size: 72, inputs: { kind: 1 } }).el,
+      h("div", {}, h("b", {}, `Hi, ${me.name.split(" ")[0]}`), h("span", {}, me.cards.map((c) => `${c.label}${c.active ? "" : " (turned off)"}`).join(" · ")))),
+    h("h2", {}, "Your Bike"),
+    parked.length ? h("div", { class: "inc-list" }, parked.map((p) => h("button", { type: "button", class: "inc-row", onClick: () => openRack(p.rackId) },
+      riveIcon("badge", { size: 26, inputs: { kind: p.alarm || p.reported ? 4 : 1 } }).el,
+      h("span", { class: "needs-main" }, h("b", {}, p.rackName),
+        h("span", {}, p.alarm || p.reported ? "Alarm at this rack. Staff have been alerted." : `Parked${p.since ? ` since ${new Date(p.since).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}` : ""}${p.lastAlarmAt ? ` · last alarm ${ago(p.lastAlarmAt)}` : ""}`)))))
+      : h("p", { class: "empty" }, "Not parked right now. Tap in at a rack and it shows here."),
+    h("h2", {}, "How It Works"),
     h("ol", { class: "how" },
-      h("li", {}, h("b", {}, "Tap it once"), " on any rack. It won't open yet, but staff now see your card waiting."),
-      h("li", {}, h("b", {}, "Ask staff to register it"), " at that rack (or all racks). It works within a minute."),
-      h("li", {}, h("b", {}, "Park and leave"), " with a tap each time. Your first tap parks, your next tap leaves.")),
-    h("h2", {}, "Good to Know"),
-    h("ul", { class: "how plain" },
-      h("li", {}, "Shaking or forcing a rack sets off its alarm and alerts staff."),
-      h("li", {}, "Lost your card? Tell staff so they can turn it off.")));
+      h("li", {}, h("b", {}, "Park"), " Tap your HokieP. Green light, one beep: lock your bike in within 5 seconds."),
+      h("li", {}, h("b", {}, "Leave"), " Tap again to unlock and take your bike."),
+      h("li", {}, h("b", {}, "Alarm?"), " If someone tampers with the rack holding your bike, you get a warning here.")),
+    codeLine);
 }
+
 function alertsPage() {
   const reports = S.racks.filter((r) => installed(r) && reported(r));
   const alarms = S.racks.filter((r) => isAlarm(r) && !reported(r));
@@ -225,9 +338,10 @@ function openSheet(title) {
 
 // ---------- render ----------
 let lastSig = "";
-function render() {
-  const sig = JSON.stringify([S.racks, here, openId, APP ? tab : page]);
-  if (sig === lastSig) return;
+function render(force = false) {
+  const sig = JSON.stringify([S.racks, here, openId, APP ? tab : page, me, meError]);
+  if (sig === lastSig && !force) return;
+  if (sig === lastSig && force && !document.querySelector(".rider-me-live")) return;
   lastSig = sig;
   const open = S.racks.filter((r) => installed(r)).reduce((n, r) => n + r.openSpots, 0);
   const sum = document.querySelector("#rsum");
@@ -238,19 +352,37 @@ function render() {
   if (!APP) {
     fill(listEl, cards.length ? cards : h("p", { class: "empty" }, "No racks yet."));
     if (page === "alerts") fill(pageEl, alertsPage());
+    if (page === "card" && !pageEl.contains(document.activeElement)) fill(pageEl, myCard());
     return;
   }
   if (tab === "racks") fill(appMain, h("div", { class: "rider-top" }, h("span", {}, h("b", {}, String(open)), ` open spot${open === 1 ? "" : "s"} on campus`), btn("Find Nearest", findNearest, "btn-primary")),
     h("div", { class: "rider-list" }, cards.length ? cards : h("p", { class: "app-empty" }, "No racks yet.")),
     h("a", { class: "btn btn-quiet", href: "?view=desktop" }, "Desktop View"));
-  if (tab === "card") fill(appMain, myCard());
+  if (tab === "card" && !appMain.contains(document.activeElement)) fill(appMain, myCard());
   if (tab === "alerts") fill(appMain, alertsPage());
 }
 
-live.on("change", render);
+const banner = h("div", { class: "rider-warning", role: "alert", hidden: true });
+function renderBanner() {
+  const w = myWarnings();
+  banner.hidden = !w.length;
+  if (!w.length) { fill(banner); return; }
+  const p = w[0];
+  fill(banner, riveIcon("badge", { size: 30, inputs: { kind: 4 } }).el,
+    h("div", {}, h("b", {}, p.reported ? `Your bike's rack was reported: ${p.rackName}` : `Alarm at ${p.rackName}, where your bike is`),
+      h("span", {}, p.reported ? "The police were alerted. Check on your bike when it's safe." : "Someone is tampering with that rack. Staff have been alerted.")),
+    btn("See Rack", () => openRack(p.rackId), "btn-danger"));
+  for (const x of w) {
+    const key = `${x.rackId}-${x.reported ? "r" : "a"}`;
+    if (!warned.has(key)) { warned.add(key); toast(`Your bike: alarm at ${x.rackName}`); }
+  }
+}
+live.on("change", async () => { await refreshMe(); renderBanner(); render(true); });
 const root = document.querySelector("#root");
-root.append(toasts);
+root.append(toasts, banner);
 if (APP) buildApp(root); else buildDesktop(root);
+// In the app the warning sits in the page under the header (it would cover content if it floated).
+if (APP) document.querySelector(".app-head").after(banner);
 await live.start();
 if (APP) appGo(["racks", "map", "card", "alerts"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "racks");
 else go(["card", "alerts"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "racks");

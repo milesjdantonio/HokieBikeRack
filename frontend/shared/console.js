@@ -23,7 +23,7 @@ const params = new URLSearchParams(location.search);
 const APP = params.get("view") === "app" || (params.get("view") !== "desktop" && matchMedia("(max-width: 760px)").matches);
 document.body.classList.toggle("view-app", APP);
 
-const live = createLive({ want: { events: true, unknown: true, incidents: true, cards: CAN.cards } });
+const live = createLive({ want: { events: true, unknown: true, incidents: true, cards: CAN.cards, requests: CAN.configure } });
 const S = live.state;
 const rackById = (id) => S.racks.find((r) => r.id === id);
 /** replaceChildren that skips null/false and flattens arrays (native replaceChildren prints "null"). */
@@ -104,6 +104,8 @@ const HELP_LINES = [
   ["cards [rack]", "list registered cards"],
   ["revoke <card name> confirm", "turn a card off for good"],
   ["incidents", "open police incidents"],
+  ["requests", "riders asking for access online"],
+  ["approve <name> / deny <name>", "decide an access request"],
   ["clear", "clear the terminal"],
 ];
 
@@ -190,6 +192,20 @@ async function run(text) {
       await revokeCard(c);
       break;
     }
+    case "requests":
+      if (!CAN.configure) { log("deny", "access requests are for admins"); break; }
+      if (!S.requests.length) log("info", "no access requests waiting");
+      for (const q of S.requests) log("card", [{ b: q.name }, ` ${q.email}${q.hokiePassportId ? `, HokieP ${q.hokiePassportId}` : ""}, asked ${ago(q.requestedAt)}`]);
+      break;
+    case "approve":
+    case "deny": {
+      if (!CAN.configure) { log("deny", "access requests are for admins"); break; }
+      const name = parts.slice(1).join(" ").toLowerCase();
+      const q = S.requests.find((x) => x.name.toLowerCase() === name) || S.requests.find((x) => x.name.toLowerCase().startsWith(name));
+      if (!name || !q) { log("deny", name ? `no request from "${name}". type requests` : `whose? e.g. ${verb} Sam Hokie`); break; }
+      await decideRequest(q, verb === "approve");
+      break;
+    }
     case "incidents":
       if (!S.incidents.length) log("info", "no open police incidents");
       for (const i of S.incidents) log("police", [{ b: slug(i.rackName) }, ` ${AGENCY} ${INCIDENT_WORD[i.status].toLowerCase()}, alerted ${ago(i.alertedAt)} by ${i.alertedBy}`]);
@@ -239,6 +255,62 @@ async function registerCard(card, name, r) {
   if (res) log("ok", [`registered ${name.trim()} at `, { b: slug(r.name) }, ". racks sync within a minute"]);
   return res;
 }
+/** Access requests (riders asking online; the stand-in for StarRez). */
+async function decideRequest(q, approve) {
+  const res = await act(() => api(`/access-requests/${q.id}/${approve ? "approve" : "deny"}`, { method: "POST" }),
+    approve ? `${q.name} approved` : `${q.name} denied`);
+  if (res) log(approve ? "ok" : "off", [{ b: q.name }, approve ? " approved. they link their HokieP from the rider app with one tap" : " denied"]);
+  return res;
+}
+function reviewRequest(id) {
+  const q = S.requests.find((x) => x.id === id);
+  if (!q) return;
+  openDialog("Access Request", (body, close) => fill(body,
+    h("dl", { class: "kv" },
+      h("dt", {}, "Name"), h("dd", {}, q.name),
+      h("dt", {}, "VT Email"), h("dd", {}, q.email),
+      h("dt", {}, "Hokie Passport"), h("dd", {}, q.hokiePassportId || "Not given"),
+      h("dt", {}, "Asked"), h("dd", {}, ago(q.requestedAt)),
+      q.note ? [h("dt", {}, "Note"), h("dd", {}, q.note)] : null),
+    h("p", { class: "hint" }, "Approving lets them link their Hokie Passport: they press Link My HokieP in the rider app, then tap it on any rack."),
+    h("div", { class: "panel-actions" },
+      btn("Approve", async () => { if (await decideRequest(q, true)) close(); }, "btn-primary"),
+      btn("Deny", async () => { if (await decideRequest(q, false)) close(); }, "btn-quiet"))));
+}
+/** Makes (or replaces) a card owner's private rider code and shows it once. */
+async function riderCode(c, body) {
+  if (c.riderName && !confirm(`Make a new rider code for ${c.riderName}? The old code stops working.`)) return;
+  const res = await act(() => api(`/credentials/${c.id}/rider-code`, { method: "POST", body: { name: c.riderName || c.displayLabel } }));
+  if (!res) return;
+  log("ok", [`rider code for `, { b: res.name }, `: ${res.code} (shown once)`]);
+  showCode(body, res);
+}
+function showCode(body, res) {
+  const box = h("div", { class: "secret" },
+    h("b", {}, `Rider code for ${res.name}`),
+    h("p", {}, "Give it to them: they type it into My Card in the rider app to see where their bike is and get alarm warnings. It's only shown this once."),
+    h("pre", { class: "code-big" }, res.code),
+    h("div", { class: "panel-actions" },
+      btn("Copy", async () => { try { await navigator.clipboard.writeText(res.code); toast("Copied"); } catch { toast("Select the code and copy it", true); } }, "btn-primary"),
+      btn("Done", () => box.remove(), "btn-quiet")));
+  (body || document.body).prepend(box);
+  box.scrollIntoView({ block: "start" });
+}
+
+/** A small modal. build(body, close). Escape or the backdrop closes it. */
+function openDialog(title, build) {
+  const body = h("div", { class: "dialog-body" });
+  const close = () => { wrap.remove(); document.removeEventListener("keydown", onKey); };
+  const onKey = (e) => { if (e.key === "Escape") close(); };
+  const wrap = h("div", { class: "dialog-wrap", onClick: (e) => { if (e.target === wrap) close(); } },
+    h("div", { class: "dialog", role: "dialog", "aria-modal": "true", "aria-label": title },
+      h("header", { class: "dialog-head" }, h("b", {}, title), btn("Close", close, "btn-quiet")), body));
+  document.body.append(wrap);
+  document.addEventListener("keydown", onKey);
+  build(body, close);
+  wrap.querySelector("button")?.focus();
+}
+
 async function confirmOnline(r) {
   const res = await act(() => api(`/racks/${r.id}/confirm-online`, { method: "POST" }));
   if (res) log("ok", [{ b: slug(r.name) }, " confirmed online"]);
@@ -255,12 +327,13 @@ const GROUPS = [
   { kind: "alarm", title: "Alarms" },
   { kind: "police", title: "Police" },
   { kind: "confirm", title: "Back Online: Confirm" },
+  { kind: "request", title: "Access Requests" },
   { kind: "card", title: "Cards to Register" },
   { kind: "warning", title: "Alerts" },
   { kind: "offline", title: "Offline" },
   { kind: "setup", title: "Not Set Up" },
 ];
-const NEED_BADGE = { alarm: "alarm", police: "police", confirm: "ok", card: "card", warning: "warning", offline: "offline", setup: "info" };
+const NEED_BADGE = { alarm: "alarm", police: "police", confirm: "ok", request: "card", card: "card", warning: "warning", offline: "offline", setup: "info" };
 function needsList() {
   const out = [];
   for (const r of S.racks) {
@@ -272,6 +345,10 @@ function needsList() {
     if (other > 0) out.push({ key: `alert-${r.id}`, kind: "warning", title: `${other} alert${other > 1 ? "s" : ""}`, sub: r.name, act: "Open", rack: r.id });
     if (r.status === "OFFLINE") out.push({ key: `off-${r.id}`, kind: "offline", title: r.name, sub: r.lastSeenAt ? `Last check-in ${ago(r.lastSeenAt)}` : "Never checked in", act: "Open", rack: r.id });
     if (r.status === "UNKNOWN" && CAN.configure) out.push({ key: `setup-${r.id}`, kind: "setup", title: r.name, sub: "No lock module yet", act: "Add", rack: r.id });
+  }
+  for (const q of S.requests) {
+    out.push({ key: `req-${q.id}`, kind: "request", title: q.name, sub: `${q.email}${q.hokiePassportId ? ` · HokieP ${q.hokiePassportId}` : ""} · ${ago(q.requestedAt)}`,
+      act: "Review", request: q.id });
   }
   for (const u of S.unknown) {
     out.push({ key: `card-${u.credentialReference}`, kind: "card", title: `Card ${shortRef(u.credentialReference, 8)}`,
@@ -289,7 +366,7 @@ function renderNeeds(el, countEl, skip = []) {
     let entry = needsRows.get(n.key);
     if (!entry) {
       const title = h("b", {}, n.title), sub = h("span", {});
-      const el2 = h("button", { type: "button", class: "needs-item", onClick: () => n.rack && openRack(n.rack, { focus: n.kind }) },
+      const el2 = h("button", { type: "button", class: "needs-item", onClick: () => (n.request ? reviewRequest(n.request) : n.rack && openRack(n.rack, { focus: n.kind })) },
         riveIcon("badge", { size: 24, inputs: { kind: BADGE[NEED_BADGE[n.kind]] } }).el,
         h("span", { class: "needs-main" }, title, sub), h("span", { class: "act" }, n.act));
       entry = { el: el2, title, sub };
@@ -389,7 +466,11 @@ function renderDetail(body, r, data, { focus } = {}) {
     const form = h("form", { class: "item item-form", onSubmit: async (e) => {
       e.preventDefault();
       if (!name.value.trim()) { name.focus(); return; }
-      await registerCard(u, name.value, r);
+      const card = await registerCard(u, name.value, r);
+      if (card) {
+        const res = await act(() => api(`/credentials/${card.id}/rider-code`, { method: "POST", body: { name: card.displayLabel } }));
+        if (res) { log("ok", [`rider code for `, { b: res.name }, `: ${res.code} (shown once)`]); showCode(body, res); }
+      }
     } },
     riveIcon("badge", { size: 22, inputs: { kind: BADGE.card } }).el,
     h("span", { class: "item-main" }, h("b", {}, `Card ${shortRef(u.credentialReference, 8)}`), h("span", {}, `Tapped ${ago(u.lastSeenAt)} · ${u.attempts} tap${u.attempts > 1 ? "s" : ""}`), name),
@@ -436,7 +517,7 @@ function renderDetail(body, r, data, { focus } = {}) {
   const cards = CAN.cards ? S.cards.filter((c) => c.status !== "REVOKED" && (c.allRacks || c.rackIds.includes(r.id))) : [];
   const cardBlock = CAN.cards ? [h("h2", {}, "Cards That Work Here"), cards.length ? h("div", { class: "list" }, cards.map((c) =>
     h("div", { class: "item" }, riveIcon("badge", { size: 22, inputs: { kind: c.active ? BADGE.ok : BADGE.denied } }).el,
-      h("span", { class: "item-main" }, h("b", {}, c.displayLabel), h("span", {}, `${c.allRacks ? "All racks · " : ""}${c.active ? (c.lastUsedAt ? `Used ${ago(c.lastUsedAt)}` : "Not used yet") : "Turned off"}`)),
+      h("span", { class: "item-main" }, h("b", {}, c.displayLabel), h("span", {}, `${c.riderName ? `Rider: ${c.riderName} · ` : ""}${c.allRacks ? "All racks · " : ""}${c.active ? (c.lastUsedAt ? `Used ${ago(c.lastUsedAt)}` : "Not used yet") : "Turned off"}`)),
       h("span", { class: "item-actions" },
         btn("Rename", (e) => {
           const nameEl = e.currentTarget.closest(".item").querySelector(".item-main b");
@@ -448,6 +529,7 @@ function renderDetail(body, r, data, { focus } = {}) {
         }, "btn-quiet"),
         btn(c.active ? "Turn Off" : "Turn On", () => act(() => api(`/credentials/${c.id}`, { method: "PATCH", body: { active: !c.active } }),
           `${c.displayLabel} turned ${c.active ? "off" : "on"}`).then((x) => x && log(c.active ? "off" : "ok", [{ b: c.displayLabel }, ` turned ${c.active ? "off" : "on"}`])), "btn-quiet"),
+        btn(c.riderName ? "New Rider Code" : "Rider Code", () => riderCode(c, body), "btn-quiet"),
         btn("Revoke", () => { if (confirm(`Turn off ${c.displayLabel} for good? This can't be undone.`)) revokeCard(c); }, "btn-quiet")))))
     : h("p", { class: "empty" }, "No cards yet. Tap a new card on this rack, then register it here.")] : [];
 
@@ -586,6 +668,9 @@ const COMMANDS = [
     ["open <rack>", "Open a rack's panel.", "open newman"], ["incidents", "Open police incidents.", "incidents"]] },
   { group: "Alarms and Alerts", items: [["ack <rack>", "Mark all of a rack's alerts handled.", "ack squires"],
     ["alert <rack> confirm", `Alert ${AGENCY} about a rack's tamper alarm. Without "confirm" it only explains.`, "alert squires confirm"]] },
+  { group: "Riders", items: [["requests", "Riders who asked for access online (the stand-in for StarRez).", "requests"],
+    ["approve <name>", "Approve a request. They then link their Hokie Passport from the rider app with one tap.", "approve Sam Hokie"],
+    ["deny <name>", "Deny a request.", "deny Sam Hokie"]] },
   { group: "Cards", items: [["register <rack> <name>", "Register the card that was just tapped at a rack.", "register newman Jane Doe"],
     ["cards [rack]", "List registered cards, all or for one rack.", "cards newman"], ["revoke <name> confirm", "Turn a card off for good.", "revoke Old Test Card confirm"]] },
   { group: "Racks", items: [["add <name>", "Add a new rack: the map opens so you can click where it stands, then Add Rack.", "add Squires North"],
@@ -1060,6 +1145,10 @@ live.on("rack", ({ rack: r, before: b }) => {
   if (b.status !== "OFFLINE" && r.status === "OFFLINE") log("off", [{ b: slug(r.name) }, " offline: no check-in for 3 min"]);
   if (b.status === "OFFLINE" && r.status === "UNCONFIRMED") log("warn", [{ b: slug(r.name) }, ` checked in again after being offline. not confirmed${CAN.terminal ? `: check it, then type confirm ${slug(r.name)}` : ""}`]);
   if (b.openAlarms > 0 && r.openAlarms === 0) log("ok", [{ b: slug(r.name) }, " alarm handled"]);
+});
+live.on("request", (q) => {
+  log("card", [{ b: q.name }, ` asked for access online (${q.email}). type approve ${q.name}, or open it in Needs You`]);
+  toast(`Access request from ${q.name}`);
 });
 live.on("incident", ({ incident: i, before }) => {
   if (!before) return;   // a new one is logged by whoever pressed Alert Authorities

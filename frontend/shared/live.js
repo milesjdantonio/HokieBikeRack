@@ -12,7 +12,7 @@
 import { api } from "../js/api.js";
 
 export function createLive({ every = 4000, want = {} } = {}) {
-  const state = { racks: [], events: [], unknown: [], incidents: [], cards: [], ok: null, loaded: false };
+  const state = { racks: [], events: [], unknown: [], incidents: [], cards: [], requests: [], ok: null, loaded: false };
   const handlers = {};
   const seenEvents = new Set();
   let timer = null;
@@ -22,12 +22,13 @@ export function createLive({ every = 4000, want = {} } = {}) {
   const emit = (name, ...args) => (handlers[name] || []).forEach((fn) => { try { fn(...args); } catch (e) { console.error(e); } });
 
   async function load() {
-    const [racks, events, unknown, incidents, cards] = await Promise.all([
+    const [racks, events, unknown, incidents, cards, requests] = await Promise.all([
       api("/racks"),
       want.events ? api("/events", { query: { size: 60 } }) : null,
       want.unknown ? api("/credentials/unknown") : null,
       want.incidents ? api("/incidents") : null,
       want.cards ? api("/credentials") : null,
+      want.requests ? api("/access-requests", { query: { status: "PENDING" } }) : null,
     ]);
     const first = !state.loaded;
 
@@ -58,6 +59,10 @@ export function createLive({ every = 4000, want = {} } = {}) {
     }
     if (unknown) state.unknown = unknown;
     if (cards) state.cards = cards;
+    if (requests) {
+      if (!first) for (const q of requests) if (!state.requests.some((x) => x.id === q.id)) emit("request", q);
+      state.requests = requests;
+    }
     state.loaded = true;
     emit("change", state, first);
   }
