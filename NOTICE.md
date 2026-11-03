@@ -4,6 +4,8 @@
 |---|---|---|
 | Rive web runtime `@rive-app/canvas` 2.47.0 | `frontend/vendor/rive/` | MIT (Rive Inc.) |
 | MapLibre GL JS 6.15.0 | `frontend/vendor/maplibre/` (copied from TerraSim) | BSD-3-Clause |
+| three.js 0.181.2 (`three.module.min.js`, OrbitControls, RoomEnvironment, RoundedBoxGeometry) | `frontend/vendor/three/` | MIT (three.js authors, `LICENSE` beside the files) |
+| Emscripten runtime, libc++ and musl compiled into the firmware model | `frontend/model/firmware.js` | MIT / Apache-2.0 with LLVM exception |
 | Fraunces, Hanken Grotesk fonts | `frontend/app/fonts/` | SIL Open Font License 1.1 (texts beside the files) |
 | Map style, streets, 3D buildings | loaded at runtime from OpenFreeMap | © OpenStreetMap contributors (ODbL), OpenFreeMap |
 | Satellite imagery | loaded at runtime from Esri World Imagery | © Esri, Maxar, Earthstar Geographics; free with attribution, check Esri's terms before production |
