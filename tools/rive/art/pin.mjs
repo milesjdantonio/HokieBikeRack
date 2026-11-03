@@ -123,8 +123,7 @@ export default function build() {
     { target: pulse, prop: 'scaleX', base: 1, poses: { reported: [[0, 1, EASE.out], [40, 1.5]] } },
     { target: pulse, prop: 'scaleY', base: 1, poses: { reported: [[0, 1, EASE.out], [40, 1.5]] } },
     { target: pulseStroke, prop: 'colorValue', base: hex(FULL_RED, 0), poses: { reported: [[0, hex(FULL_RED, 0.9), EASE.out], [40, hex(FULL_RED, 0)]] } },
-    { target: slash, prop: 'scaleX', base: 1, poses: { reported: [[0, 0.2, EASE.out], [12, 1, 'hold'], [40, 1]] } },
-    { target: slash, prop: 'scaleY', base: 1, poses: { reported: [[0, 0.2, EASE.out], [12, 1, 'hold'], [40, 1]] } },
+    // The slash just stays (Miles: it doesn't need to replay); only the ring flashes and the pulse spreads.
     { target: badge, prop: 'scaleX', base: 0, poses: {
       warning: [[0, 0, EASE.back], [16, 1]], alarm: 1, police: 1,
     } },
