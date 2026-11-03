@@ -78,8 +78,8 @@ Response: `{"serverTime": "…", "currentRevision": n}`.
 | PATCH | `/credentials/{id}` | ADMIN | any of the above + `active`, `clearValidFrom`, `clearValidUntil` |
 | POST | `/credentials/{id}/revoke` | ADMIN | permanent |
 | GET | `/events` | any | filters `rackId, severity, type` (prefix, e.g. `TAMPER`), `credentialReference, from, to, unacknowledged`; `page, size ≤ 200` → `{items, page, size, total}` |
-| POST | `/events/{id}/acknowledge` | ADMIN | marks handled |
-| POST | `/events/acknowledge-rack/{rackId}` | ADMIN | all open alerts for a rack |
+| POST | `/events/{id}/acknowledge` | ADMIN | marks handled; if it was the rack's last open tamper alarm, also resolves its open police incident |
+| POST | `/events/acknowledge-rack/{rackId}` | ADMIN | all open alerts for a rack, and resolves its open police incident → `{acknowledged, incidentResolved}` |
 | GET | `/reports/summary?days=1..90` | any | `byType, bySeverity, deniedReasons, byRack, byDay, activeCredentials` |
 | GET | `/audit-log` | any | paged admin changes |
 

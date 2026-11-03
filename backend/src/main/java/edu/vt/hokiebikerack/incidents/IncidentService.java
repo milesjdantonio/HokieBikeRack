@@ -151,6 +151,20 @@ public class IncidentService {
     return get(id);
   }
 
+  /**
+   * Admin or staff marked the rack's alarm handled: that ends the issue, so the rack's open police
+   * incident is resolved too. Otherwise the pin kept flashing and riders kept seeing "alarm" until
+   * someone pressed Resolved in the police view. Returns true if an incident was open.
+   */
+  @Transactional
+  public boolean resolveForRack(UUID rackId, String actor) {
+    UUID open = jdbc.sql("SELECT id FROM incidents WHERE rack_id = :rackId AND status <> 'RESOLVED' LIMIT 1")
+        .param("rackId", rackId).query(UUID.class).optional().orElse(null);
+    if (open == null) return false;
+    changeStatus(open, new ChangeStatus(Status.RESOLVED, "Marked handled by staff"), actor);
+    return true;
+  }
+
   private void addUpdate(UUID incidentId, String status, String note, String actor, Instant at) {
     jdbc.sql("INSERT INTO incident_updates (incident_id, status, note, actor, at) VALUES (:id, :status, :note, :actor, :at)")
         .param("id", incidentId).param("status", status).param("note", note).param("actor", actor)

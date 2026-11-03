@@ -5,7 +5,6 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import java.security.Principal;
 import java.time.Instant;
-import java.util.Map;
 import java.util.UUID;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
@@ -45,7 +44,7 @@ public class EventController {
   }
 
   @PostMapping("/acknowledge-rack/{rackId}")
-  public Map<String, Integer> acknowledgeRack(@PathVariable UUID rackId, Principal user) {
-    return Map.of("acknowledged", events.acknowledgeAllForRack(rackId, user.getName()));
+  public RackHandled acknowledgeRack(@PathVariable UUID rackId, Principal user) {
+    return events.acknowledgeAllForRack(rackId, user.getName());
   }
 }

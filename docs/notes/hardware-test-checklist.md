@@ -102,6 +102,8 @@ with a phone, one "admin" at the laptop. Time: about 10 minutes.
 - [ ] Shake the rack until the siren goes. Phone: red **"Alarm at <rack>, where your bike is"**
       banner + toast; the map pin is the slashed, pulsing red one. Admin: alarm in Needs You.
 - [ ] Admin: Mark Handled (or police Resolved). Phone banner goes away within ~5 s.
+- [ ] Shake again until the siren, Alert Authorities, then **only** Mark Handled (no police Resolved):
+      the red/blue pin stops, the incident shows Resolved, and the phone banner goes away within ~5 s.
 - [ ] Tap the HokieP once more (leave): phone says "Not parked right now"; the rack's open spots go up.
 
 **Edge cases worth one try each**

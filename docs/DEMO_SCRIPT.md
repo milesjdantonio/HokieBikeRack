@@ -30,7 +30,8 @@ using the simulator. Rehearse once the day before.
 5. **Tamper (1.5 min)**: shake the rack once → warning chirps, the amber **Shake Detected** panel drops
    in on the admin map; shake again → siren, the panel turns red. **Alert Authorities** → Alert Now:
    the pin flashes red and blue. Police tab: the incident with its timeline → **On My Way** → On Scene →
-   Resolved. Rider: "Alarm now". Admin: **Mark Handled** → rack back to Ready.
+   Resolved. Rider: "Alarm now". Admin: **Mark Handled** → rack back to Ready (Mark Handled alone also
+   resolves the police incident and stops the alarm, if the police haven't yet).
 6. **Offline (1 min)**: turn off the hotspot → tap the allowed card → still works.
    Turn it back on → events appear (no duplicates).
 7. **Spots (30 s)**: tap in and the rack's open spots go down; tap out and they come back.
