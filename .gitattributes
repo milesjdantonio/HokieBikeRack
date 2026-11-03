@@ -1,0 +1,3 @@
+# Built by tools/model/build.mjs from the firmware sources: never edit by hand, no line diffs.
+frontend/model/firmware.js -diff linguist-generated=true
+frontend/model/firmware.json linguist-generated=true
