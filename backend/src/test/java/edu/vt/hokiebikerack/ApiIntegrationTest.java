@@ -313,6 +313,34 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void rackBackFromOfflineNeedsConfirming() throws Exception {
+    Device d = newRackWithDevice("Comeback");
+    String hb = "/api/v1/devices/" + d.deviceId() + "/heartbeat";
+    String body = "{\"readerOk\":true,\"accelOk\":true}";
+    // First check-in of a new device: online straight away (someone is installing it).
+    json(asDevice(jsonBody(post(hb), body), d), 200);
+    assertThat(json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200).at("/rack/status").asText()).isEqualTo("ONLINE");
+    // Nothing to confirm yet.
+    json(post("/api/v1/racks/" + d.rackId() + "/confirm-online").with(ADMIN), 409);
+
+    // It goes quiet for an hour (offline), then checks in again, e.g. because a card was tapped.
+    jdbc.sql("UPDATE devices SET last_seen_at = now() - interval '1 hour' WHERE id = CAST(:id AS uuid)")
+        .param("id", d.deviceId()).update();
+    assertThat(json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200).at("/rack/status").asText()).isEqualTo("OFFLINE");
+    json(asDevice(get("/api/v1/devices/" + d.deviceId() + "/authorization-snapshot"), d), 200);
+    JsonNode back = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);
+    assertThat(back.at("/rack/status").asText()).isEqualTo("UNCONFIRMED");
+    assertThat(back.at("/devices/0/needsConfirm").asBoolean()).isTrue();
+
+    // More check-ins don't clear it; only an admin does. Viewers can't.
+    json(asDevice(jsonBody(post(hb), body), d), 200);
+    assertThat(json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200).at("/rack/status").asText()).isEqualTo("UNCONFIRMED");
+    json(post("/api/v1/racks/" + d.rackId() + "/confirm-online").with(VIEWER), 403);
+    JsonNode confirmed = json(post("/api/v1/racks/" + d.rackId() + "/confirm-online").with(ADMIN), 200);
+    assertThat(confirmed.at("/rack/status").asText()).isEqualTo("ONLINE");
+  }
+
+  @Test
   void deviceProvisioningReturnsConfigSnippetOnce() throws Exception {
     Device d = newRackWithDevice("Snippet");
     JsonNode detail = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);

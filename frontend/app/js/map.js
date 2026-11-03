@@ -18,6 +18,9 @@ const SATELLITE = {
 };
 // Virginia Tech's Drillfield, looking north-west over campus.
 const CAMPUS = { center: [-80.4224, 37.2281], zoom: 16, pitch: 55, bearing: -18 };
+// The map can't be panned or zoomed out past Virginia Tech (campus plus a margin of Blacksburg).
+const VT_BOUNDS = [[-80.4520, 37.2050], [-80.3930, 37.2490]];
+const MIN_ZOOM = 14;
 
 let stylePromise = null;
 function loadStyle() {
@@ -84,7 +87,7 @@ function darken(style, look = {}) {
 }
 
 /** Rive pin status number for a rack (see tools/rive/art/pin.mjs). */
-const PIN_STATUS = { ONLINE: 0, WARNING: 1, ALARM: 2, OFFLINE: 3, UNKNOWN: 3 };
+const PIN_STATUS = { ONLINE: 0, WARNING: 1, UNCONFIRMED: 1, ALARM: 2, OFFLINE: 3, UNKNOWN: 3 };
 const pinStatus = (r) => (r.alarm ? 2 : PIN_STATUS[r.status] ?? 3);
 
 /**
@@ -120,7 +123,7 @@ export function rackMap(container, { interactive = true, onSelect, focus = null,
       map = new maplibregl.Map({
         container, style, interactive, attributionControl: { compact: true },
         center: focus ? [focus.longitude, focus.latitude] : cam.center,
-        zoom: focus ? 17.2 : cam.zoom, pitch: cam.pitch, bearing: cam.bearing, maxPitch: 70,
+        zoom: focus ? 17.2 : cam.zoom, pitch: cam.pitch, bearing: cam.bearing, maxPitch: 70, maxBounds: VT_BOUNDS, minZoom: MIN_ZOOM,
         canvasContextAttributes: { antialias: true },
       });
     } catch {
@@ -201,6 +204,34 @@ export function rackMap(container, { interactive = true, onSelect, focus = null,
     map.easeTo({ padding: inset, duration });
   }
 
+  /**
+   * Move on Map: the rack's pin becomes draggable and a click on the map moves it there.
+   * onChange({ latitude, longitude }) runs on every move. Returns { stop(keep) }: stop(false) puts
+   * the pin back where it was.
+   */
+  function startMove(id, onChange) {
+    const m = markers.get(id);
+    if (!m || !map) return { stop() {} };
+    const from = m.marker.getLngLat();
+    const report = () => { const p = m.marker.getLngLat(); onChange?.({ latitude: round(p.lat), longitude: round(p.lng) }); };
+    const onClick = (e) => { m.marker.setLngLat(e.lngLat); report(); };
+    m.marker.setDraggable(true);
+    m.marker.on("dragend", report);
+    m.el.classList.add("moving");
+    map.on("click", onClick);
+    map.getCanvas().style.cursor = "crosshair";
+    return {
+      stop(keep = true) {
+        m.marker.setDraggable(false);
+        m.marker.off("dragend", report);
+        m.el.classList.remove("moving");
+        map.off("click", onClick);
+        map.getCanvas().style.cursor = "";
+        if (!keep) m.marker.setLngLat(from);
+      },
+    };
+  }
+
   /** Plays a one-off event on a rack's pin: "unlock" (check) or "deny" (cross). */
   function flash(id, event) {
     markers.get(id)?.pin.fire(event);
@@ -213,7 +244,7 @@ export function rackMap(container, { interactive = true, onSelect, focus = null,
     if (map) map.remove();
   }
 
-  return { setRacks, select, setInset, fitAll, flash, destroy };
+  return { setRacks, select, setInset, fitAll, flash, startMove, destroy };
 }
 
 /**
@@ -249,7 +280,7 @@ export function placeMap(container, { initial = null, onPick } = {}) {
     const start = initial ? [initial.longitude, initial.latitude] : CAMPUS.center;
     try {
       map = new maplibregl.Map({ container, style, attributionControl: { compact: true }, center: start,
-        zoom: initial ? 18.6 : 17, pitch: 0, bearing: 0, maxPitch: 70, canvasContextAttributes: { antialias: true } });
+        zoom: initial ? 18.6 : 17, pitch: 0, bearing: 0, maxPitch: 70, maxBounds: VT_BOUNDS, minZoom: MIN_ZOOM, canvasContextAttributes: { antialias: true } });
     } catch {
       container.replaceChildren(h("p", { class: "map-fallback" }, "This browser can't show the map (WebGL is off)."));
       return;

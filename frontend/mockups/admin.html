@@ -1,8 +1,9 @@
 <!doctype html>
 <!--
   MOCKUP of the new admin site (docs/notes/frontend-plan.md), style B1 "floating" chosen by Miles.
-  Sample data only, nothing is saved. Click pins, use the Needs You items, or type in the terminal:
-  help, tap <rack>, deny <rack>, shake <rack>, ack <rack>, open <rack>, racks, clear.
+  Sample data only, nothing is saved or sent. Desktop: admin.html   App (phone): admin.html?view=app
+  Commands are listed on the Commands page (top bar). tap/deny/shake/alarm/reconnect exist in the
+  mockup only, to preview real events; on the real site those come from the racks (test in person).
   (Mockups A, B2 and B3 are in git history at commit 6e1400c.)
 -->
 <html lang="en">
@@ -22,12 +23,13 @@
   <header class="top">
     <a class="brand" href="#"><span class="brand-mark" id="brand-mark"></span>HokieBikeRack</a>
     <nav class="top-nav" aria-label="Pages">
-      <a href="#" aria-current="page">Map</a>
-      <a href="#">Reports</a>
-      <a href="#">Audit Log</a>
+      <a href="#map" data-page="map" aria-current="page">Map</a>
+      <a href="#commands" data-page="commands">Commands</a>
+      <a href="#" data-page="reports">Reports</a>
+      <a href="#" data-page="audit">Audit Log</a>
     </nav>
     <span class="top-summary" id="summary"></span>
-    <span class="top-user">admin</span>
+    <a class="view-switch" id="view-switch" href="?view=app">App View</a>
   </header>
 
   <main class="stage">
@@ -41,32 +43,56 @@
         <div id="panel-body"></div>
       </aside>
 
-      <!-- New-alarm pop-up -->
-      <div class="alarm-pop" id="alarm-pop" role="alert" hidden>
-        <div class="alarm-scene" id="alarm-scene"></div>
-        <div class="alarm-text">
-          <b>Tamper Alarm</b>
-          <span id="alarm-where"></span>
-          <span class="siren"><span class="siren-bar" id="siren-bar"></span></span>
-          <span class="siren-note" id="siren-note">Siren on for 10 s</span>
-          <div class="alarm-actions"><button class="btn btn-primary" id="alarm-open" type="button">Open Rack</button><button class="btn btn-quiet" id="alarm-dismiss" type="button">Dismiss</button></div>
+      <!-- Drops in from the top of the map when a rack is shaken (amber) or alarming (red) -->
+      <div class="drop" id="drop" role="alert" hidden>
+        <div class="drop-scene" id="drop-scene"></div>
+        <div class="drop-text">
+          <b id="drop-title"></b>
+          <span id="drop-where"></span>
+          <div id="drop-extra"></div>
+          <div class="drop-actions" id="drop-actions"></div>
         </div>
       </div>
 
-      <section class="needs" aria-label="Needs you">
-        <span class="needs-title">Needs You</span>
-        <div class="needs-items" id="needs"></div>
-      </section>
+      <!-- Move on Map instructions -->
+      <div class="move-bar" id="move-bar" hidden>
+        <span id="move-text"></span>
+        <button class="btn btn-primary" id="move-save" type="button">Save Spot</button>
+        <button class="btn btn-quiet" id="move-cancel" type="button">Cancel</button>
+      </div>
     </section>
 
-    <section class="term" aria-label="Terminal">
-      <div class="term-head"><span class="term-signal" id="term-signal"></span><span>terminal</span><span class="term-hint">type help</span></div>
-      <div class="term-feed" id="feed" aria-live="polite"></div>
-      <form class="term-prompt" id="prompt" autocomplete="off">
-        <label class="term-ps" for="cmd">admin $</label>
-        <input id="cmd" class="term-input" spellcheck="false" autocapitalize="off" placeholder="tap newman">
-      </form>
+    <!-- Commands page: how to use the terminal (covers the map; in the app it's a full page) -->
+    <section class="sheet" id="commands" aria-label="Commands" hidden>
+      <div class="sheet-inner" id="commands-body"></div>
     </section>
+
+    <div class="side">
+      <!-- App view only: what to do right now when a rack is alarming -->
+      <section class="steps" id="steps" aria-label="Alarm next steps" hidden></section>
+
+      <!-- Needs You: everything waiting on an admin, grouped, most urgent first. Scrolls when long. -->
+      <section class="needs" aria-labelledby="needs-title">
+        <button class="needs-head" id="needs-toggle" type="button" aria-expanded="true" aria-controls="needs">
+          <span class="needs-title" id="needs-title">Needs You</span><span class="needs-count" id="needs-count"></span>
+          <span class="needs-fold" id="needs-fold">Hide</span>
+        </button>
+        <div class="needs-list" id="needs"></div>
+      </section>
+
+      <section class="term" aria-label="Terminal">
+        <div class="term-head"><span class="term-signal" id="term-signal"></span><span>terminal</span>
+          <a class="term-hint" href="#commands" data-page="commands">commands</a></div>
+        <div class="term-feed" id="feed" aria-live="polite"></div>
+        <form class="term-prompt" id="prompt" autocomplete="off">
+          <label class="term-ps" for="cmd">admin $</label>
+          <input id="cmd" class="term-input" spellcheck="false" autocapitalize="off" placeholder="help">
+        </form>
+      </section>
+
+      <!-- App view only: every rack's data -->
+      <section class="rack-cards" id="rack-cards" aria-label="Racks" hidden></section>
+    </div>
   </main>
 </body>
 </html>

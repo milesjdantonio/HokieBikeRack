@@ -30,6 +30,7 @@ public class DeviceService {
   private final AuthorizationRevision revision;
   private final Clock clock;
   private final Duration validity;
+  private final Duration onlineWindow;
 
   public DeviceService(JdbcClient jdbc, ObjectMapper mapper, AuthorizationRevision revision, Clock clock,
                        HbrProperties props) {
@@ -38,7 +39,15 @@ public class DeviceService {
     this.revision = revision;
     this.clock = clock;
     this.validity = props.snapshotValidity();
+    this.onlineWindow = props.deviceOnlineWindow();
   }
+
+  // Postgres evaluates every SET expression with the OLD row, so this sees the previous
+  // last_seen_at: if the device had been silent longer than the online window, it was offline
+  // and now needs an admin to confirm it before the rack counts as online. A device that was
+  // never seen (null) is being installed, so its first check-in doesn't need confirming.
+  private static final String WAS_OFFLINE =
+      "needs_confirm OR (last_seen_at IS NOT NULL AND last_seen_at < :offlineSince)";
 
   /**
    * What the rack downloads. Epoch numbers are for the ESP32 (no date parsing
@@ -49,8 +58,10 @@ public class DeviceService {
                          List<String> credentialReferences) {}
 
   public void touch(DevicePrincipal device) {
-    jdbc.sql("UPDATE devices SET last_seen_at = :now WHERE id = :id")
-        .param("now", Db.ts(clock.instant())).param("id", device.deviceId()).update();
+    Instant now = clock.instant();
+    jdbc.sql("UPDATE devices SET needs_confirm = " + WAS_OFFLINE + ", last_seen_at = :now WHERE id = :id")
+        .param("now", Db.ts(now)).param("offlineSince", Db.ts(now.minus(onlineWindow)))
+        .param("id", device.deviceId()).update();
   }
 
   public Snapshot snapshot(DevicePrincipal device) {
@@ -91,13 +102,14 @@ public class DeviceService {
     if (fw != null && fw.length() > 80) fw = fw.substring(0, 80);
     long snapshotRevision = body.path("snapshotRevision").asLong(0);
     Instant now = clock.instant();
-    jdbc.sql("""
-            UPDATE devices SET last_seen_at = :now, last_heartbeat = CAST(:hb AS jsonb),
+    jdbc.sql("UPDATE devices SET needs_confirm = " + WAS_OFFLINE + "," + """
+              last_seen_at = :now, last_heartbeat = CAST(:hb AS jsonb),
               firmware_version = COALESCE(:fw, firmware_version),
               authorization_revision = GREATEST(:rev, 0)
             WHERE id = :id
             """)
-        .param("now", Db.ts(now)).param("hb", json).param("fw", fw).param("rev", snapshotRevision)
+        .param("now", Db.ts(now)).param("offlineSince", Db.ts(now.minus(onlineWindow)))
+        .param("hb", json).param("fw", fw).param("rev", snapshotRevision)
         .param("id", device.deviceId())
         .update();
     return Map.of("serverTime", now.toString(), "currentRevision", revision.current());

@@ -287,6 +287,10 @@ async function loadRacks() {
         h("td", { class: `num ${r.openAlerts ? "warn" : "dim"}` }, String(r.openAlerts)),
         h("td", {}, h("span", { class: "actions" },
           btn(open ? "close" : "details", () => { state.openRack = open ? null : r.id; state.rackForm = null; loadRacks(); }),
+          r.status === "UNCONFIRMED" && state.canEdit ? btn("confirm online", async () => {
+            const res = await run(S.racks, () => api(`/racks/${r.id}/confirm-online`, { method: "POST" }));
+            if (res) { say(S.racks, `${r.name} confirmed online`); refreshAll(true); }
+          }) : null,
           r.openAlerts && state.canEdit ? btn("ack alerts", async () => {
             const res = await run(S.racks, () => api(`/events/acknowledge-rack/${r.id}`, { method: "POST" }));
             if (res) { say(S.racks, `${res.acknowledged} alert(s) marked handled`); refreshAll(true); }

@@ -4,7 +4,9 @@ import { h, s } from "../../js/dom.js";
 // ---------- icons: authored SVG, one stroke weight (no emoji, no Unicode glyphs) ----------
 
 const PATHS = {
-  racks: ["M4.5 19v-7.5a3.25 3.25 0 0 1 6.5 0V19", "M13 19v-7.5a3.25 3.25 0 0 1 6.5 0V19", "M2.5 19h19"],
+  // A bike (Miles: rack icons should be a bike): two wheels, frame, saddle, bars.
+  racks: ["M2 16.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0", "M15 16.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0",
+    "M5.5 16.5 9.5 9.5h6l3 7", "M5.5 16.5H12l3.5-7", "M9.5 9.5 12 16.5", "M8 7.5h3.5", "M15.5 9.5 15 7h2.5"],
   card: ["M4 6h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z", "M3 10.5h18", "M7 15h4"],
   alerts: ["M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 2.2H4.2z", "M9.8 21a2.4 2.4 0 0 0 4.4 0", "M12 3v2"],
   settings: ["M4 7h9", "M17 7h3", "M4 17h3", "M11 17h9", "M15 5v4", "M9 15v4"],
@@ -96,12 +98,13 @@ export const sound = {
 
 // ---------- words ----------
 
-export const STATUS_WORD = { ONLINE: "Ready", WARNING: "Alert", OFFLINE: "Offline", UNKNOWN: "Not Installed" };
-export const STATUS_CLASS = { ONLINE: "positive", WARNING: "warning", OFFLINE: "faint", UNKNOWN: "faint" };
+// UNCONFIRMED: it went offline and is checking in again, but staff haven't confirmed it yet.
+export const STATUS_WORD = { ONLINE: "Ready", WARNING: "Alert", UNCONFIRMED: "Back, Not Confirmed", OFFLINE: "Offline", UNKNOWN: "Not Installed" };
+export const STATUS_CLASS = { ONLINE: "positive", WARNING: "warning", UNCONFIRMED: "warning", OFFLINE: "faint", UNKNOWN: "faint" };
 
 /** Rack status -> rack.riv state: 0 idle, 3 alarm, 4 offline. */
 export function sceneState(rack, devices = []) {
-  if (rack.status === "OFFLINE" || rack.status === "UNKNOWN") return 4;
+  if (rack.status === "OFFLINE" || rack.status === "UNKNOWN" || rack.status === "UNCONFIRMED") return 4;
   if (devices.some((d) => d.online && d.lastHeartbeat && d.lastHeartbeat.alarmActive)) return 3;
   return 0;
 }

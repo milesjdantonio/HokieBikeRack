@@ -14,7 +14,7 @@ if (R) {
   R.Rive.suppressDeprecationWarnings = ["default-state-machine", "state-machine-inputs", "state-machines-param"];
 }
 
-const MACHINES = { rack: "Rack", logo: "Logo", pin: "Pin", badge: "Badge", signal: "Signal" };
+const MACHINES = { rack: "Rack", logo: "Logo", pin: "Pin", badge: "Badge", signal: "Signal", police: "Police", shake: "Shake" };
 const live = new Set();
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 

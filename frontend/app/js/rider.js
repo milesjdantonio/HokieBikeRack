@@ -73,7 +73,7 @@ export function racks(el, ctx) {
   function sorted() {
     const placed = (r) => r.latitude != null;
     if (me) return [...data].sort((a, b) => (placed(a) ? metres(me, a) : 1e12) - (placed(b) ? metres(me, b) : 1e12));
-    const rank = { ONLINE: 0, WARNING: 1, OFFLINE: 2, UNKNOWN: 3 };
+    const rank = { ONLINE: 0, WARNING: 1, UNCONFIRMED: 2, OFFLINE: 2, UNKNOWN: 3 };
     return [...data].sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name));
   }
 
@@ -99,6 +99,9 @@ export function racks(el, ctx) {
 function sentence(rack, devices, lastTamper) {
   const alarm = devices.some((d) => d.online && d.lastHeartbeat && d.lastHeartbeat.alarmActive);
   if (rack.status === "UNKNOWN") return [h("strong", {}, "Not installed yet."), " This rack has no lock module."];
+  if (rack.status === "UNCONFIRMED") {
+    return [h("strong", {}, "Back, not confirmed."), " This rack was offline and has reconnected. Staff will check it before it shows as ready. Registered cards still work."];
+  }
   if (rack.status === "OFFLINE") {
     return [h("strong", {}, "Offline."), ` Registered cards still work for up to 72 hours. Last check-in ${ago(rack.lastSeenAt)}.`];
   }
@@ -166,7 +169,7 @@ export function rack(el, ctx, id, action) {
     title.textContent = r.name;
     status.replaceChildren(...sentence(r, detail.devices, tamper.items[0]));
     baseState = sceneState(r, detail.devices);
-    const off = r.status === "OFFLINE" || r.status === "UNKNOWN";
+    const off = r.status === "OFFLINE" || r.status === "UNKNOWN" || r.status === "UNCONFIRMED";
     if (!demoActive) {
       scene.set("state", baseState);
       tapBtn.disabled = unknownBtn.disabled = off;
@@ -284,7 +287,17 @@ function fact(label, value) {
 /** Staff only: each lock module's health from its last heartbeat. */
 function renderDevices(block, detail, ctx, refresh) {
   const r = detail.rack;
-  renderIfChanged(block, JSON.stringify([detail.devices, r.openAlerts, ctx.canEdit]), () => [
+  renderIfChanged(block, JSON.stringify([detail.devices, r.openAlerts, r.status, ctx.canEdit]), () => [
+    r.status === "UNCONFIRMED" ? h("p", { class: "small" }, h("strong", {}, "Back online, not confirmed. "),
+      "It was offline and is checking in again. Check it in person, then confirm.") : null,
+    r.status === "UNCONFIRMED" && ctx.canEdit ? h("div", { class: "btn-row" },
+      button("Confirm Online", async () => {
+        try {
+          await api(`/racks/${r.id}/confirm-online`, { method: "POST" });
+          ctx.toast("Confirmed online");
+          refresh();
+        } catch (e) { ctx.toast(e.message); }
+      }, { small: true, kind: "primary" })) : null,
     h("h2", {}, "Lock Modules"),
     detail.devices.length ? h("div", { class: "list" }, detail.devices.map((d) => {
       const hb = d.lastHeartbeat || {};
@@ -296,7 +309,8 @@ function renderDevices(block, detail, ctx, refresh) {
         lead: h("span", { class: `row-icon ${d.online ? (problems.length ? "warning" : "positive") : "faint"}` }, icon("signal")),
         title: d.label,
         sub: !d.lastSeenAt ? "Never connected" : problems.length ? problems.join(", ") : `All sensors working, signal ${hb.wifiRssi ?? "?"} dBm`,
-        side: h("span", { class: d.online ? "positive" : "faint" }, !d.active ? "Disabled" : d.online ? "Online" : "Offline"),
+        side: h("span", { class: d.online && !d.needsConfirm ? "positive" : d.online ? "warning" : "faint" },
+          !d.active ? "Disabled" : d.online && d.needsConfirm ? "Not Confirmed" : d.online ? "Online" : "Offline"),
         sideSub: d.firmwareVersion ? `Firmware ${d.firmwareVersion}` : null,
       });
     })) : h("p", { class: "empty" }, "No lock module yet. Add one in the admin console."),

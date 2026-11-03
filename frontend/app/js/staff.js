@@ -69,7 +69,7 @@ export function health(el, ctx) {
         lead: statusIcon(r.status),
         title: r.name,
         sub: parts.join(", "),
-        side: h("span", { class: STATUS_CLASS[r.status] }, r.status === "WARNING" ? "Needs Attention" : STATUS_WORD[r.status]),
+        side: h("span", { class: STATUS_CLASS[r.status] }, r.status === "WARNING" ? "Needs Attention" : r.status === "UNCONFIRMED" ? "Confirm Online" : STATUS_WORD[r.status]),
         sideSub: r.lastSeenAt ? ago(r.lastSeenAt) : "Never",
         onClick: () => ctx.go(`#rack/${r.id}`),
       });

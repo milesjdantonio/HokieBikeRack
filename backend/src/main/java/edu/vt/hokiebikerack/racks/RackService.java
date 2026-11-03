@@ -43,7 +43,9 @@ public class RackService {
       SELECT r.id, r.name, r.location_description, r.latitude, r.longitude, r.created_at,
         (SELECT count(*) FROM devices d WHERE d.rack_id = r.id AND d.active) AS device_count,
         (SELECT count(*) FROM devices d WHERE d.rack_id = r.id AND d.active
-            AND d.last_seen_at > :onlineSince) AS online_count,
+            AND d.last_seen_at > :onlineSince AND NOT d.needs_confirm) AS online_count,
+        (SELECT count(*) FROM devices d WHERE d.rack_id = r.id AND d.active
+            AND d.last_seen_at > :onlineSince AND d.needs_confirm) AS unconfirmed_count,
         (SELECT max(d.last_seen_at) FROM devices d WHERE d.rack_id = r.id AND d.active) AS last_seen_at,
         (SELECT count(*) FROM security_events e WHERE e.rack_id = r.id
             AND e.severity IN ('MEDIUM','HIGH','CRITICAL') AND e.acknowledged_at IS NULL
@@ -56,8 +58,9 @@ public class RackService {
       """;
 
   /** Turns the numbers into one status word for the dashboard. */
-  static String status(int deviceCount, int onlineCount, long openAlerts, boolean sensorFault) {
+  static String status(int deviceCount, int onlineCount, int unconfirmedCount, long openAlerts, boolean sensorFault) {
     if (deviceCount == 0) return "UNKNOWN";       // no device installed yet
+    if (onlineCount == 0 && unconfirmedCount > 0) return "UNCONFIRMED";  // back, but not confirmed by an admin
     if (onlineCount == 0) return "OFFLINE";       // nobody heard from it recently
     if (openAlerts > 0 || sensorFault) return "WARNING";
     return "ONLINE";
@@ -66,11 +69,13 @@ public class RackService {
   private RackSummary mapSummary(ResultSet rs) throws SQLException {
     int devices = rs.getInt("device_count");
     int online = rs.getInt("online_count");
+    int unconfirmed = rs.getInt("unconfirmed_count");
     long alerts = rs.getLong("open_alerts");
     boolean fault = rs.getBoolean("sensor_fault");
     return new RackSummary(Db.uuid(rs, "id"), rs.getString("name"), rs.getString("location_description"),
         rs.getObject("latitude", Double.class), rs.getObject("longitude", Double.class),
-        status(devices, online, alerts, fault), devices, online, Db.instant(rs, "last_seen_at"), alerts, fault,
+        status(devices, online, unconfirmed, alerts, fault), devices, online, unconfirmed,
+        Db.instant(rs, "last_seen_at"), alerts, fault,
         Db.instant(rs, "created_at"));
   }
 
@@ -97,12 +102,13 @@ public class RackService {
     boolean active = rs.getBoolean("active");
     boolean online = active && lastSeen != null && lastSeen.isAfter(clock.instant().minus(onlineWindow));
     return new DeviceView(Db.uuid(rs, "id"), Db.uuid(rs, "rack_id"), rs.getString("device_label"),
-        rs.getString("firmware_version"), lastSeen, online, active, rs.getLong("authorization_revision"),
+        rs.getString("firmware_version"), lastSeen, online, rs.getBoolean("needs_confirm"), active,
+        rs.getLong("authorization_revision"),
         Db.json(mapper, rs, "last_heartbeat"), Db.instant(rs, "token_rotated_at"), Db.instant(rs, "created_at"));
   }
 
   private static final String DEVICE_SQL = """
-      SELECT id, rack_id, device_label, firmware_version, last_seen_at, active, authorization_revision,
+      SELECT id, rack_id, device_label, firmware_version, last_seen_at, needs_confirm, active, authorization_revision,
              last_heartbeat, token_rotated_at, created_at
       FROM devices
       """;
@@ -121,6 +127,26 @@ public class RackService {
 
   private static void checkPair(Double lat, Double lng) {
     if ((lat == null) != (lng == null)) throw ApiException.badRequest("Send latitude and longitude together");
+  }
+
+  /**
+   * An admin confirms a rack that came back after being offline is really working again (they
+   * checked it in person). Only possible while it is checking in; otherwise there's nothing to confirm.
+   */
+  @Transactional
+  public RackDetail confirmOnline(UUID rackId, String actor) {
+    get(rackId);  // 404 if the rack doesn't exist
+    int n = jdbc.sql("""
+            UPDATE devices SET needs_confirm = FALSE
+            WHERE rack_id = :rackId AND active AND needs_confirm AND last_seen_at > :onlineSince
+            """)
+        .param("rackId", rackId).param("onlineSince", Db.ts(clock.instant().minus(onlineWindow))).update();
+    if (n == 0) {
+      throw new ApiException(org.springframework.http.HttpStatus.CONFLICT,
+          "Nothing to confirm: this rack isn't waiting for confirmation, or it hasn't checked in in the last few minutes.");
+    }
+    audit.record(actor, "RACK_CONFIRMED_ONLINE", "RACK", rackId, Map.of("devices", n));
+    return get(rackId);
   }
 
   @Transactional

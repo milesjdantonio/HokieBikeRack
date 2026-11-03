@@ -83,7 +83,7 @@ tr.detail:hover > td { background: none; }
 
 /* status words */
 .st-ONLINE, .st-ACTIVE, .ok { color: var(--ok); }
-.st-WARNING, .st-NOT_YET_VALID, .warn { color: var(--warn); }
+.st-WARNING, .st-UNCONFIRMED, .st-NOT_YET_VALID, .warn { color: var(--warn); }
 .st-OFFLINE, .st-UNKNOWN, .st-DISABLED, .st-EXPIRED, .dim { color: var(--dim); }
 .st-REVOKED, .bad { color: var(--alarm); }
 .sev-CRITICAL, .sev-HIGH { color: var(--alarm); }

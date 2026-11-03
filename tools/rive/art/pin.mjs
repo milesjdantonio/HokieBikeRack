@@ -1,4 +1,4 @@
-// pin.riv: a rack's pin on the admin map. A dark disc with the two-hoop rack glyph, ringed in the
+// pin.riv: a rack's pin on the admin map. A dark disc with a bike glyph, ringed in the
 // rack's status colour. Motion only happens when something happens (no idle pulsing).
 //
 // State machine "Pin", three layers that each move their own parts:
@@ -36,13 +36,17 @@ export default function build() {
   ab.ellipse(flashShape, { w: 34, h: 34 });
   const flash = ab.stroke(flashShape, GREEN, 3.4, { alpha: 0 });
 
-  // The rack glyph: two hoops on a ground step.
-  const glyph = ab.node(core, { name: 'glyph' });
-  const hoops = ab.shape(glyph, { name: 'hoops' });
-  ab.path(hoops, [[-9, 7], [-9, -6, 4.5], [-1, -6, 4.5], [-1, 7]], { closed: false });
-  ab.path(hoops, [[1, 7], [1, -6, 4.5], [9, -6, 4.5], [9, 7]], { closed: false });
-  ab.path(hoops, [[-11.5, 7.5], [11.5, 7.5]], { closed: false });
-  const glyphStroke = ab.stroke(hoops, INK, 2.2);
+  // The glyph: a bike (Miles asked for a bike rather than rack hoops).
+  const glyph = ab.node(core, { name: 'glyph', y: 1 });
+  const bike = ab.shape(glyph, { name: 'bike' });
+  ab.ellipse(bike, { x: -6.5, y: 3.5, w: 9, h: 9 });
+  ab.ellipse(bike, { x: 6.5, y: 3.5, w: 9, h: 9 });
+  ab.path(bike, [[-6.5, 3.5], [-2, -4], [4, -4], [6.5, 3.5]], { closed: false });   // seat stay, top tube, fork
+  ab.path(bike, [[-6.5, 3.5], [0, 3.5], [4, -4]], { closed: false });                // chain stay, down tube
+  ab.path(bike, [[-2, -4], [0, 3.5]], { closed: false });                             // seat tube
+  ab.path(bike, [[-4, -6.5], [-0.5, -6.5]], { closed: false });                       // saddle
+  ab.path(bike, [[4, -4], [3.4, -7], [6.4, -7]], { closed: false });                  // stem and bars
+  const glyphStroke = ab.stroke(bike, INK, 1.9);
 
   const checkNode = ab.node(core, { name: 'check' });
   const checkShape = ab.shape(checkNode);

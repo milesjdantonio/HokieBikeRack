@@ -9,6 +9,7 @@
 //   4 alarm    a siren lights up and flashes      (tamper alarm)
 //   5 offline  signal bars drop, a slash crosses  (rack offline)
 //   6 card     a card slides onto a reader        (unknown card waiting to be registered)
+//   7 police   a shield lights up and a check draws (authorities alerted)
 
 import { EASE, RivFile } from '../riv.mjs';
 import { posed } from '../pose.mjs';
@@ -16,8 +17,9 @@ import { posed } from '../pose.mjs';
 const S = 32, C = 16;
 const COLORS = {
   info: '#8b949e', ok: '#3fd68a', denied: '#ff6b6b', warning: '#ffb547', alarm: '#ff6b6b', offline: '#8b949e', card: '#e5751f',
+  police: '#58a6ff',
 };
-const KINDS = ['info', 'ok', 'denied', 'warning', 'alarm', 'offline', 'card'];
+const KINDS = ['info', 'ok', 'denied', 'warning', 'alarm', 'offline', 'card', 'police'];
 const hex = (c, a = 1) => c + Math.round(a * 255).toString(16).padStart(2, '0');
 
 export default function build() {
@@ -96,6 +98,15 @@ export default function build() {
   ab.rect(chip, { x: -5, y: -3, w: 4, h: 3.4, r: 0.8 });
   ab.fill(chip, '#1a0d04');
 
+  // police: a shield with a check that draws itself
+  const shieldNode = ab.node(g.police, { name: 'shield' });
+  const shield = ab.shape(shieldNode);
+  ab.path(shield, [[0, -10], [8, -7], [8, 0], [0, 10], [-8, 0], [-8, -7]], { closed: true, radius: 1.5 });
+  ab.stroke(shield, COLORS.police, 2.2);
+  const pCheck = ab.shape(g.police);
+  ab.path(pCheck, [[-3.5, 0], [-1, 2.8], [4, -3]], { closed: false });
+  const pCheckTrim = ab.trim(ab.stroke(pCheck, COLORS.police, 2.2), { end: 0 });
+
   const groupOpacity = KINDS.map((k) => ({
     target: g[k], prop: 'opacity', base: 0,
     poses: { [k]: [[0, 0, EASE.out], [6, 1]] },
@@ -108,6 +119,7 @@ export default function build() {
     alarm: { duration: 96 },
     offline: { duration: 48 },
     card: { duration: 44 },
+    police: { duration: 44 },
   }, [
     ...groupOpacity,
     { target: tileFill, prop: 'colorValue', base: hex(COLORS.info, 0.16), poses: Object.fromEntries(KINDS.map((k) => [k,
@@ -135,6 +147,9 @@ export default function build() {
       offline: [[0, 1, 'hold'], [i * 4, 1, EASE.in], [i * 4 + 16, 0.5]],
     } })),
     { target: slashTrim, prop: 'end', base: 0, poses: { offline: [[0, 0, 'hold'], [20, 0, EASE.out], [40, 1]] } },
+    { target: shieldNode, prop: 'scaleX', base: 1, poses: { police: [[0, 0.6, EASE.back], [16, 1]] } },
+    { target: shieldNode, prop: 'scaleY', base: 1, poses: { police: [[0, 0.6, EASE.back], [16, 1]] } },
+    { target: pCheckTrim, prop: 'end', base: 0, poses: { police: [[0, 0, 'hold'], [14, 0, EASE.out], [34, 1]] } },
     { target: cardNode, prop: 'y', base: -1, poses: { card: [[0, -16, EASE.out], [22, 0, EASE.inOut], [30, -2, EASE.inOut], [38, -1]] } },
     { target: cardNode, prop: 'opacity', base: 1, poses: { card: [[0, 0, EASE.out], [10, 1]] } },
   ]);

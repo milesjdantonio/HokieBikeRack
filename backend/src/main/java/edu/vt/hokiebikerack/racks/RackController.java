@@ -42,6 +42,12 @@ public class RackController {
     return racks.update(rackId, body, user.getName());
   }
 
+  /** "It's really back": clears UNCONFIRMED after a rack returns from being offline. */
+  @PostMapping("/{rackId}/confirm-online")
+  public RackDetail confirmOnline(@PathVariable UUID rackId, Principal user) {
+    return racks.confirmOnline(rackId, user.getName());
+  }
+
   @PostMapping("/{rackId}/devices")
   @ResponseStatus(HttpStatus.CREATED)
   public DeviceCredentials addDevice(@PathVariable UUID rackId, @Valid @RequestBody CreateDevice body,

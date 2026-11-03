@@ -13,13 +13,16 @@ import java.util.UUID;
 public final class RackModels {
   private RackModels() {}
 
-  /** ONLINE / OFFLINE / WARNING / UNKNOWN — worked out live, see RackService.status(). */
+  /**
+   * ONLINE / UNCONFIRMED / OFFLINE / WARNING / UNKNOWN, worked out live, see RackService.status().
+   * UNCONFIRMED = it went offline and has checked in again, but an admin hasn't confirmed it yet.
+   */
   public record RackSummary(UUID id, String name, String locationDescription, Double latitude, Double longitude,
-                            String status, int deviceCount, int onlineDeviceCount, Instant lastSeenAt,
-                            long openAlerts, boolean sensorFault, Instant createdAt) {}
+                            String status, int deviceCount, int onlineDeviceCount, int unconfirmedDeviceCount,
+                            Instant lastSeenAt, long openAlerts, boolean sensorFault, Instant createdAt) {}
 
   public record DeviceView(UUID id, UUID rackId, String label, String firmwareVersion, Instant lastSeenAt,
-                           boolean online, boolean active, long authorizationRevision,
+                           boolean online, boolean needsConfirm, boolean active, long authorizationRevision,
                            JsonNode lastHeartbeat, Instant tokenRotatedAt, Instant createdAt) {}
 
   public record RackDetail(RackSummary rack, List<DeviceView> devices) {}
