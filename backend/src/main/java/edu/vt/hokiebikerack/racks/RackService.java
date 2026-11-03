@@ -53,6 +53,10 @@ public class RackService {
         (SELECT count(*) FROM security_events e WHERE e.rack_id = r.id
             AND e.severity IN ('MEDIUM','HIGH','CRITICAL') AND e.acknowledged_at IS NULL
             AND e.received_at > :alertSince) AS open_alerts,
+        (SELECT count(*) FROM security_events e WHERE e.rack_id = r.id AND e.event_type = 'TAMPER_ALARM'
+            AND e.acknowledged_at IS NULL AND e.received_at > :alertSince) AS open_alarms,
+        (SELECT i.status FROM incidents i WHERE i.rack_id = r.id AND i.status <> 'RESOLVED' LIMIT 1) AS incident_status,
+        (SELECT i.id FROM incidents i WHERE i.rack_id = r.id AND i.status <> 'RESOLVED' LIMIT 1) AS incident_id,
         (SELECT coalesce(bool_or(
               coalesce((d.last_heartbeat->>'readerOk')::boolean, true) = false
            OR coalesce((d.last_heartbeat->>'accelOk')::boolean, true) = false), false)
@@ -78,7 +82,8 @@ public class RackService {
     return new RackSummary(Db.uuid(rs, "id"), rs.getString("name"), rs.getString("location_description"),
         rs.getObject("latitude", Double.class), rs.getObject("longitude", Double.class),
         status(devices, online, unconfirmed, alerts, fault), devices, online, unconfirmed,
-        Db.instant(rs, "last_seen_at"), alerts, fault,
+        Db.instant(rs, "last_seen_at"), alerts, rs.getLong("open_alarms"), rs.getString("incident_status"),
+        Db.uuid(rs, "incident_id"), fault,
         Db.instant(rs, "created_at"));
   }
 

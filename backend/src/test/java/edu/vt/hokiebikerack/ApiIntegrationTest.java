@@ -341,6 +341,42 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void alertAuthoritiesOpensAnIncidentThatPoliceMoveForward() throws Exception {
+    Device d = newRackWithDevice("Incident");
+    json(asDevice(jsonBody(post("/api/v1/devices/" + d.deviceId() + "/events"),
+        "{\"events\":[" + event("TAMPER_ALARM", "HIGH", null, "{\"deviationG\":1.3}") + "]}"), d), 200);
+    JsonNode alarming = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);
+    assertThat(alarming.at("/rack/openAlarms").asLong()).isEqualTo(1);
+    assertThat(alarming.at("/rack/incidentStatus").isNull()).isTrue();
+
+    String alertPath = "/api/v1/racks/" + d.rackId() + "/alert-authorities";
+    json(jsonBody(post(alertPath), "{}").with(VIEWER), 403);
+    JsonNode created = json(jsonBody(post(alertPath), "{\"note\":\"Someone at the lock\"}").with(ADMIN), 201);
+    String id = created.at("/incident/id").asText();
+    assertThat(created.at("/incident/status").asText()).isEqualTo("ALERTED");
+    assertThat(created.at("/incident/agency").asText()).isEqualTo("VT Police");
+    json(jsonBody(post(alertPath), "{}").with(ADMIN), 409);   // one open incident per rack
+    assertThat(json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200).at("/rack/incidentStatus").asText())
+        .isEqualTo("ALERTED");
+    assertThat(json(get("/api/v1/incidents").with(VIEWER), 200).toString()).contains(id);
+
+    String statusPath = "/api/v1/incidents/" + id + "/status";
+    json(jsonBody(post(statusPath), "{\"status\":\"EN_ROUTE\"}").with(ADMIN), 200);
+    json(jsonBody(post(statusPath), "{\"status\":\"ALERTED\"}").with(ADMIN), 400);   // forward only
+    json(jsonBody(post(statusPath), "{\"status\":\"ON_SCENE\"}").with(ADMIN), 200);
+    JsonNode resolved = json(jsonBody(post(statusPath), "{\"status\":\"RESOLVED\",\"note\":\"Owner's own bike\"}")
+        .with(ADMIN), 200);
+    assertThat(resolved.at("/incident/resolvedAt").isNull()).isFalse();
+    assertThat(resolved.get("updates").size()).isEqualTo(4);
+    assertThat(resolved.get("rackEvents").toString()).contains("TAMPER_ALARM");
+    json(jsonBody(post(statusPath), "{\"status\":\"RESOLVED\"}").with(ADMIN), 409);
+    assertThat(json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200).at("/rack/incidentStatus").isNull()).isTrue();
+    assertThat(json(get("/api/v1/incidents").with(ADMIN), 200).toString()).doesNotContain(id);
+    assertThat(json(get("/api/v1/incidents?open=false").with(ADMIN), 200).toString()).contains(id);
+    assertThat(json(get("/api/v1/audit-log").with(ADMIN), 200).toString()).contains("AUTHORITIES_ALERTED");
+  }
+
+  @Test
   void deviceProvisioningReturnsConfigSnippetOnce() throws Exception {
     Device d = newRackWithDevice("Snippet");
     JsonNode rack = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);

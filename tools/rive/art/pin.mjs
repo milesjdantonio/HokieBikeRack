@@ -5,6 +5,7 @@
 //   number `status`  0 online (green ring)  1 warning (amber ring, "!" badge pops in)
 //                    2 alarm (red ring flashing red/orange, the pin shudders, red badge)
 //                    3 offline (grey ring, the pin fades back)
+//                    4 police (authorities alerted: ring and badge flash red and blue, like police lights)
 //   trigger `unlock` the glyph turns into a check that draws itself, the ring flashes green
 //   trigger `deny`   the glyph turns into a cross, the pin shakes no, the ring flashes red
 //   bool `selected`  the disc fills Burnt Orange with a small settle
@@ -15,6 +16,7 @@ import { posed } from '../pose.mjs';
 const S = 56, C = 28;            // artboard size and centre
 const GROUND = '#0f1318', INK = '#e6edf3', ACCENT = '#e5751f', ACCENT_INK = '#1a0d04';
 const GREEN = '#3fd68a', AMBER = '#ffb547', RED = '#ff6b6b', ORANGE = '#ff9a3c', GREY = '#7d8896';
+const POLICE_RED = '#ff3b3b', POLICE_BLUE = '#2f81f7';
 const hex = (c, a = 1) => c + Math.round(a * 255).toString(16).padStart(2, '0');
 
 export default function build() {
@@ -32,6 +34,9 @@ export default function build() {
   const ringShape = ab.shape(core, { name: 'ring' });
   ab.ellipse(ringShape, { w: 34, h: 34 });
   const ring = ab.stroke(ringShape, GREEN, 3);
+  const sirenShape = ab.shape(core, { name: 'siren' });
+  ab.ellipse(sirenShape, { w: 44, h: 44 });
+  const siren = ab.stroke(sirenShape, POLICE_BLUE, 3, { alpha: 0 });
   const flashShape = ab.shape(core, { name: 'flash' });
   ab.ellipse(flashShape, { w: 34, h: 34 });
   const flash = ab.stroke(flashShape, GREEN, 3.4, { alpha: 0 });
@@ -80,21 +85,28 @@ export default function build() {
     warning: { duration: 36 },
     alarm: { duration: 40, loop: 1 },
     offline: { duration: 30 },
+    police: { duration: 40, loop: 1 },
   }, [
     { target: ring, prop: 'colorValue', base: hex(GREEN), poses: {
       warning: [[0, hex(GREY), EASE.out], [14, hex(AMBER)]],
       alarm: [[0, hex(RED), 'hold'], [10, hex(ORANGE), 'hold'], [20, hex(RED), 'hold'], [30, hex(ORANGE), 'hold'], [40, hex(RED)]],
       offline: [[0, hex(GREEN), EASE.inOut], [24, hex(GREY)]],
       online: [[0, hex(GREY), EASE.out], [14, hex(GREEN)]],
+      police: [[0, hex(POLICE_RED), 'hold'], [10, hex(POLICE_BLUE), 'hold'], [20, hex(POLICE_RED), 'hold'], [30, hex(POLICE_BLUE), 'hold'], [40, hex(POLICE_RED)]],
     } },
     { target: badge, prop: 'scaleX', base: 0, poses: {
-      warning: [[0, 0, EASE.back], [16, 1]], alarm: 1,
+      warning: [[0, 0, EASE.back], [16, 1]], alarm: 1, police: 1,
     } },
     { target: badge, prop: 'scaleY', base: 0, poses: {
-      warning: [[0, 0, EASE.back], [16, 1]], alarm: 1,
+      warning: [[0, 0, EASE.back], [16, 1]], alarm: 1, police: 1,
     } },
     { target: badgeFill, prop: 'colorValue', base: hex(AMBER), poses: {
       alarm: [[0, hex(RED), 'hold'], [10, hex(ORANGE), 'hold'], [20, hex(RED), 'hold'], [30, hex(ORANGE), 'hold'], [40, hex(RED)]],
+      police: [[0, hex(POLICE_BLUE), 'hold'], [10, hex(POLICE_RED), 'hold'], [20, hex(POLICE_BLUE), 'hold'], [30, hex(POLICE_RED), 'hold'], [40, hex(POLICE_BLUE)]],
+    } },
+    // Police lights: an outer ring that swaps red/blue opposite to the main ring.
+    { target: siren, prop: 'colorValue', base: hex(POLICE_BLUE, 0), poses: {
+      police: [[0, hex(POLICE_BLUE, 0.95), 'hold'], [10, hex(POLICE_RED, 0.95), 'hold'], [20, hex(POLICE_BLUE, 0.95), 'hold'], [30, hex(POLICE_RED, 0.95), 'hold'], [40, hex(POLICE_BLUE, 0.95)]],
     } },
     { target: shaker, prop: 'rotation', base: 0, poses: {
       alarm: [[0, 0, EASE.inOut], [5, 0.14, EASE.inOut], [10, -0.14, EASE.inOut], [15, 0.1, EASE.inOut], [20, -0.06, EASE.inOut], [26, 0, 'hold'], [40, 0]],
@@ -144,7 +156,7 @@ export default function build() {
   const selected = sm.bool('selected', false);
 
   const l1 = sm.layer('Status');
-  const order = ['online', 'warning', 'alarm', 'offline'];
+  const order = ['online', 'warning', 'alarm', 'offline', 'police'];
   const st = order.map((n) => l1.state(status[n]));
   l1.transition(l1.entry, st[0]);
   st.forEach((from, i) => st.forEach((to, j) => {

@@ -88,7 +88,8 @@ function darken(style, look = {}) {
 
 /** Rive pin status number for a rack (see tools/rive/art/pin.mjs). */
 const PIN_STATUS = { ONLINE: 0, WARNING: 1, UNCONFIRMED: 1, ALARM: 2, OFFLINE: 3, UNKNOWN: 3 };
-const pinStatus = (r) => (r.alarm ? 2 : PIN_STATUS[r.status] ?? 3);
+// Police alerted (an open incident) wins over everything: the pin flashes red and blue.
+const pinStatus = (r) => (r.police ? 4 : r.alarm ? 2 : PIN_STATUS[r.status] ?? 3);
 
 /**
  * Mounts a map in `container`.

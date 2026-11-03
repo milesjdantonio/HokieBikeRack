@@ -156,8 +156,8 @@ and staff app) and the rider app (no login to see racks).
 Miles: make the B1 mockup the real admin; new rider, police and staff versions; each with app +
 browser; a more intuitive admin app; police-notified pins flash red and blue.
 - [x] 11.1 Plan with default roles (roles-plan.md)
-- [ ] 11.2 pin.riv police state (flashing red/blue) + mockup
-- [ ] 11.3 Backend: incidents (alert authorities, police status) + rack openAlarms/incident + tests
+- [x] 11.2 pin.riv police state (flashing red/blue) + mockup
+- [x] 11.3 Backend: incidents (alert authorities, police status) + rack openAlarms/incident + tests
 - [ ] 11.4 Shared front-end (theme, map, live polling, app tab bar)
 - [ ] 11.5 Admin, real data: browser + app (tabs: Now, Racks, Terminal, More)
 - [ ] 11.6 Staff: browser + app
