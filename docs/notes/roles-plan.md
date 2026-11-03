@@ -72,6 +72,6 @@ Bottom tabs, one job each:
   (Default: alerted incidents first, live alarms below as "not reported yet".)
 - Should riders see that police were alerted at a rack? (Default: no, just "Alarm, staff alerted".)
 - Hokie Passport: does the PN532 read it with a steady ID? (Checklist 7. If not: kit cards for the demo.)
-- Linking gives the HokieP all racks. Should requests pick specific racks instead?
+- ~~Linking gives the HokieP all racks, or specific racks?~~ Decided: **every rack** (Miles).
 - Spots: one per lock module unless an admin sets a number. Is tap-in / tap-out the right way to count
   until the rack has a bike sensor?

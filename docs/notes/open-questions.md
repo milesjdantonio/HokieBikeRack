@@ -2,6 +2,15 @@
 
 Defaults chosen while building. None are blocking. Change them if the team prefers otherwise.
 
+**All real-life (hardware) testing is on Tuesday 2026-11-03**, in person, using
+[hardware-test-checklist.md](hardware-test-checklist.md) sections 1-7 (7 = rider sign-up with a real
+Hokie Passport). Questions marked "check during the bench test" get answered then.
+
+## Decided
+- A linked Hokie Passport works at **every rack** (Miles, 2026-11-02). That's how linking already works.
+- Login is off for the demo; riders use a private rider code (no passwords).
+- Hardware is tested in person; the website has no buttons that fake hardware.
+
 ## Hardware (check during the bench test)
 | Default | Where to change | Question |
 |---|---|---|
@@ -12,6 +21,7 @@ Defaults chosen while building. None are blocking. Change them if the team prefe
 | Escalation window 30 s, cooldown 3 s | same file | Feels right? |
 | Grace period after unlock 10 s | `HBR_TAMPER_GRACE_MS` | Long enough to remove a bike? |
 | Card type | — | What do the kit cards report? (4-byte = MIFARE Classic, 7-byte = NTAG/Ultralight usually.) Log shows `[card] read a N-byte card ID`. |
+| Hokie Passport | — | Does the PN532 read a HokieP, with the **same** ID every tap? (Checklist 7.) If not, use kit cards for the demo. |
 | PN532 power 3.3 V | wiring guide | Keep at 3.3 V so its I2C pull-ups don't put 5 V on ESP32 pins. |
 
 ## Product / policy
@@ -22,8 +32,7 @@ Defaults chosen while building. None are blocking. Change them if the team prefe
 - Should the dashboard hide SIM events by default once real hardware is in use?
 
 ## Feature ideas not built yet (from the Phase 9 UX pass)
-- **Rider accounts** so My Card shows *your* card without picking it (needs a login per rider and a
-  link between a person and a credential).
+- ~~Rider accounts~~ Built 2026-11-02: riders, online access requests, link your HokieP, "your bike" warnings.
 - **Report a Problem** on a rack (broken, blocked, missing) that lands in the staff Alerts.
 - **Favourite racks** at the top of the list; alerts only for those.
 - **Push notifications** for staff when a tamper alarm fires (needs HTTPS + a service worker).
