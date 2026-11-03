@@ -27,7 +27,7 @@
 #include "freertos/semphr.h"
 #include "mbedtls/md.h"
 
-// ---- calls into the page (frontend/model/rack-model.js sets Module.hooks) ----
+// ---- calls into the page (frontend/model/runner.js sets Module.hooks) ----
 EM_JS(void, js_accel, (double ms, float *out), {
   const a = Module.hooks && Module.hooks.accel ? Module.hooks.accel(ms) : [0, 0, 1];
   HEAPF32[out >> 2] = a[0];

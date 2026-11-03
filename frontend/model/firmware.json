@@ -1,8 +1,8 @@
 {
-  "builtAt": "2026-11-03T19:22:03.217Z",
+  "builtAt": "2026-11-03T19:50:43.398Z",
   "toolchain": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 6.0.0-git (afa15e0c56d1292e073c2c91bafc1d5e0cdf0dd3)",
   "localConfig": false,
-  "sourceHash": "c1fa26ab90a5cda52832c48d6e485ebb7b553e739db127b8308162fcdf0d5d81",
+  "sourceHash": "6d32c25fbb1c777d94cff5d1e65aef54c8c2025ceffe88d033b5c97360550df6",
   "files": [
     {
       "path": "firmware/include/access_policy.h",
@@ -94,7 +94,7 @@
     },
     {
       "path": "firmware/model/hw.cpp",
-      "sha256": "657e4c0f1babb31ddd684bd55e8b6bda5ea09f0721e3f3e0cc2b9ea7be46a17f"
+      "sha256": "cad004d1dc15cb7295dd4553d8dfcc61f146aed58e5cbf025d6a6c927c1c8b8f"
     },
     {
       "path": "firmware/model/hw.h",
@@ -102,7 +102,7 @@
     },
     {
       "path": "firmware/model/model_api.cpp",
-      "sha256": "1061f5c7e615d072fb471584e3655309a8b6bd2f44b7589894b5e8793bf0e575"
+      "sha256": "8def3694d2accbf7ad3266707bc46d4ea15bfef19438f88eef36770653425d44"
     },
     {
       "path": "firmware/model/shim/Adafruit_PN532.h",
@@ -126,7 +126,7 @@
     },
     {
       "path": "firmware/model/shim/WString.h",
-      "sha256": "81f2048c2dbbadfff1fc8b2201b1e46cff62ebb2dd44aa09c40474aa80c449c5"
+      "sha256": "b107449439acaba7aff56481a2c7fc0fc68f829940919ed6dfe468d560eaf710"
     },
     {
       "path": "firmware/model/shim/WiFi.h",
@@ -206,7 +206,7 @@
     },
     {
       "path": "tools/model/build.mjs",
-      "sha256": "e9161d14df6ddbe79afb5ca7364b9ac2add1d760a5471b22118b0b7003f9f0cd"
+      "sha256": "c9529ca5147c977668cf1ee7113422f0fba42b10620531f750537555d963ad4e"
     },
     {
       "path": "tools/model/emscripten_msys2.py",
@@ -220,14 +220,14 @@
       "code": "constexpr uint32_t HBR_UNLOCK_DURATION_MS = 5000;     // momentary unlock length"
     },
     "HBR_SERVO_LOCKED_DEG": {
-      "file": "model/config.h",
-      "line": 0,
-      "code": ""
+      "file": "include/device_config.h",
+      "line": 47,
+      "code": "#define HBR_SERVO_LOCKED_DEG 0"
     },
     "HBR_SERVO_UNLOCKED_DEG": {
-      "file": "model/config.h",
-      "line": 0,
-      "code": ""
+      "file": "include/device_config.h",
+      "line": 50,
+      "code": "#define HBR_SERVO_UNLOCKED_DEG 90"
     },
     "kServoMinUs": {
       "file": "src/lock.cpp",

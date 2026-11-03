@@ -6,7 +6,7 @@
 // without adding a single line to src/. Everything the rack does comes from those files; this
 // file only starts them, steps the clock and reports what they did.
 //
-// Built by tools/model/build.mjs into frontend/model/firmware.mjs.
+// Built by tools/model/build.mjs into frontend/model/firmware.js.
 #include <emscripten/emscripten.h>
 
 // Library headers first, so the trick below cannot touch them.
@@ -237,6 +237,7 @@ EMSCRIPTEN_KEEPALIVE const char *hbr_state() {
   JsonObject lock = doc["lock"].to<JsonObject>();
   lock["unlocked"] = controller.unlocked_;
   lock["leftMs"] = controller.unlocked_ ? (int32_t)(controller.unlockMs_ - (now - controller.unlockedAtMs_)) : 0;
+  lock["sinceUnlockMs"] = controller.everUnlocked_ ? (int64_t)(now - controller.unlockedAtMs_) : -1;
   lock["servoUs"] = h.servoUs;
   lock["servoAttached"] = servo.attached();
   lock["servoWrites"] = h.servoWrites;
@@ -360,9 +361,14 @@ EMSCRIPTEN_KEEPALIVE const char *hbr_config() {
   JsonArray v = doc["values"].to<JsonArray>();
   const char *L = "Lock and servo", *F = "Lights and buzzer", *T = "Tamper detection", *C = "Card reader",
              *N = "Network task", *A = "Card list";
+#ifdef HBR_MODEL_SERVO_FROM_CONFIG
+  const char *servoAngles = "include/config.h";  // build.mjs --local-config copied the two lines
+#else
+  const char *servoAngles = "include/device_config.h";
+#endif
   value(v, L, "HBR_UNLOCK_DURATION_MS", HBR_UNLOCK_DURATION_MS, "ms", "include/device_config.h", "How long the lock stays open after an allowed card");
-  value(v, L, "HBR_SERVO_LOCKED_DEG", HBR_SERVO_LOCKED_DEG, "deg", HBR_HAS_LOCAL_CONFIG ? "model/config.h" : "include/device_config.h", "Servo angle when locked");
-  value(v, L, "HBR_SERVO_UNLOCKED_DEG", HBR_SERVO_UNLOCKED_DEG, "deg", HBR_HAS_LOCAL_CONFIG ? "model/config.h" : "include/device_config.h", "Servo angle when open");
+  value(v, L, "HBR_SERVO_LOCKED_DEG", HBR_SERVO_LOCKED_DEG, "deg", servoAngles, "Servo angle when locked");
+  value(v, L, "HBR_SERVO_UNLOCKED_DEG", HBR_SERVO_UNLOCKED_DEG, "deg", servoAngles, "Servo angle when open");
   value(v, L, "kServoMinUs", kServoMinUs, "us", "src/lock.cpp", "Pulse for 0 degrees, passed to servo.attach()");
   value(v, L, "kServoMaxUs", kServoMaxUs, "us", "src/lock.cpp", "Pulse for 180 degrees");
   value(v, L, "HBR_ENABLE_SERVO", HBR_ENABLE_SERVO, "", "model/config.h", "1 = drive the servo (the model always does)");

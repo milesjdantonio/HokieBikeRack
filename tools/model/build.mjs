@@ -67,8 +67,10 @@ function listInputs() {
   return files.sort();
 }
 
+// Line endings ignored: Git on Windows checks files out with CRLF, on Mac/Linux with LF.
 function sha256(file) {
-  return crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+  const text = fs.readFileSync(file, "utf8").replaceAll("\r\n", "\n");
+  return crypto.createHash("sha256").update(text).digest("hex");
 }
 
 function sourceHash(files) {
@@ -178,7 +180,7 @@ async function main() {
   if (LOCAL_CONFIG) {
     const lines = localConfigLines();
     if (!lines) console.log("--local-config: no HBR_SERVO_* lines in include/config.h; using defaults.");
-    modelConfig += `\n// Copied by --local-config from include/config.h:\n${lines}\n`;
+    if (lines) modelConfig += `\n// Copied by --local-config from include/config.h:\n${lines}\n#define HBR_MODEL_SERVO_FROM_CONFIG 1\n`;
   }
   fs.writeFileSync(path.join(staging, "config.h"), modelConfig);
 

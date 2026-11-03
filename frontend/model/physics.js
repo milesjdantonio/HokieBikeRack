@@ -20,7 +20,8 @@ export class Physics {
     this.z = 0; this.vz = 0;    // sway front to back
     this.lean = 0;              // degrees the post is tilted (toward +x)
     this.leanTarget = 0;
-    this.leanRate = 40;         // degrees per second the post can be pushed over
+    this.leanRate = 200;        // degrees per second the post follows the Lean slider, so a flick
+                                // of the slider is a sudden tilt and a slow drag is a slow one
     this.drag = null;           // { x, z } while you drag the post with the pointer
     this.shakes = [];           // { from, to, hz, amp, axis }
     this.knocks = [];           // { at, speed, axis }
