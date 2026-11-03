@@ -111,8 +111,21 @@ export function findRack(racks, text) {
 export const isAlarm = (r) => r.openAlarms > 0;
 export const isUp = (r) => r.status === "ONLINE" || r.status === "WARNING";
 
-/** For the map pins (pin.riv): police (an open incident) > alarm > status. */
-export const pinRack = (r) => ({ ...r, alarm: isAlarm(r), police: Boolean(r.incidentStatus) });
+/** For the map pins (pin.riv): police (an open incident) > alarm > status. The label shows open spots. */
+export const pinRack = (r) => ({ ...r, alarm: isAlarm(r), police: Boolean(r.incidentStatus), label: `${r.name} · ${spotsText(r)}` });
+
+/** "2 of 3 spots open" / "Full" / "No lock module". */
+export function spotsText(r, short = false) {
+  if (r.deviceCount === 0 && r.capacitySetting == null) return "Not set up";
+  if (r.openSpots === 0) return "Full";
+  return short ? `${r.openSpots} open` : `${r.openSpots} of ${r.capacity} spot${r.capacity === 1 ? "" : "s"} open`;
+}
+
+/** "Alarm now" / "Last alarm 3h ago" / "No alarms". */
+export function alarmText(r, ago) {
+  if (r.openAlarms > 0) return "Alarm now";
+  return r.lastAlarmAt ? `Last alarm ${ago(r.lastAlarmAt)}` : "No alarms";
+}
 
 export const INCIDENT_WORD = { ALERTED: "Alerted", EN_ROUTE: "On the Way", ON_SCENE: "On Scene", RESOLVED: "Resolved" };
 export const STATUS_TEXT = { ONLINE: "Online", WARNING: "Needs a Look", UNCONFIRMED: "Back, Not Confirmed", OFFLINE: "Offline", UNKNOWN: "No Lock Module" };

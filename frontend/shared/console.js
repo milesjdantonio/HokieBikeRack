@@ -9,7 +9,7 @@ import { api } from "../js/api.js";
 import { riveIcon } from "../js/rive.js";
 import { rackMap, placeMap, searchPlaces } from "../app/js/map.js";
 import { icon } from "../app/js/ui.js";
-import { createLive, slug, findRack, isAlarm, isUp, pinRack, INCIDENT_WORD, STATUS_TEXT, bars } from "./live.js";
+import { createLive, slug, findRack, isAlarm, isUp, pinRack, spotsText, alarmText, INCIDENT_WORD, STATUS_TEXT, bars } from "./live.js";
 
 const ROLE = document.body.dataset.role === "staff" ? "staff" : "admin";
 const CAN = ROLE === "admin"
@@ -26,6 +26,8 @@ document.body.classList.toggle("view-app", APP);
 const live = createLive({ want: { events: true, unknown: true, incidents: true, cards: CAN.cards } });
 const S = live.state;
 const rackById = (id) => S.racks.find((r) => r.id === id);
+/** replaceChildren that skips null/false and flattens arrays (native replaceChildren prints "null"). */
+const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
 /** 16:58:12 for terminal lines. */
 const stamp = (iso) => new Date(iso || Date.now()).toTimeString().slice(0, 8);
 const btn = (label, onClick, cls = "", attrs = {}) => h("button", { class: `btn ${cls}`, type: "button", onClick, ...attrs }, label);
@@ -97,6 +99,7 @@ const HELP_LINES = [
   ["alert <rack> confirm", `alert ${AGENCY} about a rack's tamper alarm`],
   ["register <rack> <name>", "register the card waiting at a rack"],
   ["confirm <rack>", "confirm a rack is back online (check it in person first)"],
+  ["rename <rack> <new name>", "rename a rack"],
   ["move <rack>", "move a rack's pin on the map"],
   ["cards [rack]", "list registered cards"],
   ["revoke <card name> confirm", "turn a card off for good"],
@@ -110,7 +113,7 @@ async function run(text) {
   if (!cmd) return;
   log("cmd", `${ROLE} $ ${text.trim()}`);
   const verb = cmd.toLowerCase();
-  const needsRack = ["open", "ack", "alert", "register", "confirm", "move"].includes(verb);
+  const needsRack = ["open", "ack", "alert", "register", "confirm", "move", "rename"].includes(verb);
   const r = needsRack ? findRack(S.racks, parts[1]) : null;
   if (needsRack && !r) {
     log("deny", parts[1] ? `no rack called "${parts[1]}". type racks to see their names` : `which rack? e.g. ${verb} ${S.racks[0] ? slug(S.racks[0].name) : "newman-library"}`);
@@ -120,12 +123,12 @@ async function run(text) {
     case "help":
       log("help", HELP_LINES.map(([c, d]) => `${c.padEnd(28)}${d}`).join("\n") + "\nthe Commands page has examples.");
       break;
-    case "clear": feed.replaceChildren(); break;
+    case "clear": fill(feed, ); break;
     case "racks":
       if (!S.racks.length) log("info", "no racks yet. add one on the map");
       for (const x of S.racks) {
         log(isAlarm(x) ? "alarm" : x.status === "OFFLINE" ? "off" : x.status === "ONLINE" ? "ok" : "warn",
-          [{ b: slug(x.name).padEnd(22) }, isAlarm(x) ? "ALARM" : STATUS_TEXT[x.status].toLowerCase(),
+          [{ b: slug(x.name).padEnd(22) }, isAlarm(x) ? "ALARM" : STATUS_TEXT[x.status].toLowerCase(), `, ${spotsText(x).toLowerCase()}`,
             x.incidentStatus ? `, ${AGENCY} ${INCIDENT_WORD[x.incidentStatus].toLowerCase()}` : ""]);
       }
       break;
@@ -153,6 +156,13 @@ async function run(text) {
       const name = parts.slice(2).join(" ");
       if (!name) { log("deny", `give the card a name: register ${slug(r.name)} Jane Doe`); break; }
       await registerCard(card, name, r);
+      break;
+    }
+    case "rename": {
+      if (!CAN.configure) { log("deny", "renaming racks is for admins"); break; }
+      const name = parts.slice(2).join(" ");
+      if (!name) { log("deny", `give the new name: rename ${slug(r.name)} Goodwin Hall East`); break; }
+      await renameRack(r, name);
       break;
     }
     case "confirm":
@@ -188,17 +198,17 @@ async function run(text) {
   }
 }
 
-const history = [];
+const cmdHistory = [];
 let hIndex = 0;
 const prompt = h("form", { class: "term-prompt", autocomplete: "off", onSubmit: (e) => {
   e.preventDefault();
   const v = cmdInput.value;
-  if (v.trim()) { history.push(v); hIndex = history.length; run(v); }
+  if (v.trim()) { cmdHistory.push(v); hIndex = cmdHistory.length; run(v); }
   cmdInput.value = "";
 } }, h("label", { class: "term-ps", for: "cmd" }, `${ROLE} $`), cmdInput);
 cmdInput.addEventListener("keydown", (e) => {
-  if (e.key === "ArrowUp" && hIndex > 0) { cmdInput.value = history[--hIndex]; e.preventDefault(); }
-  if (e.key === "ArrowDown") { hIndex = Math.min(history.length, hIndex + 1); cmdInput.value = history[hIndex] || ""; e.preventDefault(); }
+  if (e.key === "ArrowUp" && hIndex > 0) { cmdInput.value = cmdHistory[--hIndex]; e.preventDefault(); }
+  if (e.key === "ArrowDown") { hIndex = Math.min(cmdHistory.length, hIndex + 1); cmdInput.value = cmdHistory[hIndex] || ""; e.preventDefault(); }
 });
 const term = h("section", { class: "term", "aria-label": CAN.terminal ? "Terminal" : "Activity" },
   h("div", { class: "term-head" }, h("span", { class: "term-signal" }, termSignal.el), h("span", {}, CAN.terminal ? "terminal" : "activity"),
@@ -291,7 +301,7 @@ function renderNeeds(el, countEl, skip = []) {
     return entry.el;
   };
   const groups = GROUPS.map((g) => ({ ...g, items: list.filter((n) => n.kind === g.kind) })).filter((g) => g.items.length);
-  el.replaceChildren(...groups.flatMap((g) => [h("h3", { class: "needs-group" }, `${g.title} (${g.items.length})`), ...g.items.map(row)]));
+  fill(el, ...groups.flatMap((g) => [h("h3", { class: "needs-group" }, `${g.title} (${g.items.length})`), ...g.items.map(row)]));
   if (!list.length) el.append(h("p", { class: "needs-clear" }, S.racks.length ? "Nothing needs you right now. Every rack is fine." : "No racks yet."));
   if (countEl) countEl.textContent = list.length ? String(list.length) : "";
   return all;
@@ -330,6 +340,14 @@ function stateLine(r, data) {
   if (r.openAlerts) return h("p", { class: "state state-warning" }, `Needs a look: ${r.openAlerts} open alert${r.openAlerts > 1 ? "s" : ""}.`);
   if (data?.detail.devices.some((d) => d.online && (d.lastHeartbeat?.readerOk === false || d.lastHeartbeat?.accelOk === false))) return h("p", { class: "state state-warning" }, "A sensor isn't responding. Check the lock module.");
   return h("p", { class: "state" }, "Working. Cards tap in normally.");
+}
+
+/** The two things everyone wants first: open spots and the alarm. */
+function facts(r) {
+  return h("div", { class: "facts" },
+    h("div", { class: r.openSpots === 0 ? "fact full" : "fact" }, h("span", {}, "Open Spots"), h("b", {}, r.capacity ? `${r.openSpots} of ${r.capacity}` : "-")),
+    h("div", { class: isAlarm(r) ? "fact alarm" : "fact" }, h("span", {}, "Alarm"),
+      h("b", {}, isAlarm(r) ? "Active now" : r.lastAlarmAt ? `Last ${ago(r.lastAlarmAt)}` : "None yet")));
 }
 
 function incidentBox(r, data) {
@@ -392,6 +410,10 @@ function renderDetail(body, r, data, { focus } = {}) {
           : dev.online ? `All sensors working, signal ${hb.wifiRssi ?? "?"} dBm${dev.firmwareVersion ? `, firmware ${dev.firmwareVersion}` : ""}` : `Last check-in ${ago(dev.lastSeenAt)}`)),
       h("span", { class: status[0] }, status[1]),
       CAN.configure ? h("span", { class: "item-actions" },
+        btn("Rename", (e) => {
+          const nameEl = e.currentTarget.closest(".item").querySelector(".item-main b");
+          inlineRename(nameEl, dev.label, (v) => act(() => api(`/racks/${r.id}/devices/${dev.id}`, { method: "PATCH", body: { label: v } }), `Renamed to ${v}`), "Lock module name");
+        }, "btn-quiet"),
         btn("New Setup Code", async () => {
           if (!confirm(`Make a new setup code for ${dev.label}? The old one stops working right away, so the rack must be re-flashed.`)) return;
           const res = await act(() => api(`/racks/${r.id}/devices/${dev.id}/rotate-token`, { method: "POST" }), "New setup code made. Copy it now: it's only shown once.");
@@ -416,6 +438,14 @@ function renderDetail(body, r, data, { focus } = {}) {
     h("div", { class: "item" }, riveIcon("badge", { size: 22, inputs: { kind: c.active ? BADGE.ok : BADGE.denied } }).el,
       h("span", { class: "item-main" }, h("b", {}, c.displayLabel), h("span", {}, `${c.allRacks ? "All racks · " : ""}${c.active ? (c.lastUsedAt ? `Used ${ago(c.lastUsedAt)}` : "Not used yet") : "Turned off"}`)),
       h("span", { class: "item-actions" },
+        btn("Rename", (e) => {
+          const nameEl = e.currentTarget.closest(".item").querySelector(".item-main b");
+          inlineRename(nameEl, c.displayLabel, async (v) => {
+            const res = await act(() => api(`/credentials/${c.id}`, { method: "PATCH", body: { displayLabel: v } }), `Renamed to ${v}`);
+            if (res) log("ok", [{ b: c.displayLabel }, " renamed to ", { b: v }]);
+            return res;
+          }, "Card name");
+        }, "btn-quiet"),
         btn(c.active ? "Turn Off" : "Turn On", () => act(() => api(`/credentials/${c.id}`, { method: "PATCH", body: { active: !c.active } }),
           `${c.displayLabel} turned ${c.active ? "off" : "on"}`).then((x) => x && log(c.active ? "off" : "ok", [{ b: c.displayLabel }, ` turned ${c.active ? "off" : "on"}`])), "btn-quiet"),
         btn("Revoke", () => { if (confirm(`Turn off ${c.displayLabel} for good? This can't be undone.`)) revokeCard(c); }, "btn-quiet")))))
@@ -424,17 +454,30 @@ function renderDetail(body, r, data, { focus } = {}) {
   const settings = CAN.configure ? (() => {
     const name = h("input", { class: "input", value: r.name, maxlength: "120", "aria-label": "Rack name" });
     const where = h("input", { class: "input", value: r.locationDescription || "", maxlength: "255", placeholder: "Where it is, e.g. Squires, north side", "aria-label": "Where it is" });
+    const cap = h("input", { class: "input", type: "number", min: "1", max: "200", value: r.capacitySetting ?? "", placeholder: `Spots (blank = ${Math.max(1, r.deviceCount)}, one per lock module)`, "aria-label": "Number of spots" });
     return [h("h2", {}, "Rack Settings"), h("form", { class: "stack-form", onSubmit: async (e) => {
       e.preventDefault();
-      const res = await act(() => api(`/racks/${r.id}`, { method: "PATCH", body: { name: name.value.trim(), locationDescription: where.value.trim() } }), "Saved");
+      const n = cap.value.trim() ? Number(cap.value) : null;
+      const body = { name: name.value.trim(), locationDescription: where.value.trim(), ...(n ? { capacity: n } : { clearCapacity: true }) };
+      const res = await act(() => api(`/racks/${r.id}`, { method: "PATCH", body }), "Saved");
       if (res) log("ok", [{ b: slug(res.rack.name) }, " renamed / location saved"]);
-    } }, name, where, h("div", { class: "panel-actions" }, h("button", { class: "btn", type: "submit" }, "Save"),
+    } }, name, where, h("label", { class: "field" }, h("span", {}, "Spots"), cap),
+      h("p", { class: "hint" }, "Spots in use are counted from card taps: a card's first tap parks, the next tap leaves. If the count is off, reset it."),
+      h("div", { class: "panel-actions" }, h("button", { class: "btn", type: "submit" }, "Save"),
+      btn("All Spots Open", async () => {
+        const res = await act(() => api(`/racks/${r.id}/reset-spots`, { method: "POST" }), "Spots reset");
+        if (res) log("ok", [{ b: slug(r.name) }, " spots reset: all open"]);
+      }, "btn-quiet"),
       btn(r.latitude != null ? "Move on Map" : "Place on Map", () => (APP ? openPlaceSheet({ rack: r }) : startMove(r)))))];
   })() : [];
 
-  body.replaceChildren(
-    h("h1", { class: "panel-title" }, r.name),
+  const titleEl = h("h1", { class: "panel-title" }, r.name);
+  const titleRow = h("div", { class: "title-row" }, titleEl,
+    CAN.configure ? btn("Rename", () => inlineRename(titleRow, r.name, (v) => renameRack(r, v), "Rack name"), "btn-quiet rename-btn") : null);
+  fill(body,
+    titleRow,
     h("p", { class: "panel-sub" }, r.locationDescription || (r.latitude == null ? "Not on the map yet" : "")),
+    facts(r),
     stateLine(r, data),
     incidentBox(r, data),
     now.length ? h("div", { class: "panel-actions panel-now" }, now) : null,
@@ -445,6 +488,26 @@ function renderDetail(body, r, data, { focus } = {}) {
     ...settings,
   );
   if (focus === "card") body.querySelector("#waiting")?.scrollIntoView({ block: "center" });
+}
+
+/**
+ * Rename in place: swaps `el` for a text box with Save / Cancel. onSave(newName) does the API call.
+ */
+function inlineRename(el, current, onSave, label = "New name") {
+  const input = h("input", { class: "input", value: current, maxlength: "120", "aria-label": label });
+  const form = h("form", { class: "inline-form rename-form", onSubmit: async (e) => {
+    e.preventDefault();
+    const v = input.value.trim();
+    if (!v || v === current) { form.replaceWith(el); return; }
+    if (await onSave(v)) form.replaceWith(el);
+  } }, input, h("button", { class: "btn btn-primary", type: "submit" }, "Save"), btn("Cancel", () => form.replaceWith(el), "btn-quiet"));
+  el.replaceWith(form);
+  input.select();
+}
+async function renameRack(r, name) {
+  const res = await act(() => api(`/racks/${r.id}`, { method: "PATCH", body: { name } }), `Renamed to ${name}`);
+  if (res) log("ok", [{ b: slug(r.name) }, " renamed to ", { b: slug(name) }]);
+  return res;
 }
 
 /** Shows a new device token + config snippet once, with Copy. */
@@ -495,12 +558,12 @@ function openPlaceSheet({ rack = null, name: startName = "" } = {}) {
   search.addEventListener("input", () => {
     clearTimeout(searchTimer);
     const q = search.value.trim();
-    if (q.length < 3) { results.replaceChildren(); return; }
+    if (q.length < 3) { fill(results, ); return; }
     searchTimer = setTimeout(async () => {
       try {
         const found = await searchPlaces(q);
-        results.replaceChildren(...found.map((p) => btn([h("b", {}, p.name), h("span", {}, p.detail)], () => { pm.flyTo(p.lng, p.lat); results.replaceChildren(); }, "place-result")));
-      } catch (err) { results.replaceChildren(h("p", { class: "empty" }, err.message)); }
+        fill(results, ...found.map((p) => btn([h("b", {}, p.name), h("span", {}, p.detail)], () => { pm.flyTo(p.lng, p.lat); fill(results, ); }, "place-result")));
+      } catch (err) { fill(results, h("p", { class: "empty" }, err.message)); }
     }, 300);
   });
   const sheet = h("div", { class: "place-sheet", role: "dialog", "aria-label": rack ? `Move ${rack.name}` : "Add a rack" },
@@ -527,7 +590,8 @@ const COMMANDS = [
     ["cards [rack]", "List registered cards, all or for one rack.", "cards newman"], ["revoke <name> confirm", "Turn a card off for good.", "revoke Old Test Card confirm"]] },
   { group: "Racks", items: [["add <name>", "Add a new rack: the map opens so you can click where it stands, then Add Rack.", "add Squires North"],
     ["confirm <rack>", "Confirm a rack that came back from being offline is working. Check it in person first.", "confirm newman"],
-    ["move <rack>", "Move a rack's pin: click the map or drag the pin, then Save Spot.", "move newman"]] },
+    ["move <rack>", "Move a rack's pin: click the map or drag the pin, then Save Spot.", "move newman"],
+    ["rename <rack> <new name>", "Rename a rack. Cards and lock modules have a Rename button in the rack's panel.", "rename meow Goodwin Hall East"]] },
   { group: "Terminal", items: [["clear", "Clear the terminal. Nothing is deleted.", "clear"], ["↑ / ↓", "Bring back earlier commands.", ""]] },
 ];
 function commandsPage() {
@@ -542,10 +606,10 @@ function commandsPage() {
 }
 
 async function reportsPage(container, days = 7) {
-  container.replaceChildren(h("div", { class: "sheet-inner" }, h("h1", {}, "Reports"), h("p", { class: "lead" }, "Loading…")));
+  fill(container, h("div", { class: "sheet-inner" }, h("h1", {}, "Reports"), h("p", { class: "lead" }, "Loading…")));
   let rep;
   try { rep = await api("/reports/summary", { query: { days } }); } catch (e) {
-    container.replaceChildren(h("div", { class: "sheet-inner" }, h("h1", {}, "Reports"), h("p", { class: "lead state-alarm" }, e.message)));
+    fill(container, h("div", { class: "sheet-inner" }, h("h1", {}, "Reports"), h("p", { class: "lead state-alarm" }, e.message)));
     return;
   }
   const t = rep.byType || {};
@@ -557,7 +621,7 @@ async function reportsPage(container, days = 7) {
     : h("p", { class: "empty" }, empty);
   const reasons = Object.entries(rep.deniedReasons || {}).sort((a, b) => b[1] - a[1]);
   const busiest = [...rep.byRack].sort((a, b) => b.granted - a.granted)[0];
-  container.replaceChildren(h("div", { class: "sheet-inner" },
+  fill(container, h("div", { class: "sheet-inner" },
     h("div", { class: "page-head" }, h("h1", {}, "Reports"),
       h("div", { class: "seg", role: "group", "aria-label": "Period" }, [1, 7, 30].map((n) =>
         btn(n === 1 ? "Today" : `${n} Days`, () => reportsPage(container, n), n === days ? "on" : "", { "aria-pressed": String(n === days) })))),
@@ -575,13 +639,14 @@ const ACTION_WORDS = {
   DEVICE_ADDED: "Added a lock module", DEVICE_TOKEN_ROTATED: "Made a new setup code", DEVICE_UPDATED: "Changed a lock module",
   CREDENTIAL_CREATED: "Registered a card", CREDENTIAL_UPDATED: "Changed a card", CREDENTIAL_REVOKED: "Revoked a card",
   EVENT_ACKNOWLEDGED: "Marked an alert handled", RACK_EVENTS_ACKNOWLEDGED: "Marked a rack's alerts handled",
+  RACK_ALERTS_ACKNOWLEDGED: "Marked a rack's alerts handled", RACK_SPOTS_RESET: "Reset a rack's spots",
   AUTHORITIES_ALERTED: `Alerted ${AGENCY}`, INCIDENT_EN_ROUTE: "Police: on the way", INCIDENT_ON_SCENE: "Police: on scene", INCIDENT_RESOLVED: "Police: resolved",
 };
 async function auditPage(container, page = 0) {
-  container.replaceChildren(h("div", { class: "sheet-inner" }, h("h1", {}, "Audit Log"), h("p", { class: "lead" }, "Loading…")));
+  fill(container, h("div", { class: "sheet-inner" }, h("h1", {}, "Audit Log"), h("p", { class: "lead" }, "Loading…")));
   let res;
   try { res = await api("/audit-log", { query: { page, size: 50 } }); } catch (e) {
-    container.replaceChildren(h("div", { class: "sheet-inner" }, h("h1", {}, "Audit Log"), h("p", { class: "lead state-alarm" }, e.message)));
+    fill(container, h("div", { class: "sheet-inner" }, h("h1", {}, "Audit Log"), h("p", { class: "lead state-alarm" }, e.message)));
     return;
   }
   const rackName = (id) => S.racks.find((r) => r.id === id)?.name;
@@ -597,7 +662,7 @@ async function auditPage(container, page = 0) {
     return bits.filter(Boolean).join(" · ");
   };
   const pages = Math.max(1, Math.ceil(res.total / res.size));
-  container.replaceChildren(h("div", { class: "sheet-inner" },
+  fill(container, h("div", { class: "sheet-inner" },
     h("h1", {}, "Audit Log"),
     h("p", { class: "lead" }, `Every change anyone made, newest first. ${res.total} entr${res.total === 1 ? "y" : "ies"}.`),
     res.items.length ? h("table", { class: "table audit" },
@@ -722,7 +787,7 @@ const dropState = { rack: null, level: null, anim: null, timer: null };
 function dropAnim(name, inputs) {
   if (dropState.anim?.name !== name) {
     const a = riveIcon(name, { size: 150, height: 100, inputs });
-    dropScene.replaceChildren(a.el);
+    fill(dropScene, a.el);
     dropState.anim = { name, a };
   } else for (const [k, v] of Object.entries(inputs)) dropState.anim.a.set(k, v);
 }
@@ -742,34 +807,34 @@ function showDrop(r, level, extraInfo = {}) {
     dropAnim("shake", { level: 0 });
     title.textContent = "Shake Detected";
     where.textContent = `${r.name}${jolt} · warning chirp played`;
-    extra.replaceChildren(h("span", { class: "drop-note" }, "If it keeps shaking, the rack sounds its siren."));
-    actions.replaceChildren(open, dismiss);
+    fill(extra, h("span", { class: "drop-note" }, "If it keeps shaking, the rack sounds its siren."));
+    fill(actions, open, dismiss);
     dropState.timer = setTimeout(() => { if (dropState.level === "bump") hideDrop(); }, 9000);
   } else if (level === "alarm") {
     drop.classList.add("alarm");
     dropAnim("shake", { level: 1 });
     title.textContent = "Tamper Alarm";
     where.textContent = `${r.name}${jolt} · just now`;
-    extra.replaceChildren(h("span", { class: "siren" }, h("span", { class: "siren-bar" })), h("span", { class: "drop-note" }, "Siren on for 10 s. The alarm stays open until handled."));
-    actions.replaceChildren(r.incidentStatus ? null : btn("Alert Authorities", () => askAuthorities(rackById(r.id) || r), "btn-police"), open, dismiss);
+    fill(extra, h("span", { class: "siren" }, h("span", { class: "siren-bar" })), h("span", { class: "drop-note" }, "Siren on for 10 s. The alarm stays open until handled."));
+    fill(actions, r.incidentStatus ? null : btn("Alert Authorities", () => askAuthorities(rackById(r.id) || r), "btn-police"), open, dismiss);
   } else if (level === "confirm") {
     drop.classList.add("alarm");
     title.textContent = `Alert ${AGENCY}?`;
     where.textContent = `About the tamper alarm at ${r.name}.`;
-    extra.replaceChildren(h("span", { class: "drop-note" }, "Only if a bike may be being stolen. It's recorded, and the police version shows it."));
-    actions.replaceChildren(btn("Alert Now", async () => {
+    fill(extra, h("span", { class: "drop-note" }, "Only if a bike may be being stolen. It's recorded, and the police version shows it."));
+    fill(actions, btn("Alert Now", async () => {
       dropAnim("police", { state: 1 });
       drop.classList.remove("alarm"); drop.classList.add("police");
       title.textContent = `Alerting ${AGENCY}…`;
-      actions.replaceChildren();
+      fill(actions, );
       const res = await alertAuthorities(r);
       if (!res) { hideDrop(); return; }
       setTimeout(() => {
         if (dropState.rack !== r.id) return;
         title.textContent = `${AGENCY} Alerted`;
         where.textContent = `${r.name} · by ${res.incident.alertedBy}`;
-        extra.replaceChildren(h("span", { class: "drop-note" }, "The pin flashes red and blue until the police resolve it."));
-        actions.replaceChildren(btn("Open Rack", () => openRack(r.id)), btn("Dismiss", hideDrop, "btn-quiet"));
+        fill(extra, h("span", { class: "drop-note" }, "The pin flashes red and blue until the police resolve it."));
+        fill(actions, btn("Open Rack", () => openRack(r.id)), btn("Dismiss", hideDrop, "btn-quiet"));
       }, 2100);
     }, "btn-danger"), btn("Cancel", () => (isAlarm(rackById(r.id) || r) ? showDrop(r, "alarm") : hideDrop()), "btn-quiet"));
   }
@@ -780,7 +845,7 @@ function hideDrop() {
   if (!drop || drop.hidden) return;
   clearTimeout(dropState.timer);
   drop.classList.add("leaving");
-  setTimeout(() => { if (drop.classList.contains("leaving")) { drop.hidden = true; drop.classList.remove("leaving"); dropScene.replaceChildren(); dropState.anim = null; dropState.level = null; } }, 320);
+  setTimeout(() => { if (drop.classList.contains("leaving")) { drop.hidden = true; drop.classList.remove("leaving"); fill(dropScene, ); dropState.anim = null; dropState.level = null; } }, 320);
 }
 
 // ---------- pages ----------
@@ -792,7 +857,7 @@ function go(p) {
   for (const a of document.querySelectorAll(".top-nav a")) {
     if (a.dataset.page === page) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   }
-  if (page === "commands") pageSheet.replaceChildren(commandsPage());
+  if (page === "commands") fill(pageSheet, commandsPage());
   if (page === "reports") reportsPage(pageSheet);
   if (page === "audit") auditPage(pageSheet);
   pageSheet.scrollTop = 0;
@@ -876,7 +941,7 @@ function appNow() {
       h("b", {}, "All clear"), h("span", {}, `${up} of ${S.racks.length} racks online. Nothing needs you.`)) : null;
   const listEl = h("div", { class: "needs-list" });
   if (rest.length) renderNeeds(listEl, null, ["alarm"]);
-  appMain.replaceChildren(
+  fill(appMain,
     !S.loaded ? h("p", { class: "app-empty" }, "Loading…") : null,
     clear,
     ...blocks,
@@ -893,20 +958,22 @@ function appRacks() {
       h("div", { class: "rcard-head" }, pin.el, h("span", { class: "rcard-name" }, h("b", {}, r.name), h("span", {}, r.locationDescription || "")),
         h("span", { class: cls }, word)),
       h("dl", { class: "rcard-data" },
+        h("div", { class: r.openSpots === 0 ? "full" : "" }, h("dt", {}, "Open Spots"), h("dd", {}, r.capacity ? `${r.openSpots} of ${r.capacity}` : "-")),
+        h("div", { class: isAlarm(r) ? "alarm" : "" }, h("dt", {}, "Alarm"), h("dd", {}, isAlarm(r) ? "Active now" : r.lastAlarmAt ? `Last ${ago(r.lastAlarmAt)}` : "None yet")),
         h("div", {}, h("dt", {}, "Last Check-In"), h("dd", {}, r.lastSeenAt ? ago(r.lastSeenAt) : "Never")),
         h("div", {}, h("dt", {}, "Open Alerts"), h("dd", {}, String(r.openAlerts))),
         h("div", {}, h("dt", {}, "Lock Modules"), h("dd", {}, `${r.onlineDeviceCount} of ${r.deviceCount} online`)),
         h("div", {}, h("dt", {}, "Police"), h("dd", {}, r.incidentStatus ? INCIDENT_WORD[r.incidentStatus] : "None"))),
       h("span", { class: "rcard-go" }, "Details"));
   });
-  appMain.replaceChildren(h("div", { class: "rack-cards" },
+  fill(appMain, h("div", { class: "rack-cards" },
     CAN.configure ? btn("Add Rack", () => openPlaceSheet(), "btn-primary app-add") : null,
     cards.length ? cards : h("p", { class: "app-empty" }, "No racks yet.")));
 }
 
 function appMore() {
   const link = (label, sub, onClick) => h("button", { type: "button", class: "more-item", onClick }, h("b", {}, label), h("span", {}, sub));
-  appMain.replaceChildren(h("div", { class: "more" },
+  fill(appMain, h("div", { class: "more" },
     CAN.terminal ? link("Commands", "Every terminal command, with examples", () => appGo("commands")) : null,
     link("Reports", "Unlocks, refused cards and alarms per rack and per day", () => appGo("reports")),
     CAN.audit ? link("Audit Log", "Every change anyone made", () => appGo("audit")) : null,
@@ -915,17 +982,17 @@ function appMore() {
     h("p", { class: "more-note" }, S.ok === false ? "Can't reach the server right now." : `Connected · ${S.racks.length} rack${S.racks.length === 1 ? "" : "s"}`)));
 }
 
-function openAppSheet(title, fill) {
+function openAppSheet(title, build) {
   appSheet.hidden = false;
   const body = h("div", { class: "app-sheet-body" });
-  appSheet.replaceChildren(h("header", { class: "app-sheet-head" }, btn([icon("back"), "Back"], closeAppSheet, "btn-quiet back-btn"), h("b", {}, title)), body);
-  fill(body);
+  fill(appSheet, h("header", { class: "app-sheet-head" }, btn([icon("back"), "Back"], closeAppSheet, "btn-quiet back-btn"), h("b", {}, title)), body);
+  build(body);
   appSheet.scrollTop = 0;
   return body;
 }
 function closeAppSheet() {
   appSheet.hidden = true;
-  appSheet.replaceChildren();
+  fill(appSheet, );
   openId = null;
 }
 
@@ -950,7 +1017,7 @@ let detailSig = "";
 live.on("change", async (state, first) => {
   const alarms = state.racks.filter(isAlarm).length;
   if (summaryEl) {
-    summaryEl.replaceChildren(h("b", {}, `${state.racks.filter(isUp).length} of ${state.racks.length}`), " racks online",
+    fill(summaryEl, h("b", {}, `${state.racks.filter(isUp).length} of ${state.racks.length}`), " racks online",
       alarms ? h("span", { class: "state-alarm" }, ` · ${alarms} alarm${alarms > 1 ? "s" : ""}`) : "",
       state.incidents.length ? h("span", { class: "police-word" }, ` · ${state.incidents.length} police`) : "");
   }
@@ -998,11 +1065,13 @@ live.on("incident", ({ incident: i, before }) => {
   if (!before) return;   // a new one is logged by whoever pressed Alert Authorities
   log("police", [{ b: slug(i.rackName) }, ` ${AGENCY}: ${INCIDENT_WORD[i.status].toLowerCase()}`]);
 });
+let wasDown = false;
 live.on("connection", (ok, message) => {
   termSignal.set("level", ok ? 4 : 0);
   document.body.classList.toggle("disconnected", !ok);
   if (!ok) log("off", `can't reach the server (${message}). retrying…`);
-  else if (S.loaded) log("ok", "connected again");
+  else if (wasDown) log("ok", "connected again");
+  wasDown = !ok;
 });
 
 let sceneTimer = null;

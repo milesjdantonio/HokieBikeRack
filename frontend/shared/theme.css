@@ -367,3 +367,19 @@ body.view-app .place-sheet { grid-template-columns: 1fr; grid-template-rows: aut
 body.view-app .place-side { padding: 16px; }
 body.view-app .item-actions { padding-left: 0; }
 @media (max-width: 760px) { .place-sheet { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } }
+
+/* the two facts: open spots, alarm */
+.facts { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; border-radius: 12px; overflow: hidden; }
+.fact { display: grid; gap: 0; padding: 10px 14px; background: var(--panel-2); }
+.fact span { color: var(--faint); font-size: 12px; }
+.fact b { font-family: var(--display); font-weight: 300; font-size: 1.5rem; line-height: 1.15; }
+.fact.full b { color: var(--warning); }
+.fact.alarm b, .rcard-data .alarm dd { color: var(--negative); }
+.rcard-data .full dd { color: var(--warning); }
+.field { display: grid; gap: 4px; }
+.field span { color: var(--faint); font-size: 12px; }
+.hint { color: var(--faint); font-size: 12px; }
+.app-rack h2, #panel-body h2 { font-size: 0.95rem; font-weight: 500; margin: 12px 0 0; }
+.app-rack .panel-title { font-family: var(--display); font-weight: 300; font-size: 2rem; line-height: 1.05; margin: 0; }
+.app-rack .panel-sub { color: var(--muted); margin: -4px 0 0; }
+.table.audit td:first-child { white-space: nowrap; }

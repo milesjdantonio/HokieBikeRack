@@ -158,8 +158,8 @@ browser; a more intuitive admin app; police-notified pins flash red and blue.
 - [x] 11.1 Plan with default roles (roles-plan.md)
 - [x] 11.2 pin.riv police state (flashing red/blue) + mockup
 - [x] 11.3 Backend: incidents (alert authorities, police status) + rack openAlarms/incident + tests
-- [ ] 11.4 Shared front-end (theme, map, live polling, app tab bar)
-- [ ] 11.5 Admin, real data: browser + app (tabs: Now, Racks, Terminal, More)
+- [x] 11.4 Shared front-end (theme, map, live polling, app tab bar)
+- [x] 11.5 Admin, real data: browser + app (tabs: Now, Racks, Terminal, More)
 - [ ] 11.6 Staff: browser + app
 - [ ] 11.7 Police: browser + app
 - [ ] 11.8 Rider (new design): browser + app

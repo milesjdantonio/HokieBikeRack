@@ -142,7 +142,7 @@ export function rackMap(container, { interactive = true, onSelect, focus = null,
 
   function makeMarker(r) {
     const pin = riveIcon("pin", { size: 60, inputs: { status: pinStatus(r), selected: r.id === selected } });
-    const label = h("span", { class: "marker-label" }, r.name);
+    const label = h("span", { class: "marker-label" }, r.label || r.name);
     // The plain disc is the fallback if Rive can't load; CSS hides it once the pin is drawn.
     const el = h("button", { type: "button", class: "marker marker-rive",
       onClick: (e) => { e.stopPropagation(); select(r.id); if (onSelect) onSelect(markers.get(r.id)?.rack || r); } },
@@ -163,7 +163,7 @@ export function rackMap(container, { interactive = true, onSelect, focus = null,
       if (!m) { m = makeMarker(r); markers.set(r.id, m); }
       m.rack = r;
       m.marker.setLngLat([r.longitude, r.latitude]);
-      m.label.textContent = r.name;
+      m.label.textContent = r.label || r.name;
       m.pin.set("status", pinStatus(r));
       const word = r.alarm ? "alarm" : String(r.status || "unknown").toLowerCase();
       // classList, not className: MapLibre's own marker classes (its positioning) must stay.
