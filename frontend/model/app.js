@@ -59,6 +59,10 @@ let values = {};
 const timeline = new Timeline($("#timeline"));
 const buzzer = new Buzzer();
 let scene = null;
+let sceneLib = null;  // scene.js exports (OPTIONS, makeRack), once loaded
+// Build option: A standard, B 0.75x, C 0.5x with mini parts. Kept in the address (?option=b).
+let option = new URLSearchParams(location.search).get("option") || "a";
+if (!["a", "b", "c"].includes(option)) option = "a";
 let pickedCard = CARDS[0];
 let selected = null;
 let speed = 1, paused = false;
@@ -102,8 +106,9 @@ server.changed = () => (serverDirty = true);
 $("#bar-note").textContent = `Firmware ${runner.config.firmwareVersion}, compiled from firmware/src and lib/hbr_logic, running in your browser. Nothing here touches the real rack or server.`;
 
 try {
-  const { RackScene } = await import("./scene.js");
-  scene = new RackScene($("#scene"), $("#labels"), { onPick: pickFromScene, onDrag: (t) => physics.setDrag(t) });
+  const mod = await import("./scene.js");
+  sceneLib = mod;
+  scene = new mod.RackScene($("#scene"), $("#labels"), { onPick: pickFromScene, onDrag: (t) => physics.setDrag(t), option });
   scene.wire(runner.config.pins);
   new ResizeObserver(() => scene.resize()).observe($("#scene"));
   scene.resize();
@@ -115,6 +120,7 @@ try {
 }
 
 wireControls();
+setOption(option);
 requestAnimationFrame(frame);
 
 // ---------------------------------------------------------------- main loop
@@ -233,6 +239,7 @@ function wireControls() {
   });
   $("#knock").addEventListener("click", () => physics.knock(runner.worldMs + 1));
   $("#shackle").addEventListener("click", useShackle);
+  for (const b of document.querySelectorAll("#option button")) b.addEventListener("click", () => setOption(b.dataset.option));
   $("#shake").addEventListener("click", () => physics.shake(runner.worldMs + 1, 2000));
   $("#lean").addEventListener("input", (e) => {
     physics.setLean(Number(e.target.value));
@@ -292,6 +299,22 @@ function wireControls() {
     $("#serial-chips").append(b);
   }
   $("#serial-note").innerHTML = `The same console as <code>pio device monitor</code> at ${runner.config.seen.baud} baud. Every line comes from the firmware's Serial.printf.`;
+}
+
+function setOption(key) {
+  option = key;
+  for (const b of document.querySelectorAll("#option button")) b.setAttribute("aria-checked", String(b.dataset.option === key));
+  if (scene && scene.opt.key !== key) scene.setOption(key);
+  const url = new URL(location.href);
+  if (key === "a") url.searchParams.delete("option"); else url.searchParams.set("option", key);
+  history.replaceState(null, "", url);
+  if (sceneLib) {
+    const o = sceneLib.OPTIONS[key], R = sceneLib.makeRack(o);
+    const mm = (m) => Math.round(m * 1000);
+    $("#option-note").textContent = `${mm(R.headTop)} mm tall, ${mm(R.width)} mm wide, ${mm(R.postW)} mm posts, ${mm(o.head.w)} mm head. ${o.note}`;
+  }
+  if (selected) renderPartCard(selected, lastState);
+  renderBuildOptions();
 }
 
 function syncCardPick() {
@@ -472,6 +495,29 @@ function selectPart(id) {
   renderPartCard(id, lastState);
 }
 
+// Part text that depends on the build option.
+const OPTION_INFO = {
+  esp32: {
+    head: "ESP32 DevKit with an ESP32-WROOM-32, lying on the floor of the head. loop() runs on core 1: cards, tamper sensor, lock timer, lights. The network task runs on core 0.",
+    devkit: "ESP32 DevKit with an ESP32-WROOM-32, standing in the post with its USB plug pointing down, so the smaller head only has to hold the reader, lights and buzzer. Wires run up the side wall. Same board and firmware as option A.",
+    mini: "A mini board with the same classic ESP32 chip (TinyPICO, M5Stamp Pico or similar, about 18 × 32 mm), standing in the post. Same firmware: only pins.h changes if the board doesn't have GPIO 13, 21, 22, 25, 26 and 27.",
+  },
+  servo: {
+    mg90s: "MG90S micro servo. 50 Hz signal from the ESP32, power from the separate 5 V supply. It has no position feedback.",
+    submicro: "Sub-micro servo, 3.7 g class (about 20 × 9 × 17 mm). Same signal and code as the MG90S, but much weaker: use a light spring on the latch. Fine for a model, not for a real rack.",
+  },
+};
+
+function partWhat(id) {
+  const o = scene?.opt;
+  if (o && id === "esp32") return OPTION_INFO.esp32[o.espIn === "head" ? "head" : o.board];
+  if (o && id === "servo") return OPTION_INFO.servo[o.servo];
+  if (o && id === "buzzer") return `${o.buzzer.name}: one fixed pitch, on or off. Switched by an NPN transistor, 1 kohm to its base.`;
+  if (o && id === "cap") return `${o.cap.name} electrolytic across the servo's 5 V, close to the servo. It covers the current spike when the servo starts moving.`;
+  if (o && id === "usb" && o.espIn !== "head") return "USB from the laptop, up through the bottom of the post to the board: powers the ESP32 and carries the serial console.";
+  return PART_INFO[id]?.what;
+}
+
 function renderPartCard(id, s) {
   const card = $("#part-card");
   const info = PART_INFO[id];
@@ -481,7 +527,7 @@ function renderPartCard(id, s) {
   const files = info.files.map((f) => `<code>${esc(f)}</code>`).join("<br>");
   card.hidden = false;
   const html = `<h2>${esc(nameOf(id))}</h2><button type="button" class="btn btn-small close" id="close-part">Close</button>
-    <p>${esc(info.what)}</p>
+    <p>${esc(partWhat(id))}</p>
     ${wired || files ? `<dl>${wired ? `<dt>Wired to</dt><dd>${wired}</dd>` : ""}${files ? `<dt>Code</dt><dd>${files}</dd>` : ""}</dl>` : ""}
     <p class="now">${partNow(id, s)}</p>`;
   if (card.dataset.html !== html) {
@@ -492,6 +538,7 @@ function renderPartCard(id, s) {
 }
 
 function nameOf(id) {
+  if (scene) return scene.partName(id);
   return { post: "Post", shackle: "Shackle", reader: "Reader Window", lights: "Lights", vents: "Buzzer Vents", esp32: "ESP32 DevKit",
     pn532: "PN532 Reader", mpu: "MPU-6050", servo: "MG90S Servo", latch: "Latch", buzzer: "Buzzer", parts: "Resistors and Transistor",
     cap: "Capacitor", tubing: "Light Tubing", supply: "5 V Supply", usb: "USB Cable" }[id] || id;
@@ -515,7 +562,7 @@ function partNow(id, s) {
     case "lights": return `Green ${s.feedback.green ? "on" : "off"}, red ${s.feedback.red ? "on" : "off"}. Pattern: ${PATTERN_NAMES[s.feedback.pattern]}.`;
     case "buzzer": case "vents": return `GPIO ${runner.config.pins.buzzer} is ${s.feedback.buzzer ? "high: beeping" : "low: quiet"}.`;
     case "reader": return s.reader.cardPresent ? "A card is on the reader." : `Picked card: ${esc(pickedCard.name)}. Click the window to tap it.`;
-    case "post": return `Tamper deviation ${s.tamper.deviationG.toFixed(2)} g. The sensor is ${Math.round(POST.sensorHeight * 1000)} mm up the post.`;
+    case "post": return `Tamper deviation ${s.tamper.deviationG.toFixed(2)} g. The sensor is ${Math.round((scene?.R.mpuY ?? POST.sensorHeight) * 1000)} mm up the post.`;
     case "shackle": return shackleText();
     case "tubing": return s.feedback.green && s.feedback.red ? "Amber: both LEDs on." : s.feedback.green ? "Green." : s.feedback.red ? "Red." : "Dark.";
     case "supply": case "cap": return arm.powered ? "5 V on." : '<span class="is-warn">Supply off: the servo can\'t move.</span>';
@@ -583,6 +630,7 @@ function renderValues() {
     Object.entries(cfg.pins).map(([k, g]) => `<tr><td>${g}</td><td>${PIN_NAMES[k]}</td><td>${k === "sda" || k === "scl" ? `I2C at ${cfg.seen.i2cHz / 1000} kHz` : k === "servo" ? `${cfg.seen.servoHz} Hz, ${cfg.seen.servoMinUs}–${cfg.seen.servoMaxUs} µs` : "Output"}</td></tr>`).join("") +
     `</tbody></table><p class="note">From include/pins.h. "Set up as" is what setup() actually did, read back from the emulated chips.</p>`;
   const as = cfg.assumptions;
+  html += `<h3>Build Options</h3><p class="note">Pick one with A, B or C above the 3D view. The frame scales; the parts are drawn at their real size, so you can see whether they fit. The firmware is the same for all three.</p><div id="build-options"></div>`;
   html += `<h3>Model Assumptions</h3><p class="note">Physics and other people's chips, not our code. These are guesses until the bench test measures them.</p><div class="values">` + [
     ["ESP32 joins the hotspot", `${as.wifiConnectMs / 1000} s`],
     ["First internet time answer", `${as.ntpDelayMs / 1000} s`],
@@ -601,6 +649,33 @@ function renderValues() {
   }
   $("#tab-values").innerHTML = html;
   drawPatterns(cfg.patterns);
+  renderBuildOptions();
+}
+
+function renderBuildOptions() {
+  const host = $("#build-options");
+  if (!host || !sceneLib) return;
+  const mm = (m) => `${Math.round(m * 1000)} mm`;
+  const cols = ["a", "b", "c"].map((k) => {
+    const o = sceneLib.OPTIONS[k];
+    return { k, o, R: sceneLib.makeRack(o) };
+  });
+  const rows = [
+    ["Height", (c) => mm(c.R.headTop)],
+    ["Width", (c) => mm(c.R.width)],
+    ["Posts", (c) => `${mm(c.R.postW)}, ${mm(c.R.inner)} inside`],
+    ["Head", (c) => mm(c.o.head.w)],
+    ["ESP32", (c) => c.o.board === "mini" ? "Mini board, in the post" : c.o.espIn === "head" ? "DevKit, in the head" : "DevKit, in the post"],
+    ["Servo", (c) => c.R.servo.name.replace(" Servo", "")],
+    ["Buzzer", (c) => c.o.buzzer.name.replace(" active buzzer", "")],
+    ["Capacitor", (c) => c.o.cap.name],
+    ["Shackle bar", (c) => `${mm(c.R.barR * 2)}, sticks out ${mm(c.R.shackleDepth)}`],
+    ["Holds a bike", (c) => c.R.s >= 1 ? "Yes" : c.R.s >= 0.75 ? "Yes, a little low" : "No, tabletop model"],
+    ["Firmware", (c) => c.o.board === "mini" ? "pins.h only, if needed" : "Unchanged"],
+  ];
+  host.innerHTML = `<table class="pins options"><thead><tr><th></th>${cols.map((c) => `<th${c.k === option ? ' class="is-picked"' : ""}>${esc(c.o.label)}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(([name, f]) => `<tr><td>${name}</td>${cols.map((c) => `<td${c.k === option ? ' class="is-picked"' : ""}>${esc(f(c))}</td>`).join("")}</tr>`).join("") +
+    "</tbody></table>";
 }
 
 function drawPatterns(patterns) {

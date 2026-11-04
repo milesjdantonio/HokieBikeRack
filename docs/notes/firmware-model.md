@@ -98,6 +98,28 @@ The model uses `firmware/model/config.h` (fake Wi-Fi, fake token, fake card key)
 9. **Hotspot off, then Power Cycle.** KNOWNBUGS #3, as above. Hotspot on again and it recovers.
 10. **Serial tab:** `status`, `i2c-scan`, `accel` are the same commands as the bench test.
 
+## Build options
+The A / B / C switch above the 3D view rebuilds the rack at three sizes. The frame scales;
+the parts are always drawn at their real size, so you can see whether they fit. The firmware
+is the same for all three. The Values tab has a side-by-side table.
+
+| | A Standard | B 0.75x | C 0.5x Mini |
+|---|---|---|---|
+| Size | 875 mm tall, 80 mm posts, 92 mm head | 656 mm tall, 60 mm posts, 69 mm head | 452 mm tall, 40 mm posts, 60 mm head |
+| ESP32 | DevKit, lying in the head | DevKit, standing in the post, USB down | Mini board with the classic ESP32 chip (TinyPICO, M5Stamp Pico), in the post |
+| Servo, buzzer, capacitor | MG90S, 12 mm, 1000 µF | Same as A | Sub-micro servo, 9 mm, 470 µF |
+| Use | A real rack | A real rack, a little low | Tabletop demo model only |
+
+What sets the limits: the ESP32 plus its USB plug needs about 90 mm in the head, so B and C
+move it into the post. The servo, its arm's swing and the latch need about 50 mm inside the
+post. The PN532 never shrinks (cards are 86 × 54 mm, and a smaller antenna reads much less
+far), so the head can't go below about 60 mm, and it must be plastic with the board 10–15 mm
+from any metal. Option C's sub-micro servo is much weaker: use a light latch spring. A mini
+board needs only `pins.h` changes, and only if it lacks GPIO 13, 21, 22, 25, 26 or 27.
+Measure your boards with calipers: clone sizes vary.
+
+Open a chosen option directly: `/model/?option=b` or `?option=c`.
+
 ## When the firmware changes
 ```bash
 node tools/model/build.mjs           # about 15 s; writes frontend/model/firmware.js + firmware.json

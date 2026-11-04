@@ -1,7 +1,10 @@
 // The rack in 3D (three.js), shaped after the Lockpost concept model: two posts, a top rail and
 // the yellow shackle. Post A carries the lock module with our real parts. Everything that moves
 // is driven by app.js from the running firmware: LEDs and wires from GPIO levels, the servo
-// horn and bolt from the servo pulse, the post's sway from the physics.
+// horn and latch from the servo pulse, the post's sway from the physics.
+//
+// Three build options (docs/notes/firmware-model.md, "Build options"): the frame scales, but
+// the parts are always drawn at their real size, so you can see whether they fit.
 import * as THREE from "../vendor/three/three.module.min.js";
 import { OrbitControls } from "../vendor/three/addons/OrbitControls.js";
 import { RoomEnvironment } from "../vendor/three/addons/RoomEnvironment.js";
@@ -9,20 +12,53 @@ import { RoundedBoxGeometry } from "../vendor/three/addons/RoundedBoxGeometry.js
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-export const RACK = {
-  postX: 0.45, postW: 0.08, wall: 0.005, postTop: 0.78, headTop: 0.875, railY: 0.75,
-  face: 0.04, sockY0: 0.25, sockPitch: 0.0275, legSpan: 8, sockN: 19, shackleDepth: 0.185,
-  mpuY: 0.61, servoY: 0.705, plateTop: 0.672,
+// Sizes in metres. Parts: real dimensions from their datasheets (check yours with calipers).
+const BOARDS = {
+  devkit: { name: "ESP32 DevKit", w: 0.028, len: 0.052, shield: [0.016, 0.018] },
+  mini: { name: "ESP32 Mini Board", w: 0.018, len: 0.032, shield: [0.012, 0.012] },
 };
-const A = RACK.postX;  // the lock module's post
-const sockY = (i) => RACK.sockY0 + i * RACK.sockPitch;
-const SHACKLE_LOW = 6;  // socket index of the lower leg
-const legY = [sockY(SHACKLE_LOW), sockY(SHACKLE_LOW + RACK.legSpan)];
+const SERVOS = {
+  mg90s: { name: "MG90S Servo", body: [0.0225, 0.0285, 0.0122], ears: 0.032, earY: 0.006, shaft: [0.0055, 0.006], arm: 0.019 },
+  submicro: { name: "Sub-Micro Servo", body: [0.02, 0.017, 0.0085], ears: 0.027, earY: 0.004, shaft: [0.005, 0.004], arm: 0.014 },
+};
+export const OPTIONS = {
+  a: { key: "a", label: "A Standard", scale: 1, head: { w: 0.092, lo: 0.052, hi: 0.095 }, espIn: "head",
+    board: "devkit", servo: "mg90s", buzzer: { r: 0.006, h: 0.0095, name: "12 mm active buzzer" },
+    cap: { r: 0.005, h: 0.016, name: "1000 µF, 16 V" },
+    note: "The ESP32 DevKit lies in the head. A usable, full-size rack." },
+  b: { key: "b", label: "B 0.75x", scale: 0.75, head: { w: 0.069, lo: 0.039, hi: 0.071 }, espIn: "post",
+    board: "devkit", servo: "mg90s", buzzer: { r: 0.006, h: 0.0095, name: "12 mm active buzzer" },
+    cap: { r: 0.005, h: 0.016, name: "1000 µF, 16 V" },
+    note: "Same parts as A. The ESP32 DevKit stands in the post, USB down, so the head only holds the reader, lights and buzzer." },
+  c: { key: "c", label: "C 0.5x Mini", scale: 0.5, head: { w: 0.06, lo: 0.04, hi: 0.062 }, espIn: "post",
+    board: "mini", servo: "submicro", buzzer: { r: 0.0045, h: 0.0055, name: "9 mm active buzzer" },
+    cap: { r: 0.004, h: 0.012, name: "470 µF, 10 V" },
+    note: "Mini parts, but the full-size PN532, so the head stays 60 mm. A tabletop demo model: too low to hold a bike." },
+};
+
+// Every frame dimension for one option.
+export function makeRack(o) {
+  const s = o.scale;
+  const postW = 0.08 * s, wall = Math.max(0.003, 0.005 * s);
+  const R = {
+    s, o, postX: 0.45 * s, postW, wall, inner: postW - 2 * wall, postTop: 0.78 * s, railY: 0.75 * s, rail: 0.06 * s,
+    face: postW / 2, sockY0: 0.25 * s, sockPitch: 0.0275 * s, sockR: 0.0146 * s, sockDx: 0.016 * s, legSpan: 8, sockN: 19,
+    barR: 0.0125 * s, shackleDepth: 0.185 * s, legDepth: 0.034 * s, mpuY: 0.61 * s, servoY: 0.705 * s,
+    plateTop: 0.672 * s, plateBottom: 0.38 * s, boltTravel: 0.034 * s, plateTravel: 0.012 * s, head: o.head,
+    board: BOARDS[o.board], servo: SERVOS[o.servo],
+  };
+  R.headTop = R.postTop + o.head.hi;
+  R.width = 2 * R.postX + postW;
+  return R;
+}
 
 // ESP32 DevKit V1 (30 pins), antenna end first. Board knowledge, used to start each wire at
 // the right header pin; which GPIO a part uses comes from the firmware's pins.h.
 const HEADER_LEFT = ["EN", 36, 39, 34, 35, 32, 33, 25, 26, 27, 14, 12, 13, "GND", "VIN"];
 const HEADER_RIGHT = [23, 22, "TX", "RX", 21, 19, 18, 5, 17, 16, 4, 2, 15, "GND", "3V3"];
+// A mini board's pin order differs by maker; this one is generic. Check yours has these pins.
+const MINI_LEFT = ["3V3", "GND", 21, 22, 32, 33, 25, 26, 4, 5, 18, 19];
+const MINI_RIGHT = ["5V", "GND", 27, 13, 14, 15, 2, 0, 23, 34, 35, 36];
 
 export const PARTS = {
   post: "Post", shackle: "Shackle", reader: "Reader Window", lights: "Lights", vents: "Buzzer Vents",
@@ -31,17 +67,13 @@ export const PARTS = {
 };
 
 export class RackScene {
-  constructor(canvas, labelLayer, { onPick, onDrag }) {
+  constructor(canvas, labelLayer, { onPick, onDrag, option = "a" }) {
     this.canvas = canvas;
     this.labelLayer = labelLayer;
     this.onPick = onPick;
     this.onDrag = onDrag;
     this.inside = false;
-    this.internals = [];
-    this.outsideOnly = [];
-    this.pickables = [];
     this.labels = [];
-    this.wires = {};
     this.mats = makeMaterials();
 
     const r = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
@@ -63,15 +95,12 @@ export class RackScene {
     this.scene = scene;
 
     this.camera = new THREE.PerspectiveCamera(34, 1, 0.01, 40);
-    this.camera.position.set(1.45, 1.15, 1.75);
     this.controls = new OrbitControls(this.camera, canvas);
-    this.controls.target.set(0.2, 0.52, 0);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.09;
-    this.controls.minDistance = 0.18;
+    this.controls.minDistance = 0.1;
     this.controls.maxDistance = 6;
     this.controls.maxPolarAngle = Math.PI / 2 - 0.03;
-    this.controls.update();
     this.fly = null;
 
     const sun = new THREE.DirectionalLight(0xfff1e0, 2.2);
@@ -83,22 +112,46 @@ export class RackScene {
     sun.shadow.normalBias = 0.01;
     scene.add(sun, new THREE.HemisphereLight(0xdfe6ee, 0x2a1d22, 0.5));
     this.ledLights = [new THREE.PointLight(0x3cff7a, 0, 0.6, 2), new THREE.PointLight(0xff3020, 0, 0.6, 2)];
-    scene.add(...this.ledLights);
 
     const ground = new THREE.Mesh(new THREE.CircleGeometry(4, 64), this.mats.ground);
     ground.rotation.x = -Math.PI / 2;
     ground.receiveShadow = true;
     scene.add(ground);
 
+    this.setOption(option, true);
+    this.bindPointer();
+  }
+
+  // Build (or rebuild) the rack for one option.
+  setOption(key, instant = false) {
+    this.opt = OPTIONS[key] || OPTIONS.a;
+    this.R = makeRack(this.opt);
+    if (this.rack) {
+      this.scene.remove(this.rack);
+      this.rack.traverse((o) => o.geometry?.dispose());
+    }
+    for (const l of this.labels) l.el.remove();
+    this.labels = [];
+    this.internals = [];
+    this.outsideOnly = [];
+    this.pickables = [];
+    this.wires = {};
     this.rack = new THREE.Group();  // sways and leans as one welded frame
-    scene.add(this.rack);
+    this.scene.add(this.rack);
     this.buildFrame();
     this.buildHead();
     this.buildShackle();
     this.buildTubing();
     this.buildInternals();
-    this.setView(false);
-    this.bindPointer();
+    if (this.pins) this.wire(this.pins);
+    this.setView(this.inside);
+    this.focus("rack", instant);
+  }
+
+  partName(id) {
+    if (id === "esp32") return this.R.board.name;
+    if (id === "servo") return this.R.servo.name;
+    return PARTS[id] || id;
   }
 
   // ---------------------------------------------------------------- building
@@ -112,156 +165,161 @@ export class RackScene {
     const el = document.createElement("button");
     el.type = "button";
     el.className = "scene-label";
-    el.textContent = PARTS[id];
+    el.textContent = this.partName(id);
     el.addEventListener("click", () => this.onPick(id));
     this.labelLayer.append(el);
     this.labels.push({ el, at, id, inside, outside });
   }
 
+  sockY(i) { return this.R.sockY0 + i * this.R.sockPitch; }
+
   buildFrame() {
-    const m = this.mats;
+    const m = this.mats, R = this.R, A = R.postX;
     for (const x of [A, -A]) {
-      const shell = new THREE.Mesh(squareTube(RACK.postW, RACK.wall, RACK.postTop + 0.02), x === A ? m.shellA : m.galv);
+      const shell = new THREE.Mesh(squareTube(R.postW, R.wall, R.postTop + 0.02), x === A ? m.shellA : m.galv);
       shell.position.set(x, -0.02, 0);
       shell.castShadow = shell.receiveShadow = true;
       this.rack.add(x === A ? this.part(shell, "post") : shell);
-      const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.008, 32), m.galv);
+      if (x === A) this.postShell = shell;
+      const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.07 * R.s, 0.07 * R.s, 0.008, 32), m.galv);
       flange.position.set(x, 0.004, 0);
       flange.receiveShadow = true;
       this.rack.add(flange);
     }
-    this.postShell = this.rack.children[0];
-    const rail = new THREE.Mesh(squareTube(0.06, 0.004, 2 * (A - RACK.postW / 2)), m.galv);
+    const rail = new THREE.Mesh(squareTube(R.rail, Math.max(0.003, 0.004 * R.s), 2 * (A - R.postW / 2)), m.galv);
     rail.rotation.z = -Math.PI / 2;
-    rail.position.set(-(A - RACK.postW / 2), RACK.railY, 0);
+    rail.position.set(-(A - R.postW / 2), R.railY, 0);
     rail.castShadow = true;
     this.rack.add(rail);
     // Post B: plain cap, no electronics.
-    const cap = new THREE.Mesh(new RoundedBoxGeometry(0.09, 0.03, 0.09, 3, 0.008), m.headShell);
-    cap.position.set(-A, RACK.postTop + 0.015, 0);
+    const cap = new THREE.Mesh(new RoundedBoxGeometry(0.09 * R.s, 0.03 * R.s, 0.09 * R.s, 3, 0.008 * R.s), m.headShell);
+    cap.position.set(-A, R.postTop + 0.015 * R.s, 0);
     cap.castShadow = true;
     this.rack.add(cap);
     // Socket rings on post A's face, the ones the shackle doesn't use shown empty.
-    const ring = new THREE.TorusGeometry(0.0146, 0.003, 8, 28);
-    const hole = new THREE.CircleGeometry(0.0136, 28);
-    for (let i = 0; i < RACK.sockN; i++) {
-      const x = A + (i % 2 ? 0.016 : -0.016);
+    const ring = new THREE.TorusGeometry(R.sockR, 0.003 * R.s, 8, 28);
+    const hole = new THREE.CircleGeometry(R.sockR - 0.001 * R.s, 28);
+    for (let i = 0; i < R.sockN; i++) {
+      const x = A + (i % 2 ? R.sockDx : -R.sockDx);
       const r = new THREE.Mesh(ring, m.rubber);
-      r.position.set(x, sockY(i), RACK.face + 0.0006);
+      r.position.set(x, this.sockY(i), R.face + 0.0006);
       const h = new THREE.Mesh(hole, m.hole);
-      h.position.set(x, sockY(i), RACK.face + 0.0004);
+      h.position.set(x, this.sockY(i), R.face + 0.0004);
       this.rack.add(r, h);
       this.outsideOnly.push(h);
     }
   }
 
   buildHead() {
-    const m = this.mats;
+    const m = this.mats, R = this.R, H = R.head, hw = H.w / 2;
     const head = new THREE.Group();
-    head.position.set(A, RACK.postTop, 0);
+    head.position.set(R.postX, R.postTop, 0);
     this.rack.add(head);
     this.head = head;
     // Shell: a wedge, low at the front (rider side), high at the back.
     const s = new THREE.Shape();
-    s.moveTo(-0.046, 0); s.lineTo(0.046, 0); s.lineTo(0.046, 0.052); s.lineTo(-0.046, 0.095); s.closePath();
-    const geo = new THREE.ExtrudeGeometry(s, { depth: 0.092, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelSegments: 2 });
+    s.moveTo(-hw, 0); s.lineTo(hw, 0); s.lineTo(hw, H.lo); s.lineTo(-hw, H.hi); s.closePath();
+    const geo = new THREE.ExtrudeGeometry(s, { depth: H.w, bevelEnabled: true, bevelThickness: 0.002, bevelSize: 0.002, bevelSegments: 2 });
     geo.rotateY(-Math.PI / 2);
-    geo.translate(0.046, 0, 0);
+    geo.translate(hw, 0, 0);
     const shell = new THREE.Mesh(geo, m.headShell);
     shell.castShadow = true;
     head.add(this.part(shell, "post"));
     this.headShell = shell;
     // Reader window on the slope, with the tap mark printed on it.
-    const slope = Math.atan2(0.095 - 0.052, 0.092);
-    const win = new THREE.Mesh(new THREE.PlaneGeometry(0.07, 0.074), m.window);
-    win.position.set(0, (0.052 + 0.095) / 2 + 0.0024, 0);
+    const slope = Math.atan2(H.hi - H.lo, H.w);
+    this.slope = slope;
+    const win = new THREE.Mesh(new THREE.PlaneGeometry(H.w * 0.76, H.w * 0.8), m.window);
+    win.position.set(0, (H.lo + H.hi) / 2 + 0.0024, 0);
     win.rotation.x = -(Math.PI / 2 - slope);
     head.add(this.part(win, "reader"));
-    this.window = win;
-    this.label("reader", () => head.localToWorld(V(0, 0.09, 0.01)), { outside: true });
+    this.label("reader", () => head.localToWorld(V(0, H.hi - 0.005, 0.01)), { outside: true });
     // LEDs through the front face.
-    this.leds = [];
-    [[-0.016, m.ledGreen], [0.016, m.ledRed]].forEach(([x, mat], i) => {
+    const ledX = Math.min(0.016, hw - 0.01), ledY = Math.min(0.026, H.lo - 0.012);
+    this.ledAt = [V(-ledX, ledY, hw + 0.004), V(ledX, ledY, hw + 0.004)];
+    [[-ledX, m.ledGreen], [ledX, m.ledRed]].forEach(([x, mat], i) => {
       const dome = new THREE.Mesh(new THREE.SphereGeometry(0.0029, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2), mat);
       dome.rotation.x = Math.PI / 2;
-      dome.position.set(x, 0.026, 0.0482);
+      dome.position.set(x, ledY, hw + 0.0022);
       const body = new THREE.Mesh(new THREE.CylinderGeometry(0.0029, 0.0029, 0.006, 16), mat);
       body.rotation.x = Math.PI / 2;
-      body.position.set(x, 0.026, 0.045);
+      body.position.set(x, ledY, hw - 0.001);
       const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.0036, 0.0008, 6, 20), m.bright);
-      bezel.position.set(x, 0.026, 0.048);
+      bezel.position.set(x, ledY, hw + 0.002);
       head.add(this.part(dome, "lights"), body, bezel);
-      this.leds.push(mat);
-      this.ledLights[i].position.set(x, 0.026, 0.06);
+      this.ledLights[i].position.set(x, ledY, hw + 0.014);
       head.add(this.ledLights[i]);
     });
     // A Hokie Passport, shown hovering over the window while it is on the reader.
-    const cardTex = canvasTexture(256, 160, (g, w, h) => {
-      g.fillStyle = "#861f41"; g.fillRect(0, 0, w, h);
-      g.fillStyle = "#e5751f"; g.fillRect(0, h * 0.72, w, h * 0.1);
-      g.fillStyle = "#f4eef0"; g.font = "600 26px Hanken Grotesk, system-ui, sans-serif";
-      g.fillText("Hokie Passport", 18, 44);
-    });
-    const card = new THREE.Mesh(new THREE.BoxGeometry(0.054, 0.0008, 0.0856),
-      [this.mats.black, this.mats.black, new THREE.MeshStandardMaterial({ map: cardTex, roughness: 0.5 }), this.mats.black, this.mats.black, this.mats.black]);
-    const slopeA = Math.atan2(0.095 - 0.052, 0.092);
-    card.rotation.set(slopeA, 0.35, 0);
-    card.position.set(0.004, 0.0735 + 0.02, 0.006);
+    if (!this.cardTex) {
+      this.cardTex = canvasTexture(256, 160, (g, w, h) => {
+        g.fillStyle = "#861f41"; g.fillRect(0, 0, w, h);
+        g.fillStyle = "#e5751f"; g.fillRect(0, h * 0.72, w, h * 0.1);
+        g.fillStyle = "#f4eef0"; g.font = "600 26px Hanken Grotesk, system-ui, sans-serif";
+        g.fillText("Hokie Passport", 18, 44);
+      });
+      this.cardMat = new THREE.MeshStandardMaterial({ map: this.cardTex, roughness: 0.5 });
+    }
+    const card = new THREE.Mesh(new THREE.BoxGeometry(0.054, 0.0008, 0.0856), [m.black, m.black, this.cardMat, m.black, m.black, m.black]);
+    card.rotation.set(slope, 0.35, 0);
+    card.position.set(0.004, (H.lo + H.hi) / 2 + 0.02, 0.006);
     card.visible = false;
     card.castShadow = true;
     head.add(card);
     this.card = card;
-    this.label("lights", () => head.localToWorld(V(0, 0.012, 0.06)), { outside: true });
+    this.label("lights", () => head.localToWorld(V(0, ledY - 0.014, hw + 0.014)), { outside: true });
     // Buzzer vents on the side.
     for (let i = 0; i < 3; i++) {
-      const vent = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.004, 0.03), m.hole);
-      vent.position.set(0.0475, 0.03 + i * 0.008, -0.01);
+      const vent = new THREE.Mesh(new THREE.BoxGeometry(0.001, 0.004, Math.min(0.03, H.w * 0.4)), m.hole);
+      vent.position.set(hw + 0.0015, 0.014 + i * 0.007, -0.01);
       head.add(this.part(vent, "vents"));
     }
-    this.label("vents", () => head.localToWorld(V(0.06, 0.05, -0.01)), { outside: true });
+    this.label("vents", () => head.localToWorld(V(hw + 0.014, H.lo, -0.01)), { outside: true });
   }
 
   buildShackle() {
-    const m = this.mats;
+    const m = this.mats, R = this.R;
     const g = new THREE.Group();
     this.shackle = g;
     this.rack.add(g);
-    const r = 0.0125, depth = RACK.shackleDepth, c = 0.032;
-    const x = A + (SHACKLE_LOW % 2 ? 0.016 : -0.016);  // both legs use the same socket column
+    const r = R.barR, depth = R.shackleDepth, c = 0.032 * R.s;
+    const low = 6;  // socket index of the lower leg
+    const x = R.postX + (low % 2 ? R.sockDx : -R.sockDx);  // both legs use the same socket column
+    const legY = [this.sockY(low), this.sockY(low + R.legSpan)];
     const [lo, hi] = legY;
     // A U: out of the lower socket, up the front, back into the upper socket.
     const path = new THREE.CurvePath();
-    path.add(new THREE.LineCurve3(V(x, lo, RACK.face), V(x, lo, depth - c)));
+    path.add(new THREE.LineCurve3(V(x, lo, R.face), V(x, lo, depth - c)));
     path.add(new THREE.QuadraticBezierCurve3(V(x, lo, depth - c), V(x, lo, depth), V(x, lo + c, depth)));
     path.add(new THREE.LineCurve3(V(x, lo + c, depth), V(x, hi - c, depth)));
     path.add(new THREE.QuadraticBezierCurve3(V(x, hi - c, depth), V(x, hi, depth), V(x, hi, depth - c)));
-    path.add(new THREE.LineCurve3(V(x, hi, depth - c), V(x, hi, RACK.face)));
+    path.add(new THREE.LineCurve3(V(x, hi, depth - c), V(x, hi, R.face)));
     const bar = new THREE.Mesh(new THREE.TubeGeometry(path, 160, r, 18, false), m.shackle);
     bar.castShadow = true;
     g.add(this.part(bar, "shackle"));
-    const grip = new THREE.Mesh(new THREE.CylinderGeometry(r + 0.002, r + 0.002, 0.085, 20), m.rubber);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.16, r * 1.16, 0.085 * R.s, 20), m.rubber);
     grip.position.set(x, (lo + hi) / 2, depth);
     g.add(this.part(grip, "shackle"));
-    // Leg tips inside the post, with the neck the keyhole plate catches.
+    // Leg tips inside the post: a ramp at the end, then the groove the spring latch drops into.
     for (const y of legY) {
-      const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.0105, 0.0105, 0.03, 18), m.hard);
+      const tip = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.84, r * 0.84, R.legDepth * 0.88, 18), m.hard);
       tip.rotation.x = Math.PI / 2;
-      tip.position.set(x, y, RACK.face - 0.015);
-      const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.0062, 0.0062, 0.008, 18), m.bright);
+      tip.position.set(x, y, R.face - R.legDepth * 0.44);
+      const neck = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.5, r * 0.5, 0.008 * R.s, 18), m.bright);
       neck.rotation.x = Math.PI / 2;
-      neck.position.set(x, y, RACK.face - 0.034);
+      neck.position.set(x, y, R.face - R.legDepth);
       g.add(tip, neck);
       this.insideOnly(tip, neck);
     }
-    this.label("shackle", () => this.rack.localToWorld(V(x, (lo + hi) / 2 + 0.07, depth)), { outside: true });
+    this.label("shackle", () => this.rack.localToWorld(V(x, (lo + hi) / 2 + 0.07 * R.s, depth)), { outside: true });
   }
 
   // Light tubing wrapped twice around the top of the post, at the base of the lock module.
   // The green LED shines into one end and the red LED into the other, so the whole tube shows
   // the light colour from every side.
   buildTubing() {
-    const head = this.head;
-    const half = 0.052, y0 = 0.007, rise = 0.011, turns = 2, r = 0.012;
+    const head = this.head, H = this.R.head;
+    const half = H.w / 2 + 0.006, y0 = 0.007, rise = 0.011, turns = 2;
     const pts = [];
     const ringPoint = (u) => {  // u in 0..1 around a rounded square, starting at the front
       const a = u * Math.PI * 2 + Math.PI / 2;
@@ -269,16 +327,16 @@ export class RackScene {
       const k = 1 / Math.max(Math.abs(c), Math.abs(sn)) ** 0.85;  // squarish, rounded corners
       return [c * half * Math.min(k, 1.3), sn * half * Math.min(k, 1.3)];
     };
-    pts.push(V(-0.016, 0.026, 0.05));  // green LED end
-    pts.push(V(-0.012, y0 + 0.004, half + 0.004));
+    const [g, r] = this.ledAt;
+    pts.push(g.clone().add(V(0, 0, 0.001)));  // green LED end
+    pts.push(V(g.x * 0.75, y0 + 0.004, half + 0.004));
     const n = 96 * turns;
     for (let i = 0; i <= n; i++) {
-      const u = i / 96;
-      const [x, z] = ringPoint(u);
+      const [x, z] = ringPoint(i / 96);
       pts.push(V(x, y0 + rise * (i / n), z));
     }
-    pts.push(V(0.012, y0 + rise + 0.004, half + 0.004));
-    pts.push(V(0.016, 0.026, 0.05));  // red LED end
+    pts.push(V(r.x * 0.75, y0 + rise + 0.004, half + 0.004));
+    pts.push(r.clone().add(V(0, 0, 0.001)));  // red LED end
     const mat = new THREE.MeshStandardMaterial({ color: 0xe8e4e6, roughness: 0.35, transparent: true, opacity: 0.85,
       emissive: 0xffffff, emissiveIntensity: 0 });
     const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 420, 0.0032, 10), mat);
@@ -293,59 +351,65 @@ export class RackScene {
   }
 
   buildInternals() {
-    const m = this.mats;
-    const head = this.head;
-    // ESP32 DevKit lying on the head floor, antenna to the front, USB to the back.
+    const m = this.mats, R = this.R, A = R.postX, H = R.head, hw = H.w / 2, head = this.head, o = this.opt;
+    // ESP32: lying on the head floor (option A), or standing in the post, USB down (B and C).
+    const B = R.board;
     const esp = new THREE.Group();
-    esp.position.set(0, 0.008, -0.006);
-    head.add(esp);
-    const pcb = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.0016, 0.052), m.pcbBlack);
-    const shield = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.003, 0.018), m.shield);
-    shield.position.set(0, 0.0023, 0.012);
-    const antenna = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.0008, 0.006), m.pcbBlack2);
-    antenna.position.set(0, 0.0012, 0.0235);
+    if (o.espIn === "head") {
+      esp.position.set(0, 0.008, -0.006);
+      head.add(esp);
+    } else {
+      esp.position.set(A, 0.27 * R.s, -R.inner / 2 + 0.006);
+      esp.rotation.x = -Math.PI / 2;  // antenna up, USB down, pins facing the front
+      this.rack.add(esp);
+    }
+    const pcb = new THREE.Mesh(new THREE.BoxGeometry(B.w, 0.0016, B.len), m.pcbBlack);
+    const shield = new THREE.Mesh(new THREE.BoxGeometry(B.shield[0], 0.003, B.shield[1]), m.shield);
+    shield.position.set(0, 0.0023, B.len / 2 - B.shield[1] / 2 - 0.004);
     const usbPort = new THREE.Mesh(new THREE.BoxGeometry(0.008, 0.003, 0.006), m.bright);
-    usbPort.position.set(0, 0.0023, -0.025);
-    esp.add(this.part(pcb, "esp32"), this.part(shield, "esp32"), antenna, usbPort);
+    usbPort.position.set(0, 0.0023, -B.len / 2 + 0.002);
+    esp.add(this.part(pcb, "esp32"), this.part(shield, "esp32"), usbPort);
     this.headerPins = {};
     const pinGeo = new THREE.BoxGeometry(0.0022, 0.006, 0.0022);
-    [[HEADER_LEFT, -0.0125], [HEADER_RIGHT, 0.0125]].forEach(([names, x]) => {
+    const rows = o.board === "devkit" ? [[HEADER_LEFT, -0.0125], [HEADER_RIGHT, 0.0125]] : [[MINI_LEFT, -0.0078], [MINI_RIGHT, 0.0078]];
+    rows.forEach(([names, x]) => {
       names.forEach((name, i) => {
         const pin = new THREE.Mesh(pinGeo, m.hardDark);
-        const z = 0.0178 - i * 0.00254;
+        const z = B.len / 2 - 0.0082 - i * 0.00254;
         pin.position.set(x, -0.003, z);
         esp.add(pin);
-        this.headerPins[name] = { group: esp, at: V(x, -0.0045, z) };
+        if (!this.headerPins[name]) this.headerPins[name] = { group: esp, at: V(x, -0.0045, z) };
       });
     });
+    this.esp = esp;
+    this.usbEnd = () => esp.localToWorld(V(0, 0.0023, -B.len / 2 - 0.004));
     this.insideOnly(esp);
-    this.label("esp32", () => esp.localToWorld(V(0, 0.012, -0.03)), { inside: true });
+    this.label("esp32", () => esp.localToWorld(o.espIn === "head" ? V(0, 0.012, -0.03) : V(0, -0.01, 0)), { inside: true });
 
-    // PN532 under the reader window, parallel to it.
-    const slope = Math.atan2(0.095 - 0.052, 0.092);
+    // PN532 under the reader window, parallel to it. Always full size: cards are.
     const pn = new THREE.Group();
-    pn.position.set(0, (0.052 + 0.095) / 2 - 0.008, 0);
-    pn.rotation.x = slope;  // board normal tilts toward the rider, like the window
+    pn.position.set(0, (H.lo + H.hi) / 2 - 0.008, 0);
+    pn.rotation.x = this.slope;  // board normal tilts toward the rider, like the window
     head.add(pn);
-    const pnBoard = new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.0016, 0.04), m.pcbRed);
-    pn.add(this.part(pnBoard, "pn532"));
+    pn.add(this.part(new THREE.Mesh(new THREE.BoxGeometry(0.042, 0.0016, 0.04), m.pcbRed), "pn532"));
     const loop = new THREE.Mesh(roundedRectRing(0.034, 0.03, 0.006, 0.0012), m.copper);
     loop.rotation.x = -Math.PI / 2;
     loop.position.y = 0.0009;
     const chip = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.0012, 0.006), m.chip);
     chip.position.set(0.01, 0.0012, -0.012);
     pn.add(loop, chip);
-    this.pnRing = loop;
+    this.pn = pn;
     this.insideOnly(pn);
     this.label("pn532", () => pn.localToWorld(V(0, 0.01, 0.0)), { inside: true });
 
     // Buzzer, and the little board with the LED resistors and the buzzer transistor.
-    const buzzer = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.0095, 24), m.black);
-    buzzer.position.set(0.034, 0.02, -0.01);
+    const bz = o.buzzer;
+    const buzzer = new THREE.Mesh(new THREE.CylinderGeometry(bz.r, bz.r, bz.h, 24), m.black);
+    buzzer.position.set(hw - 0.012, 0.012, -Math.min(0.01, hw * 0.3));
     head.add(this.part(buzzer, "buzzer"));
     this.buzzerMesh = buzzer;
     const perf = new THREE.Group();
-    perf.position.set(-0.03, 0.012, 0.024);
+    perf.position.set(-hw + 0.016, 0.01, hw - 0.022);
     head.add(perf);
     perf.add(this.part(new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.0016, 0.016), m.perf), "parts"));
     for (let i = 0; i < 3; i++) {
@@ -357,12 +421,13 @@ export class RackScene {
     const npn = new THREE.Mesh(new THREE.CylinderGeometry(0.0022, 0.0022, 0.0045, 16, 1, false, 0, Math.PI), m.black);
     npn.position.set(0.006, 0.003, 0.005);
     perf.add(npn);
+    this.perf = perf;
     this.insideOnly(buzzer, perf);
-    this.label("buzzer", () => head.localToWorld(V(0.045, 0.04, -0.02)), { inside: true });
+    this.label("buzzer", () => buzzer.localToWorld(V(0.006, 0.014, 0)), { inside: true });
 
     // MPU-6050 (GY-521) glued to the inside of the post's back wall, on its side.
     const mpu = new THREE.Group();
-    mpu.position.set(A, RACK.mpuY, -0.034);
+    mpu.position.set(A, R.mpuY, -R.inner / 2 + 0.001);
     this.rack.add(mpu);
     mpu.add(this.part(new THREE.Mesh(new THREE.BoxGeometry(0.021, 0.016, 0.0016), m.pcbBlue), "mpu"));
     const mpuChip = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.004, 0.001), m.chip);
@@ -370,71 +435,69 @@ export class RackScene {
     mpu.add(mpuChip);
     this.mpu = mpu;
     this.insideOnly(mpu);
-    this.label("mpu", () => mpu.localToWorld(V(0.04, 0.0, 0.01)), { inside: true });
+    this.label("mpu", () => mpu.localToWorld(V(0.03, 0.0, 0.01)), { inside: true });
 
-    // Servo, horn, push rod and the bolt that stops the keyhole plate rising.
+    // Servo, horn, push rod and the spring latch (plate + tab) on the shackle's grooves.
+    const S = R.servo;
     const servo = new THREE.Group();
-    servo.position.set(A - 0.008, RACK.servoY, -0.006);
+    servo.position.set(A - 0.008 * R.s, R.servoY, -0.006 * R.s);
     this.rack.add(servo);
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.0225, 0.0285, 0.0122), m.servo);
-    const ears = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.0025, 0.0122), m.servo);
-    ears.position.y = 0.006;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(...S.body), m.servo);
+    const ears = new THREE.Mesh(new THREE.BoxGeometry(S.ears, 0.0025, S.body[2]), m.servo);
+    ears.position.y = S.earY;
     servo.add(this.part(body, "servo"), this.part(ears, "servo"));
     const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.0025, 0.0025, 0.004, 16), m.bright);
     shaft.rotation.x = Math.PI / 2;
-    shaft.position.set(0.0055, 0.006, 0.008);
+    shaft.position.set(S.shaft[0], S.shaft[1], S.body[2] / 2 + 0.002);
     servo.add(shaft);
     const horn = new THREE.Group();
     horn.position.copy(shaft.position).add(V(0, 0, 0.0025));
     servo.add(horn);
-    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.019, 0.004, 0.0016), m.horn);
-    arm.position.x = 0.0075;
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(S.arm, 0.004, 0.0016), m.horn);
+    arm.position.x = S.arm * 0.4;
     horn.add(arm);
     this.horn = horn;
+    this.hornTip = S.arm * 0.8;
     this.servo = servo;
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.05, RACK.plateTop - 0.38, 0.003), m.hard);
-    plate.position.set(A, (RACK.plateTop + 0.38) / 2, RACK.face - 0.034);
+    const plateZ = R.face - R.legDepth;
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.05 * R.s, R.plateTop - R.plateBottom, 0.003), m.hard);
+    plate.position.set(A, (R.plateTop + R.plateBottom) / 2, plateZ);
     this.rack.add(this.part(plate, "latch"));
     this.plate = plate;
-    const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.006, 0.012), m.bolt);
-    bolt.position.set(A, RACK.plateTop + 0.0035, RACK.face - 0.034);
+    const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.03 * R.s, 0.006, 0.012 * R.s), m.bolt);
+    bolt.position.set(A, R.plateTop + 0.0035, plateZ);
     this.rack.add(this.part(bolt, "latch"));
     this.bolt = bolt;
     this.rod = new THREE.Mesh(new THREE.CylinderGeometry(0.0009, 0.0009, 1, 8), m.bright);
     this.rack.add(this.rod);
     this.insideOnly(servo, plate, bolt, this.rod);
     this.label("servo", () => servo.localToWorld(V(-0.02, 0.02, 0)), { inside: true });
-    this.label("latch", () => this.rack.localToWorld(V(A - 0.05, RACK.plateTop + 0.01, RACK.face)), { inside: true });
+    this.label("latch", () => this.rack.localToWorld(V(A - 0.05 * R.s, R.plateTop + 0.01, R.face)), { inside: true });
 
-    // Capacitor across the servo's 5 V, and the separate 5 V supply cable from below.
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 0.012, 20), m.cap);
-    cap.position.set(A + 0.022, RACK.servoY - 0.03, -0.02);
+    // Capacitor across the servo's 5 V, close to the servo.
+    const cp = o.cap;
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(cp.r, cp.r, cp.h, 20), m.cap);
+    cap.position.set(A + Math.min(0.022 * R.s + 0.01, R.inner / 2 - cp.r - 0.001), R.servoY - 0.03 * R.s, -R.inner / 2 + cp.r + 0.003);
     this.rack.add(this.part(cap, "cap"));
     this.insideOnly(cap);
-    this.label("cap", () => this.rack.localToWorld(V(A + 0.05, RACK.servoY - 0.05, -0.02)), { inside: true });
+    this.label("cap", () => cap.localToWorld(V(0.02, -0.01, 0)), { inside: true });
 
-    // Wires. Colours: red 5 V, orange 3.3 V, black GND, blue SDA, yellow SCL, white servo signal,
-    // green/red LEDs, purple buzzer.
-    const pinAt = (gpio) => {
+    this.pinAt = (gpio) => {
       const p = this.headerPins[gpio];
       return p ? p.group.localToWorld(p.at.clone()) : head.localToWorld(V(0, 0.005, 0));
     };
-    this.pinAt = pinAt;
-    this.updateMatrixWorlds();
-  }
-
-  updateMatrixWorlds() {
     this.rack.updateMatrixWorld(true);
   }
 
   // Called once the firmware's pin numbers are known (from the compiled pins.h).
   wire(pins) {
-    const m = this.mats;
+    this.pins = pins;
+    const R = this.R, A = R.postX, hw = R.head.w / 2;
     for (const w of Object.values(this.wires)) this.rack.remove(w.mesh);
     this.wires = {};
+    this.rack.updateMatrixWorld(true);
     const toRack = (v) => this.rack.worldToLocal(v.clone());
     const head = (x, y, z) => toRack(this.head.localToWorld(V(x, y, z)));
-    const down = (x, z) => [head(x, 0.004, z), V(A + x, RACK.postTop - 0.03, z)];
     const add = (id, color, points, radius = 0.0011) => {
       const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.6, emissive: color, emissiveIntensity: 0 });
       const mesh = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points), 64, radius, 6), mat);
@@ -444,31 +507,61 @@ export class RackScene {
       this.wires[id] = { mesh, mat };
     };
     const pin = (g) => toRack(this.pinAt(g));
-    const mpuPad = (dx) => V(A - 0.006 + dx, RACK.mpuY + 0.008, -0.032);
-    // I2C to the MPU-6050, down the back of the post.
-    add("sdaMpu", 0x3d7bff, [pin(pins.sda), head(0.012, 0.004, -0.02), ...down(0.01, -0.028), mpuPad(0.004)]);
-    add("sclMpu", 0xf2d03a, [pin(pins.scl), head(0.014, 0.004, -0.022), ...down(0.014, -0.028), mpuPad(0.0)]);
-    add("vccMpu", 0xff9c3a, [pin("3V3"), head(0.016, 0.004, -0.024), ...down(0.018, -0.028), mpuPad(-0.004)]);
-    add("gndMpu", 0x222222, [pin("GND"), head(0.018, 0.004, -0.026), ...down(0.022, -0.028), mpuPad(-0.008)]);
-    // I2C to the PN532, short hop up to the board under the window.
-    const pnPad = (dx) => head(-0.012 + dx, 0.06, 0.005);
-    add("sdaPn", 0x3d7bff, [pin(pins.sda), head(0.0, 0.03, 0.01), pnPad(0)]);
-    add("sclPn", 0xf2d03a, [pin(pins.scl), head(0.004, 0.03, 0.012), pnPad(0.004)]);
+    const mpuPad = (dx) => toRack(this.mpu.localToWorld(V(-0.006 + dx, 0.008, 0.002)));
+    const pnPad = (dx) => toRack(this.pn.localToWorld(V(-0.012 + dx, -0.002, -0.016)));
+    const ledIn = (i) => toRack(this.head.localToWorld(this.ledAt[i].clone().add(V(0, 0, -0.008))));
+    const buzzIn = toRack(this.buzzerMesh.localToWorld(V(0, -0.003, 0)));
+    const servoIn = toRack(this.servo.localToWorld(V(-R.servo.body[0] / 2, -0.008, 0)));
+    let route;
+    if (this.opt.espIn === "head") {
+      // Board in the head: short hops in the head, long runs down the post.
+      const down = (x, z) => [head(x, 0.004, z), V(A + x, R.postTop - 0.03, z)];
+      const lanes = { sdaMpu: [0.01, -0.028, 0.012], sclMpu: [0.014, -0.028, 0.014], vccMpu: [0.018, -0.028, 0.016],
+        gndMpu: [0.022, -0.028, 0.018], servoSig: [-0.02, 0.0, -0.02] };
+      route = (id, from, to) => {
+        const l = lanes[id];
+        if (l) return [from, head(l[2], 0.004, l[1] + 0.006), ...down(l[0], l[1]), to];
+        return [from, head(from.x - A, 0.02, from.z), to];  // stays in the head
+      };
+    } else {
+      // Board standing in the post: every wire runs up or down the side wall in its own lane.
+      const wallX = A - R.inner / 2 + 0.004;
+      let lane = 0;
+      route = (id, from, to) => {
+        const z = -R.inner / 2 + 0.008 + (lane++ % 8) * Math.min(0.003, R.inner / 20);
+        const dir = Math.sign(to.y - from.y) || 1;
+        return [from, from.clone().add(V(0, 0, 0.006)), V(wallX, from.y + dir * 0.01, z),
+          V(wallX, to.y - dir * 0.015, z), to];
+      };
+    }
+    // I2C to the MPU-6050 and the PN532 (same two pins, both chips on the bus).
+    add("sdaMpu", 0x3d7bff, route("sdaMpu", pin(pins.sda), mpuPad(0.004)));
+    add("sclMpu", 0xf2d03a, route("sclMpu", pin(pins.scl), mpuPad(0.0)));
+    add("vccMpu", 0xff9c3a, route("vccMpu", pin("3V3"), mpuPad(-0.004)));
+    add("gndMpu", 0x222222, route("gndMpu", pin("GND"), mpuPad(-0.008)));
+    add("sdaPn", 0x3d7bff, route("sdaPn", pin(pins.sda), pnPad(0)));
+    add("sclPn", 0xf2d03a, route("sclPn", pin(pins.scl), pnPad(0.004)));
     // LEDs (through resistors on the little board) and the buzzer transistor.
-    add("green", 0x37d67a, [pin(pins.green), head(-0.03, 0.016, 0.02), head(-0.016, 0.026, 0.04)]);
-    add("red", 0xff4a3a, [pin(pins.red), head(-0.028, 0.018, 0.022), head(0.016, 0.026, 0.04)]);
-    add("buzzer", 0xa46cff, [pin(pins.buzzer), head(-0.022, 0.014, 0.02), head(0.034, 0.016, -0.01)]);
-    // Servo signal down the front of the post; servo power from the separate 5 V supply below.
-    const servoIn = toRack(this.servo.localToWorld(V(-0.011, -0.008, 0)));
-    add("servoSig", 0xf2f2f2, [pin(pins.servo), head(-0.02, 0.004, 0.0), ...down(-0.02, 0.0), servoIn]);
-    add("supply5v", 0xe33a2e, [V(A + 0.02, -0.05, -0.02), V(A + 0.02, 0.2, -0.022), V(A + 0.022, RACK.servoY - 0.04, -0.02), servoIn.clone().add(V(0, -0.004, 0.002))], 0.0015);
-    add("supplyGnd", 0x222222, [V(A + 0.026, -0.05, -0.022), V(A + 0.026, 0.2, -0.024), V(A + 0.026, RACK.servoY - 0.04, -0.022), servoIn.clone().add(V(0, -0.006, -0.002))], 0.0015);
-    add("usb", 0x5a5f66, [toRack(this.head.localToWorld(V(0, 0.011, -0.034))), head(0, 0.01, -0.052), V(A, RACK.postTop - 0.06, -0.06), V(A + 0.1, 0.02, -0.25)], 0.0022);
+    add("green", 0x37d67a, route("green", pin(pins.green), ledIn(0)));
+    add("red", 0xff4a3a, route("red", pin(pins.red), ledIn(1)));
+    add("buzzer", 0xa46cff, route("buzzer", pin(pins.buzzer), buzzIn));
+    add("servoSig", 0xf2f2f2, route("servoSig", pin(pins.servo), servoIn));
+    // Servo power from the separate 5 V supply, up from below; USB to the laptop.
+    const sx = A + R.inner * 0.3, sz = -R.inner * 0.25;
+    add("supply5v", 0xe33a2e, [V(sx, -0.05, sz), V(sx, R.servoY * 0.3, sz), V(sx, R.servoY - 0.04 * R.s, sz), servoIn.clone().add(V(0, -0.004, 0.002))], 0.0015);
+    add("supplyGnd", 0x222222, [V(sx + 0.004, -0.05, sz - 0.002), V(sx + 0.004, R.servoY * 0.3, sz - 0.002), V(sx + 0.004, R.servoY - 0.04 * R.s, sz - 0.002), servoIn.clone().add(V(0, -0.006, -0.002))], 0.0015);
+    const usbEnd = toRack(this.usbEnd());
+    const usbPath = this.opt.espIn === "head"
+      ? [usbEnd, head(0, 0.01, -hw - 0.006), V(A, R.postTop - 0.06, -0.06), V(A + 0.1, 0.02, -0.25)]
+      : [usbEnd, usbEnd.clone().add(V(0, -0.03, 0)), V(A, 0.03, usbEnd.z), V(A + 0.06, 0.0, -0.1), V(A + 0.14, 0.0, -0.3)];
+    add("usb", 0x5a5f66, usbPath, 0.0022);
     for (const id of ["supply5v", "supplyGnd"]) this.wires[id].mesh.userData.part = "supply";
     this.pickables.push(this.wires.supply5v.mesh, this.wires.usb.mesh);
     this.wires.usb.mesh.userData.part = "usb";
-    this.label("supply", () => this.rack.localToWorld(V(A + 0.06, 0.2, -0.03)), { inside: true });
-    this.label("usb", () => this.rack.localToWorld(V(A + 0.08, 0.12, -0.2)), { inside: true });
+    if (!this.labels.some((l) => l.id === "supply")) {
+      this.label("supply", () => this.rack.localToWorld(V(A + 0.03 + 0.03 * R.s, 0.2 * R.s, -0.03)), { inside: true });
+      this.label("usb", () => this.rack.localToWorld(V(A + 0.08, 0.06 * R.s, -0.2)), { inside: true });
+    }
   }
 
   // ---------------------------------------------------------------- view
@@ -486,20 +579,32 @@ export class RackScene {
     this.postShell.castShadow = !inside;
   }
 
-  focus(preset) {
+  focus(preset, instant = false) {
+    const R = this.R, A = R.postX, s = R.s, k = R.head.w / 0.092;
+    const at = (t, d, f) => ({ t, p: [t[0] + d[0] * f, t[1] + d[1] * f, t[2] + d[2] * f] });
     const P = {
-      rack: { p: [1.45, 1.15, 1.75], t: [0.2, 0.52, 0] },
-      head: { p: [A + 0.34, RACK.headTop + 0.2, 0.36], t: [A, RACK.postTop + 0.04, 0] },
-      latch: { p: [A + 0.36, RACK.servoY + 0.08, 0.42], t: [A, RACK.servoY - 0.06, 0] },
-      sensor: { p: [A + 0.3, RACK.mpuY + 0.1, 0.36], t: [A, RACK.mpuY, -0.02] },
+      rack: at([0.2 * s, 0.52 * s, 0], [1.25, 0.63, 1.75], s),
+      head: at([A, R.postTop + 0.04 * k, 0], [0.34, 0.255, 0.36], k),
+      latch: at([A, R.servoY - 0.06 * s, 0], [0.36, 0.14, 0.42], s),
+      sensor: at([A, R.mpuY, -0.02 * s], [0.3, 0.1, 0.36], s),
+      board: at([A, 0.27 * s, 0], [0.26, 0.08, 0.3], Math.max(s, 0.6)),
     }[preset];
     if (!P) return;
+    if (instant) {
+      this.camera.position.set(...P.p);
+      this.controls.target.set(...P.t);
+      this.controls.update();
+      this.fly = null;
+      return;
+    }
     this.fly = { from: this.camera.position.clone(), fromT: this.controls.target.clone(), to: V(...P.p), toT: V(...P.t), u: 0 };
   }
 
   focusPart(id) {
-    const preset = { esp32: "head", pn532: "head", buzzer: "head", parts: "head", lights: "head", tubing: "head", reader: "head",
-      vents: "head", usb: "head", servo: "latch", latch: "latch", cap: "latch", supply: "latch", mpu: "sensor" }[id];
+    const board = this.opt.espIn === "head" ? "head" : "board";
+    const preset = { esp32: board, usb: board, pn532: "head", buzzer: "head", parts: "head", lights: "head",
+      tubing: "head", reader: "head", vents: "head", servo: "latch", latch: "latch", cap: "latch", supply: "latch",
+      mpu: "sensor" }[id];
     if (preset) this.focus(preset);
   }
 
@@ -569,14 +674,14 @@ export class RackScene {
       // The spring latch slides sideways off the shackle's grooves: pulled by the servo, or
       // pushed aside by the ramp on a shackle leg going in.
       const open = clamp(f.latchOpen, 0, 1);
-      this.bolt.position.x = A - open * 0.034;
-      this.plate.position.x = A - open * 0.012;
+      this.bolt.position.x = this.R.postX - open * this.R.boltTravel;
+      this.plate.position.x = this.R.postX - open * this.R.plateTravel;
       this.rack.updateMatrixWorld(true);
-      const tip = this.horn.localToWorld(V(0.015, 0, 0));
-      const end = this.bolt.localToWorld(V(0.012, 0.001, 0));
+      const tip = this.horn.localToWorld(V(this.hornTip, 0, 0));
+      const end = this.bolt.localToWorld(V(0.012 * this.R.s, 0.001, 0));
       placeRod(this.rod, this.rack.worldToLocal(tip), this.rack.worldToLocal(end));
     }
-    this.shackle.position.z = f.shackleOut * 0.16;
+    this.shackle.position.z = f.shackleOut * 0.16 * this.R.s;
     // Light tubing: green, red, or amber when both LEDs are on.
     const tc = f.green && f.red ? 0xffb030 : f.green ? 0x3cff7a : f.red ? 0xff3020 : 0xffffff;
     this.tubeMat.emissive.setHex(tc);

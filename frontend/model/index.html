@@ -42,12 +42,18 @@
           <button type="button" role="radio" aria-checked="true" data-view="outside">Outside</button>
           <button type="button" role="radio" aria-checked="false" data-view="inside">Inside</button>
         </div>
+        <div class="seg" role="radiogroup" aria-label="Build option" id="option">
+          <button type="button" role="radio" aria-checked="true" data-option="a">A Standard</button>
+          <button type="button" role="radio" aria-checked="false" data-option="b">B 0.75x</button>
+          <button type="button" role="radio" aria-checked="false" data-option="c">C 0.5x Mini</button>
+        </div>
         <div class="seg" aria-label="Camera" id="camera">
           <button type="button" data-cam="rack">Rack</button>
           <button type="button" data-cam="head">Lock Module</button>
           <button type="button" data-cam="latch">Latch</button>
           <button type="button" data-cam="sensor">Sensor</button>
         </div>
+        <p class="stage-note" id="option-note"></p>
       </div>
       <p class="stage-hint">Drag the post to shake it. Click the reader window to tap the card.</p>
       <article class="part-card" id="part-card" hidden aria-live="polite"></article>

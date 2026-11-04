@@ -67,6 +67,7 @@ code, .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; f
 
 .stage-tools { position: absolute; top: 12px; left: 12px; right: 12px; display: flex; gap: 10px; flex-wrap: wrap; pointer-events: none; }
 .stage-tools .seg { pointer-events: auto; background: var(--panel); }
+.stage-note { flex-basis: 100%; margin: 0; max-width: 640px; color: var(--muted); font-size: 12.5px; }
 .stage-hint { position: absolute; left: 14px; bottom: 12px; color: var(--faint); font-size: 12.5px; pointer-events: none; }
 .labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .scene-label { position: absolute; left: 0; top: 0; pointer-events: auto; border: 0; border-radius: 8px; padding: 3px 9px;
@@ -125,6 +126,9 @@ code, .mono { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; f
 table.pins { width: 100%; border-collapse: collapse; }
 table.pins th, table.pins td { text-align: left; padding: 6px 8px; background: var(--panel-2); border-bottom: 2px solid var(--panel); font-weight: 400; }
 table.pins th { color: var(--muted); }
+table.options { font-size: 13px; }
+table.options td:first-child { color: var(--muted); }
+table.options .is-picked { color: var(--ink); background: var(--panel-3); }
 
 /* ---------- serial ---------- */
 .panel-serial { grid-template-rows: auto minmax(0, 1fr) auto auto; height: 100%; }
@@ -153,7 +157,7 @@ table.pins th { color: var(--muted); }
 @media (max-width: 560px) {
   .bar { gap: 10px; }
   .bar-note { order: 9; flex-basis: 100%; }
-  .stage-hint { display: none; }
+  .stage-hint, .stage-note { display: none; }
   .live dl { grid-template-columns: 6.4em 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
