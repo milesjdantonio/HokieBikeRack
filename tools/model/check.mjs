@@ -189,5 +189,33 @@ t.runner.serial("i2c-scan\n");
 t.run(500);
 check("i2c-scan finds 0x24 and 0x68", t.serial.includes("found 0x24 (PN532)") && t.serial.includes("found 0x68 (MPU-6050)"));
 
+console.log("Alarm keeps going while the post is shaken");
+const a = fresh();
+await a.runner.boot(RESET.POWER_ON);
+a.run(5000);
+a.physics.shake(a.runner.worldMs, 1000);
+a.run(val.cooldownMs + 1000);
+a.physics.shake(a.runner.worldMs, 1000);
+a.run(1200);
+check("second shake starts the alarm", a.runner.state().tamper.alarm);
+const shakenFor = val.HBR_TAMPER_ALARM_MS + 6000;  // shaken well past the minimum
+for (let done = 0; done < shakenFor; done += 2000) {
+  a.physics.shake(a.runner.worldMs, 1000);
+  a.run(2000);
+}
+check("still sounding while shaken past the minimum", a.runner.state().tamper.alarm);
+a.run(val.HBR_TAMPER_ALARM_QUIET_MS - 1500);
+check("still sounding just before the quiet time is up", a.runner.state().tamper.alarm);
+a.mark();
+a.run(2500);
+check("stops once the post has been still long enough", !a.runner.state().tamper.alarm && a.serial.includes("[tamper] siren off"));
+a.run(1000);
+check("the buzzer is quiet after it stops", a.edges(cfg.pins.buzzer).every((e, i, all) => i < all.length - 1 || e[2] === 0));
+a.run(val.escalationWindowMs - 8000);
+a.mark();
+a.physics.shake(a.runner.worldMs, 1000);
+a.run(1500);
+check("a jolt inside the window after it stops is an alarm again", a.serial.includes("[tamper] ALARM"));
+
 console.log(failures ? `\n${failures} check(s) failed.` : "\nAll checks passed.");
 process.exit(failures ? 1 : 0);

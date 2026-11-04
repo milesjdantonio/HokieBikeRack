@@ -1,8 +1,8 @@
 {
-  "builtAt": "2026-11-03T19:50:43.398Z",
+  "builtAt": "2026-11-04T14:35:59.328Z",
   "toolchain": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 6.0.0-git (afa15e0c56d1292e073c2c91bafc1d5e0cdf0dd3)",
   "localConfig": false,
-  "sourceHash": "6d32c25fbb1c777d94cff5d1e65aef54c8c2025ceffe88d033b5c97360550df6",
+  "sourceHash": "c1e33f970714151d35ce17fc40acad25d6136b9e2854e1adacfcbd5ddc9e274a",
   "files": [
     {
       "path": "firmware/include/access_policy.h",
@@ -26,7 +26,7 @@
     },
     {
       "path": "firmware/include/device_config.h",
-      "sha256": "4ebbb9687f8332548322c902e0c13a894f47b4ddc1b3720ffbe43e7d63549e23"
+      "sha256": "026a662f1c619545103adfde9f3edabf1ca7d11fdf8327517165e6e2c7c4fb79"
     },
     {
       "path": "firmware/include/device_status.h",
@@ -38,7 +38,7 @@
     },
     {
       "path": "firmware/include/feedback.h",
-      "sha256": "5c18aa90eecf25c0d4f144ac1cb78e4b44f4e393d10e2efd13146772daf34032"
+      "sha256": "05f251dd163afd9e8c48c75e3730dcefacc1369abb857c3f4d1e3ff2ec1b88a2"
     },
     {
       "path": "firmware/include/lock.h",
@@ -62,11 +62,11 @@
     },
     {
       "path": "firmware/lib/hbr_logic/src/feedback_player.cpp",
-      "sha256": "4f3397d419c1cca396fc8bd5bfcfb0780542e03f5b1a956f7719e9e134f13dd0"
+      "sha256": "cf7e20235d2007d39e5bc1883b1cf4ee36ef61123e81d04ff7133bb8b89d3a67"
     },
     {
       "path": "firmware/lib/hbr_logic/src/feedback_player.h",
-      "sha256": "160440e3a23cad4ccdd3c05f0b98aa755093d76bd2f25926f38f24271228c034"
+      "sha256": "870b1881e0dfe646d7a55f54b261f27b5765eebf1cd69ce94a3d204fa1da96f7"
     },
     {
       "path": "firmware/lib/hbr_logic/src/hbr_util.cpp",
@@ -82,11 +82,11 @@
     },
     {
       "path": "firmware/lib/hbr_logic/src/tamper_detector.cpp",
-      "sha256": "4091649fc3068fddf2225096cec78b79034f2fd249d8e56cbc0b9df29d8e84f6"
+      "sha256": "99fe6a865f34585156fc1f42543884aa4159491865916b097888fd066db409e5"
     },
     {
       "path": "firmware/lib/hbr_logic/src/tamper_detector.h",
-      "sha256": "1927dfe7009050cd616823c0c7e106273e2c34caea40a4fbd2b17ae0e41403d1"
+      "sha256": "c3da46bda45f67c0e6cf3a47c70ec9e6cbf091e3e9eb49d496413bda811d9726"
     },
     {
       "path": "firmware/model/config.h",
@@ -102,7 +102,7 @@
     },
     {
       "path": "firmware/model/model_api.cpp",
-      "sha256": "8def3694d2accbf7ad3266707bc46d4ea15bfef19438f88eef36770653425d44"
+      "sha256": "26efd17c31daed95219da857e50b0a18a9908d8a5813909006616c6108ddb53b"
     },
     {
       "path": "firmware/model/shim/Adafruit_PN532.h",
@@ -190,7 +190,7 @@
     },
     {
       "path": "firmware/src/feedback.cpp",
-      "sha256": "67f3c9f5ccbb341e0b557cfa7dcb90c81541ab93ca00374966c64da5142ab9e0"
+      "sha256": "7b9bb65ab9eae819ac976f3a78798966e199838cc6a8fee32ebd4e27583812bd"
     },
     {
       "path": "firmware/src/lock.cpp",
@@ -198,7 +198,7 @@
     },
     {
       "path": "firmware/src/main.cpp",
-      "sha256": "a005c259cf9606f872e29e8e82ccf2d16443eaaa47481c7621e8b62dd790473e"
+      "sha256": "997bf87d122fea4781d59d291ed5dd3471ca596e585c4035ff2f5ac138b72883"
     },
     {
       "path": "firmware/src/tamper_sensor.cpp",
@@ -246,53 +246,58 @@
     },
     "kIdleBlipEveryMs": {
       "file": "lib/hbr_logic/src/feedback_player.h",
-      "line": 67,
+      "line": 68,
       "code": "constexpr uint32_t kIdleBlipEveryMs = 5000;"
     },
     "kIdleBlipMs": {
       "file": "lib/hbr_logic/src/feedback_player.h",
-      "line": 68,
+      "line": 69,
       "code": "constexpr uint32_t kIdleBlipMs = 30;"
     },
     "thresholdG": {
       "file": "lib/hbr_logic/src/tamper_detector.h",
-      "line": 24,
+      "line": 26,
       "code": "float thresholdG = 0.35f;          // deviation that counts as a jolt (tune on real rack!)"
     },
     "samplesToTrigger": {
       "file": "lib/hbr_logic/src/tamper_detector.h",
-      "line": 25,
+      "line": 27,
       "code": "uint8_t samplesToTrigger = 3;      // jolt must last this many samples in a row (3 x 20 ms)"
     },
     "baselineFollow": {
       "file": "lib/hbr_logic/src/tamper_detector.h",
-      "line": 26,
+      "line": 28,
       "code": "float baselineFollow = 0.02f;      // how fast the baseline follows when calm (0..1)"
     },
     "baselineFollowShaking": {
       "file": "lib/hbr_logic/src/tamper_detector.h",
-      "line": 27,
+      "line": 29,
       "code": "float baselineFollowShaking = 0.002f;  // much slower while shaking, so a shake can't"
     },
     "warmupMs": {
       "file": "lib/hbr_logic/src/tamper_detector.h",
-      "line": 30,
+      "line": 32,
       "code": "uint32_t warmupMs = 2000;          // learn the baseline for this long after start"
     },
     "cooldownMs": {
       "file": "lib/hbr_logic/src/tamper_detector.h",
-      "line": 31,
+      "line": 33,
       "code": "uint32_t cooldownMs = 3000;        // after a signal, ignore jolts for this long"
     },
     "escalationWindowMs": {
       "file": "lib/hbr_logic/src/tamper_detector.h",
-      "line": 33,
-      "code": "uint32_t escalationWindowMs = 30000;  // a jolt within this time of the last signal -> ALARM"
+      "line": 35,
+      "code": "uint32_t escalationWindowMs = 30000;  // a jolt within this time of the last signal, or of"
     },
     "HBR_TAMPER_ALARM_MS": {
       "file": "include/device_config.h",
       "line": 60,
-      "code": "constexpr uint32_t HBR_TAMPER_ALARM_MS = 10000;       // siren length"
+      "code": "constexpr uint32_t HBR_TAMPER_ALARM_MS = 10000;       // the siren runs at least this long..."
+    },
+    "HBR_TAMPER_ALARM_QUIET_MS": {
+      "file": "include/device_config.h",
+      "line": 61,
+      "code": "constexpr uint32_t HBR_TAMPER_ALARM_QUIET_MS = 5000;  // ...and until the post has been still this long"
     },
     "HBR_TAMPER_SAMPLE_MS": {
       "file": "include/device_config.h",
@@ -326,7 +331,7 @@
     },
     "debouncer": {
       "file": "src/main.cpp",
-      "line": 33,
+      "line": 34,
       "code": "hbr::CardDebouncer debouncer(2000);"
     },
     "CARD_ID_MAX_LENGTH": {

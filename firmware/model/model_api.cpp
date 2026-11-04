@@ -263,10 +263,13 @@ EMSCRIPTEN_KEEPALIVE const char *hbr_state() {
   t["armed"] = !lockRecentlyUnlocked(HBR_TAMPER_GRACE_MS);
   bool alarm = tamper.alarmActive(now);
   t["alarm"] = alarm;
-  t["alarmLeftMs"] = alarm ? tc.alarmDurationMs - (now - tamper.alarmStartMs_) : 0;
+  t["alarmLeftMs"] = tamper.alarmLeftMs(now);
+  t["alarmMs"] = alarm ? now - tamper.alarmStartMs_ : 0;
+  t["sinceJoltMs"] = alarm ? now - tamper.lastJoltMs_ : 0;
   uint32_t since = now - tamper.lastSignalMs_;
+  uint32_t sinceEsc = now - tamper.escalateFromMs_;
   t["cooldownLeftMs"] = tamper.hasSignaled_ && since < tc.cooldownMs ? tc.cooldownMs - since : 0;
-  t["escalateLeftMs"] = tamper.hasSignaled_ && since <= tc.escalationWindowMs ? tc.escalationWindowMs - since : 0;
+  t["escalateLeftMs"] = !alarm && tamper.hasSignaled_ && sinceEsc <= tc.escalationWindowMs ? tc.escalationWindowMs - sinceEsc : 0;
 
   JsonObject r = doc["reader"].to<JsonObject>();
   r["healthy"] = healthy;
@@ -381,7 +384,8 @@ EMSCRIPTEN_KEEPALIVE const char *hbr_config() {
   value(v, T, "warmupMs", tc.warmupMs, "ms", "lib/hbr_logic/src/tamper_detector.h", "Learn the baseline this long after start");
   value(v, T, "cooldownMs", tc.cooldownMs, "ms", "lib/hbr_logic/src/tamper_detector.h", "After a signal, ignore jolts this long");
   value(v, T, "escalationWindowMs", tc.escalationWindowMs, "ms", "lib/hbr_logic/src/tamper_detector.h", "A jolt within this time of the last one is an alarm");
-  value(v, T, "HBR_TAMPER_ALARM_MS", HBR_TAMPER_ALARM_MS, "ms", "include/device_config.h", "Siren length (main.cpp passes it to the detector)");
+  value(v, T, "HBR_TAMPER_ALARM_MS", HBR_TAMPER_ALARM_MS, "ms", "include/device_config.h", "The siren runs at least this long");
+  value(v, T, "HBR_TAMPER_ALARM_QUIET_MS", HBR_TAMPER_ALARM_QUIET_MS, "ms", "include/device_config.h", "...and until the post has been still this long");
   value(v, T, "HBR_TAMPER_SAMPLE_MS", HBR_TAMPER_SAMPLE_MS, "ms", "include/device_config.h", "Time between accelerometer readings");
   value(v, T, "HBR_TAMPER_GRACE_MS", HBR_TAMPER_GRACE_MS, "ms", "include/device_config.h", "Jolts ignored this long after a re-lock");
   value(v, C, "kPollEveryMs", kPollEveryMs, "ms", "src/card_reader.cpp", "How often the PN532 is asked if a card is there");
