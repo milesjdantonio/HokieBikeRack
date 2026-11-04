@@ -15,7 +15,7 @@ Nothing here is used by `pio run`. PlatformIO only compiles `src/` and `lib/`.
 
 ```bash
 node tools/model/build.mjs           # from the repo root; writes frontend/model/firmware.js + .json
-node tools/model/check.mjs           # 34 checks against the real firmware's behaviour
+node tools/model/check.mjs           # 40 checks against the real firmware's behaviour
 node tools/model/build.mjs --check   # is the committed build current?
 ```
 Rebuild after any change in `src/`, `include/` or `lib/hbr_logic/`.

@@ -5,7 +5,7 @@ red/green LEDs and an active buzzer. Concepts explained in [../docs/notes/firmwa
 
 ## Commands (from this folder)
 ```bash
-pio test -e native      # 37 logic tests on your PC (needs g++; MSYS2 on Windows)
+pio test -e native      # 42 logic tests on your PC (needs g++; MSYS2 on Windows)
 pio run                 # build
 pio run -t upload       # flash
 pio device monitor      # serial console, 115200 baud
@@ -41,7 +41,7 @@ and (with `HBR_ENABLE_SERIAL_SIM 1`) `tap <hex-id>`, `shake`.
 | Green + short beep, green stays 5 s | access granted, unlocked |
 | Red + two beeps | access denied |
 | Red blinks + 3 quick chirps | tamper warning |
-| Flashing red + siren for 10 s | tamper alarm (an allowed card stops it) |
+| Flashing red + siren, at least 10 s, until the rack is still for 5 s | tamper alarm (an allowed card stops it) |
 
 ## Safety
 Servo power from a separate 5 V supply, never an ESP32 pin. Test with the linkage

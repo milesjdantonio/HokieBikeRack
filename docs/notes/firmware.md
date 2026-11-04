@@ -19,7 +19,7 @@ firmware/
      access_policy.cpp    current snapshot in RAM + flash (+ mutex)
      backend_sync.cpp     the network task
      main.cpp             wires it together + serial console
-  test/                   ← Unity tests: pio test -e native  (37 tests)
+  test/                   ← Unity tests: pio test -e native  (42 tests)
 ```
 **Lesson:** if logic doesn't touch hardware, you can test it in seconds on a
 laptop, including weird cases like `millis()` wrapping around after 49 days.
@@ -82,8 +82,12 @@ event) and we retry setup every 15 s.
   "teach itself" as normal.
 - Deviation = length of the vector `(reading - baseline)` in g.
 - 3 consecutive samples over 0.35 g = jolt (filters one-sample noise spikes).
-- Warning → (another jolt within 30 s) → Alarm (10 s). 3 s cooldown so one
+- Warning → (another jolt within 30 s) → Alarm. 3 s cooldown so one
   shake = one event, not fifty.
+- The siren runs at least 10 s (`HBR_TAMPER_ALARM_MS`) and stops only once the post has
+  been still for 5 s (`HBR_TAMPER_ALARM_QUIET_MS`): every jolt during it pushes the end
+  back. The 30 s escalation window counts from when the siren stops, so a thief who
+  waits for silence and tries again gets the siren straight away.
 - **Tuning:** use `accel` in the serial monitor, bump the rack normally, shake
   it "like a thief", and pick a threshold between the two. Change `thresholdG`
   in `tamper_detector.h`.

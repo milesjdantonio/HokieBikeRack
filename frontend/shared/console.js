@@ -901,7 +901,7 @@ function showDrop(r, level, extraInfo = {}) {
     dropAnim("shake", { level: 1 });
     title.textContent = "Tamper Alarm";
     where.textContent = `${r.name}${jolt} · just now`;
-    fill(extra, h("span", { class: "siren" }, h("span", { class: "siren-bar" })), h("span", { class: "drop-note" }, "Siren on for 10 s. The alarm stays open until handled."));
+    fill(extra, h("span", { class: "siren" }, h("span", { class: "siren-bar" })), h("span", { class: "drop-note" }, "Siren on until the rack is still for 5 s, at least 10 s. The alarm stays open until handled."));
     fill(actions, r.incidentStatus ? null : btn("Alert Authorities", () => askAuthorities(rackById(r.id) || r), "btn-police"), open, dismiss);
   } else if (level === "confirm") {
     drop.classList.add("alarm");
@@ -1012,7 +1012,7 @@ function appNow() {
     h("div", { class: "steps-head" }, riveIcon("shake", { size: 72, height: 48, inputs: { level: 1 } }).el,
       h("div", {}, h("b", {}, "Tamper Alarm"), h("span", {}, `${r.name}${r.locationDescription ? `, ${r.locationDescription}` : ""}`))),
     h("ol", {},
-      h("li", { class: "done" }, h("div", {}, h("b", {}, "The rack sounded its siren"), h("p", {}, "It flashed red for 10 s. Bikes stay locked."))),
+      h("li", { class: "done" }, h("div", {}, h("b", {}, "The rack sounded its siren"), h("p", {}, "It flashed red until the rack was still. Bikes stay locked."))),
       h("li", {}, h("div", {}, h("b", {}, "Go and look, or send someone"), h("p", {}, "Check whether a bike or the lock is being forced."),
         btn("Open Rack", () => openRack(r.id)))),
       h("li", { class: r.incidentStatus ? "done" : "" }, h("div", {},

@@ -81,7 +81,11 @@ The model uses `firmware/model/config.h` (fake Wi-Fi, fake token, fake card key)
 3. **Tick "Leave It on the Reader".** The reader reads the card every poll, but the firmware
    acts once (the debouncer in `main.cpp`).
 4. **Knock, then knock again.** One knock under the threshold does nothing. Shake gives a
-   warning; shake again within 30 s and the siren starts. Tap an allowed card to stop it.
+   warning; shake again within 30 s and the siren starts. Keep shaking now and then and it
+   keeps going; stop and it ends 5 s later (at least 10 s). Tap an allowed card to stop it.
+11. **Shackle:** tap a card, Pull Shackle Out, wait for the re-lock, then Push Shackle In.
+    The spring latch takes it with no card. Pull while locked: the latch holds and the yank
+    shakes the post.
 5. **Unlock, then shake.** Ignored: the grace period after an unlock (the shaded band in the
    Tamper row), so a rider pulling a bike out doesn't set off the alarm.
 6. **Drag the Lean slider slowly to 25°, back to 0, then flick it.** Slow lets the baseline
@@ -97,7 +101,7 @@ The model uses `firmware/model/config.h` (fake Wi-Fi, fake token, fake card key)
 ## When the firmware changes
 ```bash
 node tools/model/build.mjs           # about 15 s; writes frontend/model/firmware.js + firmware.json
-node tools/model/check.mjs           # 34 checks: boot, cards, HMAC, tamper, offline, power cut
+node tools/model/check.mjs           # 40 checks: boot, cards, HMAC, tamper, alarm, offline, power cut
 node tools/model/build.mjs --check   # exit 1 if firmware.js is older than the firmware
 ```
 The built files are committed, so teammates who only open the page need nothing installed.

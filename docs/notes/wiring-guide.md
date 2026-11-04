@@ -39,6 +39,13 @@ GPIO 26 ── 220–330 Ω ──► RED LED long leg (+)     short leg (−) �
 ```
 The resistor limits current (~5–8 mA at 3.3 V). No resistor = burnt LED or GPIO.
 
+**Light tubing around the post.** Wrap the tubing around the top of the post and push one
+end over the green LED and the other over the red LED, so the whole tube shows the colour
+(both on at boot = amber). Seal each joint with heat-shrink so outside light doesn't leak
+in. At 5–8 mA a 5 mm LED lights a short tube well but fades along a long one: test the
+length first. If it's too dim, use high-brightness LEDs; don't just lower the resistor
+below 220 Ω (a GPIO pin is good for about 20 mA at most).
+
 ## Active buzzer through an NPN transistor
 ```
                       Buzzer +  ── 5 V (or 3.3 V if it's a 3 V buzzer)

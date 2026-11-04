@@ -9,7 +9,7 @@ Each entry: **what**, **why**, and **what we didn't pick**. Newest last.
 | 2 | **Momentary unlock**, 5 s, auto re-lock. *Confirmed.* | Simple, like a door latch. | Tap-to-lock / same-card-to-unlock (ownership tracking). |
 | 3 | Servo code real but **off by default** (`HBR_ENABLE_SERVO 0`). *Confirmed: "simulate it, test tomorrow".* | Team rule: no live actuator until wiring/fail-safe reviewed. | Simulated-only (no PWM code) or on by default. |
 | 4 | Red + green LEDs, **active buzzer** via NPN transistor. *Confirmed.* | Parts in hand; transistor protects the GPIO. | Buzzer straight on GPIO (too much current for many buzzers). |
-| 5 | Tamper: **warning first, then 10 s siren** if it continues. *Confirmed.* | Fewer false alarms from bumps, still a deterrent. | Siren immediately / lights only. |
+| 5 | Tamper: **warning first, then the siren** if it continues. The siren runs at least 10 s and stops only after 5 s of stillness, so a thief who keeps at it keeps it going; a jolt within 30 s of it stopping restarts it. *Confirmed (team, 2026-11-04).* | Fewer false alarms from bumps, still a deterrent, and the siren can't be waited out mid-attempt. | Siren immediately / lights only / fixed 10 s siren (the earlier choice). |
 | 6 | Offline card list valid **72 h**. *Confirmed.* | Rides out a long weekend outage. Trade-off: a revoked card can work up to 72 h at an offline rack. | 1 h / 24 h / 7 days. |
 | 7 | **Phone hotspot**, plain HTTP behind an explicit flag. *Confirmed hotspot; HTTP flag is default.* | eduroam needs WPA2-Enterprise; VT Open needs registration. HTTPS needs certificates on a laptop. | eduroam support; HTTPS-only. |
 | 8 | **Embedded Postgres** for dev/demo. *Confirmed.* | No install, no Docker on this PC. Real Postgres still works. | Install Postgres / Docker / H2 (H2 lacks JSONB, ON CONFLICT differences). |
@@ -26,7 +26,7 @@ Each entry: **what**, **why**, and **what we didn't pick**. Newest last.
 | 19 | Frontend: **vanilla JS modules**, served by the backend, CSP on. *Default.* | Zero tooling; same origin → no CORS. | React + build step. |
 | 20 | `huge_app.csv` partition. *Default.* | App was at 92% of 1.25 MB before adding NFC/servo. | `min_spiffs` (keeps OTA, smaller app). |
 | 21 | Tamper ignored while unlocked and 10 s after. *Default.* | Pulling a bike out shakes the rack. | Always armed (false alarms). |
-| 22 | An allowed card **silences** the alarm. *Default.* | Owner returning shouldn't stand next to a siren. | Alarm always runs full 10 s. |
+| 22 | An allowed card **silences** the alarm. *Default.* | Owner returning shouldn't stand next to a siren. | Alarm always runs until the rack is still. |
 | 23 | Events tagged `simulated: true` from the simulator → **SIM** badge. *Default.* | Plan says UI must distinguish demo data from live. | Separate demo database. |
 | 24 | No Claude co-author line on commits after the first three. *Confirmed by Miles.* | Miles's preference. | — |
 | 25 | Staff **Mark Handled** also resolves the rack's open police incident. *Asked for by Miles, 2026-11-02.* | Before, the pin kept flashing and riders kept seeing "alarm" until someone pressed Resolved in the police view; staff had no way to end it. Lesson: the alarm on screen came from two places (unhandled TAMPER_ALARM events **and** an open incident), and only one of them was being cleared. | Only police can end it (old behavior); a separate "Resolve" button for staff. |

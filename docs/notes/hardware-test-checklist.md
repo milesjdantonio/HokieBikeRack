@@ -8,7 +8,7 @@ Serial monitor: `pio device monitor` (115200 baud) from `firmware/`.
 Type commands + Enter.
 
 ## 0. Prep (laptop)
-- [ ] `cd firmware && pio test -e native` → 37 tests pass.
+- [ ] `cd firmware && pio test -e native` → 42 tests pass.
 - [ ] Copy `include/config.example.h` → `include/config.h`. Set `HBR_CARD_KEY`
       (`python -c "import secrets; print(secrets.token_hex(32))"`). Leave Wi-Fi empty for now.
 - [ ] `pio run -t upload` with **only the ESP32** plugged in. Monitor shows
@@ -23,7 +23,7 @@ Type commands + Enter.
 - [ ] Boot: red+green flash with a beep, then green.
 - [ ] Idle: a short **red** blip every 5 s (not ready: no card list yet). Expected.
 - [ ] `tap 0011223344` → red + two beeps, log says `DENIED (NO_SNAPSHOT)`.
-- [ ] `shake` → red blinks + 3 chirps (warning). `shake` again within 30 s (after 3 s) → flashing red + siren for 10 s.
+- [ ] `shake` → red blinks + 3 chirps (warning). `shake` again within 30 s (after 3 s) → flashing red + siren. Keep shaking now and then: it keeps going. Stop: it ends 5 s later (at least 10 s in all).
 - [ ] Buzzer too quiet/loud? Note it. Transistor getting hot? Check the leg order.
 
 ## 2. I2C sensors

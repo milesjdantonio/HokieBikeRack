@@ -34,7 +34,7 @@ Useful commands (Windows, from repo root):
 | Lock mode | **Momentary**: allowed card → unlock 5 s → auto re-lock |
 | Lights | Separate **red + green LEDs** with 220–330 Ω resistors |
 | Sound | **Active buzzer** (on/off only), switched by an NPN transistor |
-| Tamper response | 1st detection → **warning** (red blinks + quick chirps). Continues within the escalation window → **alarm** (flash red + siren **10 s**). Never moves the lock. |
+| Tamper response | 1st detection → **warning** (red blinks + quick chirps). Continues within the escalation window → **alarm** (flash red + siren for **at least 10 s, until the rack has been still for 5 s**; a jolt within 30 s of it stopping starts it again). Never moves the lock. |
 | Offline policy | Saved card list valid **72 h** after it was issued; after that every card is denied (fail-secure) |
 | Demo Wi-Fi | **Phone hotspot** (WPA2-Personal). Plain HTTP allowed only with an explicit opt-in flag for the local demo |
 | Database | PostgreSQL. Dev/demo uses **embedded Postgres** profile (no install). Real Postgres still supported |
