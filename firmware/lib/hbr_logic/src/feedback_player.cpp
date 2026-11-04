@@ -30,7 +30,7 @@ std::vector<Step> FeedbackPlayer::stepsFor(Pattern pattern, uint32_t holdMs) {
               {60, true, false, true}, {90, false, false, false},
               {500, true, false, false}};
     case Pattern::TamperAlarm:
-      // One siren "cycle"; play() loops it for the full alarm time.
+      // One siren "cycle"; play() loops it for the alarm time or until stop().
       // Long-short-short pulses sound more urgent than a steady tone.
       return {{300, true, false, true}, {100, false, false, false},
               {100, true, false, true}, {100, false, false, false},
@@ -61,7 +61,7 @@ Output FeedbackPlayer::update(uint32_t nowMs) {
     uint32_t elapsed = nowMs - startMs_;
     uint32_t cycle = totalMs(steps_);
     uint32_t playFor = repeatForMs_ ? repeatForMs_ : cycle;
-    if (cycle == 0 || elapsed >= playFor) {
+    if (cycle == 0 || (repeatForMs_ != kUntilStopped && elapsed >= playFor)) {
       stop();  // finished; fall through to the idle blip below
     } else {
       uint32_t t = elapsed % cycle;  // position inside the (possibly repeating) cycle

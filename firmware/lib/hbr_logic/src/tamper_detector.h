@@ -12,8 +12,10 @@
 //     ("deviation", in g).
 //  3. A "jolt" = deviation above the threshold for a few samples in a row.
 //     One-sample spikes (electrical noise) are ignored.
-//  4. First jolt -> WARNING. Another jolt soon after -> ALARM (10 s siren).
-//     Calm for a while -> back to the WARNING level.
+//  4. First jolt -> WARNING. Another jolt soon after -> ALARM.
+//  5. The siren runs at least 10 s, and only stops once the post has been
+//     still for 5 s: shaking it keeps it going. A jolt within 30 s of the
+//     siren stopping starts it again. Calm for 30 s -> back to the WARNING level.
 //
 // Tamper signals must NEVER move the lock. They only make noise and log events.
 #include <stdint.h>
@@ -30,8 +32,10 @@ struct TamperConfig {
   uint32_t warmupMs = 2000;          // learn the baseline for this long after start
   uint32_t cooldownMs = 3000;        // after a signal, ignore jolts for this long
                                      // (so one shake = one event, not 50)
-  uint32_t escalationWindowMs = 30000;  // a jolt within this time of the last signal -> ALARM
-  uint32_t alarmDurationMs = 10000;  // siren length
+  uint32_t escalationWindowMs = 30000;  // a jolt within this time of the last signal, or of
+                                        // the siren stopping -> ALARM
+  uint32_t alarmMinMs = 10000;       // the siren runs at least this long...
+  uint32_t alarmQuietMs = 5000;      // ...and until the post has been still this long
 };
 
 enum class TamperSignal { None, Warning, Alarm };
@@ -47,6 +51,8 @@ class TamperDetector {
   TamperSignal update(float x, float y, float z, uint32_t nowMs, bool armed = true);
 
   bool alarmActive(uint32_t nowMs) const;
+  // How long the siren will still run if the post stays still from now on (0 = off).
+  uint32_t alarmLeftMs(uint32_t nowMs) const;
   // An allowed card was tapped: stop the alarm and forget the escalation.
   void silence();
   void reset();
@@ -56,6 +62,7 @@ class TamperDetector {
 
  private:
   TamperSignal trigger(uint32_t nowMs);
+  uint32_t alarmEndOffsetMs() const;  // when the siren stops, counted from its start
 
   TamperConfig config_;
   bool started_ = false;
@@ -65,8 +72,10 @@ class TamperDetector {
   float lastDeviation_ = 0;
   bool hasSignaled_ = false;  // have we sent any signal yet (for the windows below)
   uint32_t lastSignalMs_ = 0;
+  uint32_t escalateFromMs_ = 0;  // last signal or the end of the last siren, whichever is later
   bool alarmOn_ = false;
   uint32_t alarmStartMs_ = 0;
+  uint32_t lastJoltMs_ = 0;  // last sample that was still part of a jolt while the siren ran
 };
 
 }  // namespace hbr

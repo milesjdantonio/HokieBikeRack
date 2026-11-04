@@ -27,13 +27,15 @@
 namespace {
 hbr::TamperDetector tamper([] {
   hbr::TamperConfig c;
-  c.alarmDurationMs = HBR_TAMPER_ALARM_MS;
+  c.alarmMinMs = HBR_TAMPER_ALARM_MS;
+  c.alarmQuietMs = HBR_TAMPER_ALARM_QUIET_MS;
   return c;
 }());
 hbr::CardDebouncer debouncer(2000);
 uint32_t lastTamperSampleMs = 0;
 bool readerWasOk = true;
 bool accelWasOk = true;
+bool alarmWasOn = false;
 bool simShakeActive = false;  // serial `shake` command
 uint32_t simShakeUntilMs = 0;
 
@@ -60,6 +62,7 @@ void handleCard(const CardId &card) {
     lockRequestUnlock();
     // An allowed card also silences a tamper alarm (the owner is back).
     tamper.silence();
+    alarmWasOn = false;
     feedbackStop();
     feedbackPlay(hbr::Pattern::Granted, HBR_UNLOCK_DURATION_MS);
     eventQueuePush("ACCESS_GRANTED", "INFO", details);
@@ -83,9 +86,10 @@ void handleTamperSignal(hbr::TamperSignal signal) {
     feedbackPlay(hbr::Pattern::TamperWarning);
     eventQueuePush("TAMPER_WARNING", "MEDIUM", details);
   } else {
-    Serial.printf("[tamper] ALARM (%.2f g) - siren for %u s\n", tamper.lastDeviationG(),
-                  (unsigned)(HBR_TAMPER_ALARM_MS / 1000));
-    feedbackPlay(hbr::Pattern::TamperAlarm, HBR_TAMPER_ALARM_MS);
+    Serial.printf("[tamper] ALARM (%.2f g) - siren for at least %u s, until still for %u s\n",
+                  tamper.lastDeviationG(), (unsigned)(HBR_TAMPER_ALARM_MS / 1000),
+                  (unsigned)(HBR_TAMPER_ALARM_QUIET_MS / 1000));
+    feedbackPlay(hbr::Pattern::TamperAlarm, hbr::kUntilStopped);
     eventQueuePush("TAMPER_ALARM", "HIGH", details);
   }
   backendSyncRequestUpload();
@@ -303,9 +307,17 @@ void loop() {
   // Shaking -> warning, then alarm. Never moves the lock.
   sampleTamperSensor();
 
+  // The siren stops once the post has been still long enough (or a card silenced it).
+  bool alarmOn = tamper.alarmActive(millis());
+  if (alarmWasOn && !alarmOn) {
+    feedbackStopSiren();
+    Serial.println("[tamper] siren off: the post has been still");
+  }
+  alarmWasOn = alarmOn;
+
   lockUpdate();
   deviceStatus.lockUnlocked = lockIsCommandedUnlocked();
-  deviceStatus.alarmActive = tamper.alarmActive(millis());
+  deviceStatus.alarmActive = alarmOn;
   reportSensorChanges();
 
   feedbackSetReady(accessPolicyReady() && credentialKeyConfigured() && cardReaderHealthy());

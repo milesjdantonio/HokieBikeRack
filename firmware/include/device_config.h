@@ -57,4 +57,5 @@
 constexpr uint32_t HBR_UNLOCK_DURATION_MS = 5000;     // momentary unlock length
 constexpr uint32_t HBR_TAMPER_GRACE_MS = 10000;       // ignore jolts this long after re-lock
 constexpr uint32_t HBR_TAMPER_SAMPLE_MS = 20;         // 50 accelerometer samples per second
-constexpr uint32_t HBR_TAMPER_ALARM_MS = 10000;       // siren length
+constexpr uint32_t HBR_TAMPER_ALARM_MS = 10000;       // the siren runs at least this long...
+constexpr uint32_t HBR_TAMPER_ALARM_QUIET_MS = 5000;  // ...and until the post has been still this long
