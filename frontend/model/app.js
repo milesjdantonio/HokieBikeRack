@@ -21,15 +21,16 @@ const TAP_MS = 400;  // how long a quick tap keeps the card in the reader's fiel
 
 const PART_INFO = {
   post: { what: "Galvanised square post, cast into concrete with the lock module on top. Drag it to shake it.", files: [] },
-  shackle: { what: "The bar riders push through the rear wheel. Its two legs go into the sockets, where the keyhole plate holds them.", files: [] },
+  shackle: { what: "The bar riders push through the rear wheel. Each leg has a ramped tip and a groove behind it. Push it in at any time and the latch snaps into the grooves.", files: [] },
   reader: { what: "Where riders tap. The PN532's antenna sits right under this window. Click it to tap the card you picked.", files: ["src/card_reader.cpp"] },
-  lights: { what: "Green and red 5 mm LEDs, each through a 220 to 330 ohm resistor.", pins: ["green", "red"], files: ["src/feedback.cpp", "lib/hbr_logic/src/feedback_player.cpp"] },
+  tubing: { what: "Light tubing wrapped around the top of the post. The green LED shines into one end and the red LED into the other, so riders see the colour from every side.", pins: ["green", "red"], files: ["src/feedback.cpp"] },
+  lights: { what: "Green and red 5 mm LEDs, each through a 220 to 330 ohm resistor. They also light the tubing around the post.", pins: ["green", "red"], files: ["src/feedback.cpp", "lib/hbr_logic/src/feedback_player.cpp"] },
   vents: { what: "Slots so the buzzer inside can be heard.", files: [] },
   esp32: { what: "ESP32 DevKit with an ESP32-WROOM-32. loop() runs on core 1: cards, tamper sensor, lock timer, lights. The network task runs on core 0.", files: ["src/main.cpp", "src/backend_sync.cpp"] },
   pn532: { what: "PN532 NFC reader in I2C mode at address 0x24, powered from 3.3 V.", pins: ["sda", "scl"], files: ["src/card_reader.cpp"] },
   mpu: { what: "MPU-6050 accelerometer on a GY-521 board at I2C address 0x68, glued inside the post on its side, so gravity reads on its y axis.", pins: ["sda", "scl"], files: ["src/tamper_sensor.cpp", "lib/hbr_logic/src/tamper_detector.cpp"] },
   servo: { what: "MG90S micro servo. 50 Hz signal from the ESP32, power from the separate 5 V supply. It has no position feedback.", pins: ["servo"], files: ["src/lock.cpp", "lib/hbr_logic/src/lock_controller.h"] },
-  latch: { what: "Keyhole plate and bolt. The servo slides the orange bolt off the plate so the shackle can come out.", pins: ["servo"], files: ["src/lock.cpp"] },
+  latch: { what: "Spring latch. A spring holds the plate in the shackle's grooves. The servo pulls it aside through a slotted link, so it can open the latch but never holds it shut. A shackle pushed in later shoves the plate aside on its ramp and the plate snaps back: locked without a card or power.", pins: ["servo"], files: ["src/lock.cpp"] },
   buzzer: { what: "Active buzzer: one fixed pitch, on or off. Switched by an NPN transistor, 1 kohm to its base.", pins: ["buzzer"], files: ["src/feedback.cpp", "lib/hbr_logic/src/feedback_player.cpp"] },
   parts: { what: "The LED resistors, the 1 kohm base resistor and the NPN transistor for the buzzer.", pins: ["green", "red", "buzzer"], files: [] },
   cap: { what: "100 to 1000 uF electrolytic across the servo's 5 V, close to the servo. It covers the current spike when the servo starts moving.", files: [] },
@@ -68,6 +69,9 @@ let serverDirty = true;
 let serialLines = 0, serialPartial = "";
 let lastReal = performance.now(), lastDom = 0, lastServer = 0;
 const busy = { mpu: { n: 0, at: -1e9 }, pn: { n: 0, at: -1e9 } };
+// The shackle and spring latch are mechanics: the firmware can't see them (no sensor).
+const shackle = { out: 0, target: 0, cam: 0, rattle: 0, note: "" };
+const SHACKLE_MS = 450;  // how long pulling it out or pushing it in takes
 
 runner = new FirmwareRunner({
   physics, server,
@@ -131,6 +135,7 @@ function frame(nowReal) {
       lastDom = nowReal;
       renderLive(s);
       renderCardReadout(s);
+      syncShackleButton();
       if (selected) renderPartCard(selected, s);
     }
     if (serverDirty || nowReal - lastServer > 1000) {
@@ -153,6 +158,7 @@ function step(ms) {
     ms = Math.max(0, frameStart + ms - runner.nowMs);
   }
   if (ms > 0) process(runner.run(ms), frameStart);
+  moveShackle(runner.nowMs - frameStart);
   if (runner.restartRequested) reboot(RESET.SOFTWARE);
 }
 
@@ -200,7 +206,7 @@ function sceneFrame(s, now) {
   return {
     green: s.feedback.green, red: s.feedback.red, buzzer: s.feedback.buzzer,
     sway: { x: physics.x, z: physics.z }, lean: physics.lean,
-    servoAngle: arm.angle, latchOpen: arm.angle === null ? 0 : (arm.angle - lockedDeg) / (openDeg - lockedDeg),
+    servoAngle: arm.angle, latchOpen: Math.max(servoLatchOpen(), shackle.cam), shackleOut: shackle.out + shackle.rattle,
     unlocked: s.lock.unlocked, servoAttached: s.lock.servoAttached, servoPowered: arm.powered,
     mpuBusy: now - busy.mpu.at < 250 && s.accel.linked, pnBusy: now - busy.pn.at < 250 && s.reader.linked,
     mpuLinked: s.accel.linked, pnLinked: s.reader.linked, cardNear: s.reader.cardPresent,
@@ -226,6 +232,7 @@ function wireControls() {
     syncTapButton();
   });
   $("#knock").addEventListener("click", () => physics.knock(runner.worldMs + 1));
+  $("#shackle").addEventListener("click", useShackle);
   $("#shake").addEventListener("click", () => physics.shake(runner.worldMs + 1, 2000));
   $("#lean").addEventListener("input", (e) => {
     physics.setLean(Number(e.target.value));
@@ -329,6 +336,63 @@ function pickFromScene(id, fromCanvas) {
   scene?.focusPart(id);
 }
 
+// ---------------------------------------------------------------- shackle and spring latch
+// How far the servo has pulled the latch open, 0..1, from where the horn really is.
+function servoLatchOpen() {
+  if (arm.angle === null) return 0;
+  const lockedDeg = values.HBR_SERVO_LOCKED_DEG, openDeg = values.HBR_SERVO_UNLOCKED_DEG;
+  return Math.max(0, Math.min(1, (arm.angle - lockedDeg) / (openDeg - lockedDeg)));
+}
+
+function useShackle() {
+  if (shackle.target === 1) {
+    // Push it in. Works whether or not the latch is open: the ramps push the latch aside.
+    shackle.target = 0;
+    const latched = servoLatchOpen() < 0.9;
+    shackle.note = latched
+      ? "Pushed in. The ramps pushed the latch aside and it snapped into the grooves: locked, with no card and no power."
+      : "Pushed in. The latch is still held open; it closes on the grooves when the unlock time is up.";
+    physics.knock(runner.worldMs + SHACKLE_MS, 0.03, "z");  // the bump of it seating
+  } else if (servoLatchOpen() > 0.9) {
+    shackle.target = 1;
+    shackle.note = "Pulled out. The servo is holding the latch open.";
+  } else {
+    // Locked: it moves a few millimetres and stops. Yanking it shakes the post.
+    shackle.rattle = 0.03;
+    shackle.note = "The latch held. Yanking a locked shackle shakes the post, so the tamper sensor feels it.";
+    physics.knock(runner.worldMs + 1, 0.1, "z");
+  }
+  shackle.noteAt = performance.now();
+  syncShackleButton();
+}
+
+function moveShackle(ms) {
+  if (ms <= 0) return;
+  const step = ms / SHACKLE_MS;
+  const before = shackle.out;
+  shackle.out += Math.max(-step, Math.min(step, shackle.target - shackle.out));
+  // While a leg goes in past the closed latch, its ramp pushes the latch aside, then it snaps back.
+  const passing = shackle.target === 0 && before > 0 && shackle.out < 0.25 && servoLatchOpen() < 0.9;
+  shackle.cam = passing ? Math.min(1, shackle.cam + step * 6) : Math.max(0, shackle.cam - step * 12);
+  shackle.rattle = Math.max(0, shackle.rattle - step * 0.15);
+  if (before !== shackle.out) syncShackleButton();
+}
+
+function syncShackleButton() {
+  $("#shackle").textContent = shackle.target === 1 ? "Push Shackle In" : "Pull Shackle Out";
+  const fresh = shackle.note && performance.now() - shackle.noteAt < 4000;
+  $("#shackle-readout").textContent = fresh ? shackle.note : shackleText();
+}
+
+function shackleText() {
+  if (shackle.out > 0.99) {
+    return servoLatchOpen() > 0.9 ? "Out. The servo is holding the latch open."
+      : "Out. The latch has closed again. Push the shackle in and it still locks.";
+  }
+  if (shackle.out > 0.01) return "Moving.";
+  return servoLatchOpen() > 0.9 ? "In, latch held open by the servo." : "In and latched.";
+}
+
 // ---------------------------------------------------------------- live readout
 function renderLive(s) {
   const now = s.ms;
@@ -352,7 +416,11 @@ function renderLive(s) {
   const pct = Math.min(100, s.tamper.deviationG / (th * 2) * 100);
   let tState;
   if (!s.accel.healthy) tState = `<span class="is-bad">Accelerometer not answering</span>`;
-  else if (s.tamper.alarm) tState = `<span class="is-bad">Alarm, siren ${secs(s.tamper.alarmLeftMs)} left</span>`;
+  else if (s.tamper.alarm) {
+    tState = s.tamper.alarmMs < values.HBR_TAMPER_ALARM_MS
+      ? `<span class="is-bad">Alarm. At least ${secs(s.tamper.alarmLeftMs)} more</span>`
+      : `<span class="is-bad">Alarm. Stops after ${secs(values.HBR_TAMPER_ALARM_QUIET_MS)} still: ${secs(s.tamper.alarmLeftMs)} to go</span>`;
+  }
   else if (s.tamper.warmingUp) tState = "Learning the baseline";
   else if (!s.tamper.armed) {
     const left = s.lock.unlocked ? s.lock.leftMs + values.HBR_TAMPER_GRACE_MS : values.HBR_UNLOCK_DURATION_MS + values.HBR_TAMPER_GRACE_MS - s.lock.sinceUnlockMs;
@@ -426,7 +494,7 @@ function renderPartCard(id, s) {
 function nameOf(id) {
   return { post: "Post", shackle: "Shackle", reader: "Reader Window", lights: "Lights", vents: "Buzzer Vents", esp32: "ESP32 DevKit",
     pn532: "PN532 Reader", mpu: "MPU-6050", servo: "MG90S Servo", latch: "Latch", buzzer: "Buzzer", parts: "Resistors and Transistor",
-    cap: "Capacitor", supply: "5 V Supply", usb: "USB Cable" }[id] || id;
+    cap: "Capacitor", tubing: "Light Tubing", supply: "5 V Supply", usb: "USB Cable" }[id] || id;
 }
 
 function partNow(id, s) {
@@ -448,7 +516,8 @@ function partNow(id, s) {
     case "buzzer": case "vents": return `GPIO ${runner.config.pins.buzzer} is ${s.feedback.buzzer ? "high: beeping" : "low: quiet"}.`;
     case "reader": return s.reader.cardPresent ? "A card is on the reader." : `Picked card: ${esc(pickedCard.name)}. Click the window to tap it.`;
     case "post": return `Tamper deviation ${s.tamper.deviationG.toFixed(2)} g. The sensor is ${Math.round(POST.sensorHeight * 1000)} mm up the post.`;
-    case "shackle": return s.lock.unlocked ? "The latch is open: it can be pulled out." : "Held by the keyhole plate.";
+    case "shackle": return shackleText();
+    case "tubing": return s.feedback.green && s.feedback.red ? "Amber: both LEDs on." : s.feedback.green ? "Green." : s.feedback.red ? "Red." : "Dark.";
     case "supply": case "cap": return arm.powered ? "5 V on." : '<span class="is-warn">Supply off: the servo can\'t move.</span>';
     case "usb": return `Serial at ${seen.baud} baud, ${s.net.http} requests sent to the server so far.`;
     default: return "";
@@ -540,7 +609,8 @@ function drawPatterns(patterns) {
     const total = steps.reduce((a, s) => a + s[0], 0);
     const item = document.createElement("div");
     item.className = "pattern";
-    const repeat = name === "TamperAlarm" ? `, repeated for ${values.HBR_TAMPER_ALARM_MS / 1000} s` : "";
+    const repeat = name === "TamperAlarm"
+      ? `, repeated for at least ${values.HBR_TAMPER_ALARM_MS / 1000} s, until the post has been still ${values.HBR_TAMPER_ALARM_QUIET_MS / 1000} s` : "";
     item.innerHTML = `<div class="row spread"><b>${PATTERN_NAMES[name]}</b><span class="note">${total} ms${repeat}</span></div>`;
     const canvas = document.createElement("canvas");
     item.append(canvas);

@@ -27,7 +27,7 @@ const HEADER_RIGHT = [23, 22, "TX", "RX", 21, 19, 18, 5, 17, 16, 4, 2, 15, "GND"
 export const PARTS = {
   post: "Post", shackle: "Shackle", reader: "Reader Window", lights: "Lights", vents: "Buzzer Vents",
   esp32: "ESP32 DevKit", pn532: "PN532 Reader", mpu: "MPU-6050", servo: "MG90S Servo", latch: "Latch",
-  buzzer: "Buzzer", parts: "Resistors and Transistor", cap: "Capacitor", supply: "5 V Supply", usb: "USB Cable",
+  buzzer: "Buzzer", parts: "Resistors and Transistor", tubing: "Light Tubing", cap: "Capacitor", supply: "5 V Supply", usb: "USB Cable",
 };
 
 export class RackScene {
@@ -95,6 +95,7 @@ export class RackScene {
     this.buildFrame();
     this.buildHead();
     this.buildShackle();
+    this.buildTubing();
     this.buildInternals();
     this.setView(false);
     this.bindPointer();
@@ -255,6 +256,38 @@ export class RackScene {
     this.label("shackle", () => this.rack.localToWorld(V(x, (lo + hi) / 2 + 0.07, depth)), { outside: true });
   }
 
+  // Light tubing wrapped twice around the top of the post, at the base of the lock module.
+  // The green LED shines into one end and the red LED into the other, so the whole tube shows
+  // the light colour from every side.
+  buildTubing() {
+    const head = this.head;
+    const half = 0.052, y0 = 0.007, rise = 0.011, turns = 2, r = 0.012;
+    const pts = [];
+    const ringPoint = (u) => {  // u in 0..1 around a rounded square, starting at the front
+      const a = u * Math.PI * 2 + Math.PI / 2;
+      const c = Math.cos(a), sn = Math.sin(a);
+      const k = 1 / Math.max(Math.abs(c), Math.abs(sn)) ** 0.85;  // squarish, rounded corners
+      return [c * half * Math.min(k, 1.3), sn * half * Math.min(k, 1.3)];
+    };
+    pts.push(V(-0.016, 0.026, 0.05));  // green LED end
+    pts.push(V(-0.012, y0 + 0.004, half + 0.004));
+    const n = 96 * turns;
+    for (let i = 0; i <= n; i++) {
+      const u = i / 96;
+      const [x, z] = ringPoint(u);
+      pts.push(V(x, y0 + rise * (i / n), z));
+    }
+    pts.push(V(0.012, y0 + rise + 0.004, half + 0.004));
+    pts.push(V(0.016, 0.026, 0.05));  // red LED end
+    const mat = new THREE.MeshStandardMaterial({ color: 0xe8e4e6, roughness: 0.35, transparent: true, opacity: 0.85,
+      emissive: 0xffffff, emissiveIntensity: 0 });
+    const tube = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 420, 0.0032, 10), mat);
+    tube.castShadow = true;
+    head.add(this.part(tube, "tubing"));
+    this.tubeMat = mat;
+    this.label("tubing", () => head.localToWorld(V(-half - 0.01, 0.0, 0.03)), { outside: true });
+  }
+
   insideOnly(...meshes) {
     this.internals.push(...meshes);
   }
@@ -362,6 +395,7 @@ export class RackScene {
     const plate = new THREE.Mesh(new THREE.BoxGeometry(0.05, RACK.plateTop - 0.38, 0.003), m.hard);
     plate.position.set(A, (RACK.plateTop + 0.38) / 2, RACK.face - 0.034);
     this.rack.add(this.part(plate, "latch"));
+    this.plate = plate;
     const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.006, 0.012), m.bolt);
     bolt.position.set(A, RACK.plateTop + 0.0035, RACK.face - 0.034);
     this.rack.add(this.part(bolt, "latch"));
@@ -464,7 +498,7 @@ export class RackScene {
   }
 
   focusPart(id) {
-    const preset = { esp32: "head", pn532: "head", buzzer: "head", parts: "head", lights: "head", reader: "head",
+    const preset = { esp32: "head", pn532: "head", buzzer: "head", parts: "head", lights: "head", tubing: "head", reader: "head",
       vents: "head", usb: "head", servo: "latch", latch: "latch", cap: "latch", supply: "latch", mpu: "sensor" }[id];
     if (preset) this.focus(preset);
   }
@@ -532,14 +566,21 @@ export class RackScene {
     // Servo horn and bolt.
     if (f.servoAngle !== null) {
       this.horn.rotation.z = (f.servoAngle - 90) * Math.PI / 180;
+      // The spring latch slides sideways off the shackle's grooves: pulled by the servo, or
+      // pushed aside by the ramp on a shackle leg going in.
       const open = clamp(f.latchOpen, 0, 1);
       this.bolt.position.x = A - open * 0.034;
-      this.shackle.position.z = open > 0.98 && f.unlocked ? 0.006 : 0;
+      this.plate.position.x = A - open * 0.012;
       this.rack.updateMatrixWorld(true);
       const tip = this.horn.localToWorld(V(0.015, 0, 0));
       const end = this.bolt.localToWorld(V(0.012, 0.001, 0));
       placeRod(this.rod, this.rack.worldToLocal(tip), this.rack.worldToLocal(end));
     }
+    this.shackle.position.z = f.shackleOut * 0.16;
+    // Light tubing: green, red, or amber when both LEDs are on.
+    const tc = f.green && f.red ? 0xffb030 : f.green ? 0x3cff7a : f.red ? 0xff3020 : 0xffffff;
+    this.tubeMat.emissive.setHex(tc);
+    this.tubeMat.emissiveIntensity = f.green || f.red ? 2.2 : 0;
     m.buzzerTop.emissiveIntensity = f.buzzer ? 0.6 : 0;
     this.buzzerMesh.material = f.buzzer ? m.buzzerOn : m.black;
     // Wires: GPIO wires light while their pin is high; I2C wires while the bus is busy.
