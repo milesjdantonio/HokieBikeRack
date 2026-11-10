@@ -27,14 +27,17 @@ bool initReader() {
   if (!nfc) {
     // Created here (not as a global) so pinMode() inside the constructor runs
     // after the Arduino core has started.
-    nfc = new Adafruit_PN532(static_cast<uint8_t>(PN532_IRQ_PIN),
-                             static_cast<uint8_t>(PN532_RESET_PIN), &Wire);
+    nfc = new Adafruit_PN532(PN532_IRQ_PIN, PN532_RESET_PIN, &Wire);
   }
   if (!nfc->begin()) return false;
   uint32_t version = nfc->getFirmwareVersion();
   if (!version) return false;  // nothing answered at address 0x24
-  Serial.printf("[nfc] PN5%02X firmware %u.%u\n", (unsigned)((version >> 24) & 0xFF),
-                (unsigned)((version >> 16) & 0xFF), (unsigned)((version >> 8) & 0xFF));
+  Serial.print(F("[nfc] PN5"));
+  Serial.print((version >> 24) & 0xFF, HEX);
+  Serial.print(F(" firmware "));
+  Serial.print((version >> 16) & 0xFF);
+  Serial.print('.');
+  Serial.println((version >> 8) & 0xFF);
   // SAM = "Security Access Module" config; this call just puts the PN532 in
   // normal card-reading mode.
   if (!nfc->SAMConfig()) return false;
@@ -47,14 +50,14 @@ bool initReader() {
 void markFailure() {
   if (++failures >= kFailuresBeforeUnhealthy && healthy) {
     healthy = false;
-    Serial.println("[nfc] reader stopped answering; will retry");
+    Serial.println(F("[nfc] reader stopped answering; will retry"));
   }
 }
 }  // namespace
 
 bool cardReaderSetup() {
   healthy = initReader();
-  if (!healthy) Serial.println("[nfc] PN532 not found. Check wiring and the I2C DIP switches.");
+  if (!healthy) Serial.println(F("[nfc] PN532 not found. Check wiring and the I2C DIP switches."));
   return healthy;
 }
 
@@ -65,7 +68,7 @@ bool cardReaderPoll(CardId &card) {
   if (!healthy) {
     if (now - lastInitAttemptMs >= kRetryInitEveryMs) {
       healthy = initReader();
-      if (healthy) Serial.println("[nfc] reader is back");
+      if (healthy) Serial.println(F("[nfc] reader is back"));
     }
     return false;
   }

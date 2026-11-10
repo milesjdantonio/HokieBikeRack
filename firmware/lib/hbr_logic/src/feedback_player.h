@@ -3,7 +3,7 @@
 //
 // No hardware here: update() just says which outputs should be ON right now,
 // and src/feedback.cpp writes that to the pins. Tested in
-// firmware/test/test_feedback_player.
+// firmware/test/test_feedback_lock_util.
 //
 // Why not just use delay()? A pattern like "beep, wait, beep" with delay()
 // would freeze the whole loop: no card reads, no tamper checks. Instead each
@@ -12,9 +12,10 @@
 //
 // Active buzzer = on/off only (one fixed pitch). "Sirens" and "chirps" are
 // made by switching it on and off with different timings.
+//
+// The steps live in a small fixed array (no std::vector): the Arduino Uno has
+// no C++ standard library and only 2 KB of RAM.
 #include <stdint.h>
-
-#include <vector>
 
 namespace hbr {
 
@@ -40,6 +41,9 @@ struct Step {
   bool red, green, buzzer;
 };
 
+// The longest pattern (TamperWarning) has 7 steps.
+constexpr uint8_t kMaxSteps = 8;
+
 class FeedbackPlayer {
  public:
   // holdMs: for Granted, how long green stays on (= unlock time).
@@ -48,17 +52,19 @@ class FeedbackPlayer {
   void stop();  // e.g. an allowed card silences the alarm
 
   // Idle "heartbeat" blip every 5 s when nothing else is playing:
-  // green blip = ready, red blip = not ready (no valid card list / reader fault).
+  // green blip = ready, red blip = not ready (no cards enrolled / reader fault).
   void setReady(bool ready) { ready_ = ready; }
 
   Output update(uint32_t nowMs);
   Pattern current() const { return current_; }
 
-  static std::vector<Step> stepsFor(Pattern pattern, uint32_t holdMs);
+  // Fills `out` with the pattern's steps and returns how many there are.
+  static uint8_t stepsFor(Pattern pattern, uint32_t holdMs, Step out[kMaxSteps]);
 
  private:
   Pattern current_ = Pattern::None;
-  std::vector<Step> steps_;
+  Step steps_[kMaxSteps] = {};
+  uint8_t stepCount_ = 0;
   uint32_t startMs_ = 0;
   uint32_t repeatForMs_ = 0;  // 0 = play steps once; otherwise loop for this long
   bool ready_ = false;

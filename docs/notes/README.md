@@ -5,7 +5,7 @@ team can look back, review, and learn from the decisions. Read in this order:
 
 1. [overview.md](overview.md): the big picture. Follows one card tap and one
    shake from the rack all the way to the dashboard. **Start here.**
-2. [firmware.md](firmware.md): ESP32 concepts: non-blocking code, two tasks
+2. [firmware.md](firmware.md): Arduino Uno concepts: non-blocking code, 2 KB of RAM, EEPROM card list
    + mutexes, I2C, the MPU-6050 registers, HMAC card references, NTP, servo PWM,
    fail-secure.
 3. [backend.md](backend.md): Spring Boot: filter chains, device tokens vs

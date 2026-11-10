@@ -47,7 +47,9 @@ bool initSensor() {
   if (!readRegisters(kRegWhoAmI, &who, 1)) return false;
   // A genuine MPU-6050 says 0x68. Many cheap GY-521 boards carry clone chips
   // that say 0x70/0x72/0x98; they work the same for our accelerometer use.
-  Serial.printf("[accel] WHO_AM_I = 0x%02X%s\n", who, who == 0x68 ? " (MPU-6050)" : " (clone?)");
+  Serial.print(F("[accel] WHO_AM_I = 0x"));
+  Serial.print(who, HEX);
+  Serial.println(who == 0x68 ? F(" (MPU-6050)") : F(" (clone?)"));
   // Power-on default is SLEEP mode. 0x01 = wake up, use the gyro's clock (more stable).
   if (!writeRegister(kRegPowerMgmt1, 0x01)) return false;
   delay(10);
@@ -60,7 +62,7 @@ bool initSensor() {
 
 bool tamperSensorSetup() {
   healthy = initSensor();
-  if (!healthy) Serial.println("[accel] MPU-6050 not found. Check SDA/SCL/VCC/GND.");
+  if (!healthy) Serial.println(F("[accel] MPU-6050 not found. Check SDA (A4) / SCL (A5) / VCC / GND."));
   return healthy;
 }
 
@@ -70,7 +72,7 @@ bool tamperSensorRead(AccelReading &reading) {
   if (!healthy) {
     if (millis() - lastInitAttemptMs >= kRetryInitEveryMs) {
       healthy = initSensor();
-      if (healthy) Serial.println("[accel] sensor is back");
+      if (healthy) Serial.println(F("[accel] sensor is back"));
     }
     return false;
   }
@@ -78,7 +80,7 @@ bool tamperSensorRead(AccelReading &reading) {
   if (!readRegisters(kRegAccelXOutH, raw, 6)) {
     if (++failures >= kFailuresBeforeUnhealthy) {
       healthy = false;
-      Serial.println("[accel] sensor stopped answering; will retry");
+      Serial.println(F("[accel] sensor stopped answering; will retry"));
     }
     return false;
   }

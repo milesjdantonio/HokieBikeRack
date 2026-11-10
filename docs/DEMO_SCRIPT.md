@@ -52,6 +52,6 @@ Single actions: `tap 04a1b2c3d4e5f6`, `shake`, `shake --alarm`, `online` (keeps 
 | Rack OFFLINE | Same hotspot? `status` on serial. Laptop IP changed? Firewall allowed Java? |
 | Card denied `NO_SNAPSHOT` / `CLOCK_NOT_SET` | Rack hasn't synced yet: wait, or `sync`. Hotspot needs internet for the clock. |
 | Card denied `NOT_LISTED` after registering | Registered for the wrong rack? `sync`. |
-| ESP32 resets when servo moves | Brownout: servo on separate 5 V supply, shared GND, capacitor. Or set `HBR_ENABLE_SERVO 0`. |
+| Uno restarts when servo moves | Brownout: servo on separate 5 V supply, shared GND, capacitor. Or set `HBR_ENABLE_SERVO 0`. |
 | A sign-in screen appears | Login was turned on (`HBR_LOGIN_REQUIRED=true`). Unset it and restart, or use the password from the backend log. |
 | Rack shows "Back, Not Confirmed" | It was offline and reconnected. Check it, then Confirm Online. |

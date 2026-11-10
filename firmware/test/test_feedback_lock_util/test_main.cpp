@@ -108,38 +108,33 @@ void test_recently_unlocked_grace_window() {
 
 // ---- Helpers ----
 
-void test_uuid_v4_format() {
-  uint8_t bytes[16];
-  for (int i = 0; i < 16; i++) bytes[i] = 0xFF;
-  std::string id = formatUuidV4(bytes);
-  TEST_ASSERT_EQUAL(36, id.size());
-  TEST_ASSERT_EQUAL_STRING("ffffffff-ffff-4fff-bfff-ffffffffffff", id.c_str());
-}
-
-void test_iso_time_format() {
-  TEST_ASSERT_EQUAL_STRING("1970-01-01T00:00:01Z", formatIsoUtc(1).c_str());
-  TEST_ASSERT_EQUAL_STRING("", formatIsoUtc(0).c_str());  // 0 = "clock not set"
-  TEST_ASSERT_EQUAL_STRING("2024-02-29T12:34:56Z", formatIsoUtc(1709210096).c_str());  // leap day
-  TEST_ASSERT_EQUAL_STRING("2026-11-02T15:00:00Z", formatIsoUtc(1793631600).c_str());
-}
-
-void test_clock_plausibility() {
-  TEST_ASSERT_FALSE(isClockPlausible(5));       // just booted, 1970
-  TEST_ASSERT_TRUE(isClockPlausible(1793631600));
-}
-
 void test_hex() {
   const uint8_t data[] = {0x00, 0xAB, 0x7F};
-  TEST_ASSERT_EQUAL_STRING("00ab7f", toHex(data, 3).c_str());
+  char hex[7];
+  toHex(data, 3, hex);
+  TEST_ASSERT_EQUAL_STRING("00ab7f", hex);
+}
+
+void test_from_hex() {
+  uint8_t out[3];
+  TEST_ASSERT_TRUE(fromHex("00Ab7f", out, 3));
+  TEST_ASSERT_EQUAL_HEX8(0x00, out[0]);
+  TEST_ASSERT_EQUAL_HEX8(0xAB, out[1]);
+  TEST_ASSERT_EQUAL_HEX8(0x7F, out[2]);
+  TEST_ASSERT_FALSE(fromHex("00ab", out, 3));    // too short
+  TEST_ASSERT_FALSE(fromHex("00zz7f", out, 3));  // not hex
 }
 
 void test_debouncer_ignores_held_card() {
+  const uint8_t a[] = {0x04, 0xA1};
+  const uint8_t b[] = {0x04, 0xB2};
   CardDebouncer d(2000);
-  TEST_ASSERT_TRUE(d.shouldProcess("A", 0));
-  TEST_ASSERT_FALSE(d.shouldProcess("A", 500));
-  TEST_ASSERT_FALSE(d.shouldProcess("A", 2400));  // still held (refreshed at 500)
-  TEST_ASSERT_TRUE(d.shouldProcess("B", 2500));   // different card
-  TEST_ASSERT_TRUE(d.shouldProcess("B", 5000));   // removed, tapped again later
+  TEST_ASSERT_TRUE(d.shouldProcess(a, 2, 0));
+  TEST_ASSERT_FALSE(d.shouldProcess(a, 2, 500));
+  TEST_ASSERT_FALSE(d.shouldProcess(a, 2, 2400));  // still held (refreshed at 500)
+  TEST_ASSERT_TRUE(d.shouldProcess(b, 2, 2500));   // different card
+  TEST_ASSERT_TRUE(d.shouldProcess(b, 2, 5000));   // removed, tapped again later
+  TEST_ASSERT_TRUE(d.shouldProcess(b, 1, 5100));   // shorter ID = different card
 }
 
 int main() {
@@ -154,10 +149,8 @@ int main() {
   RUN_TEST(test_second_tap_restarts_timer);
   RUN_TEST(test_lock_works_across_millis_wrap);
   RUN_TEST(test_recently_unlocked_grace_window);
-  RUN_TEST(test_uuid_v4_format);
-  RUN_TEST(test_iso_time_format);
-  RUN_TEST(test_clock_plausibility);
   RUN_TEST(test_hex);
+  RUN_TEST(test_from_hex);
   RUN_TEST(test_debouncer_ignores_held_card);
   return UNITY_END();
 }

@@ -1,28 +1,42 @@
-/* HokieBikeRack firmware. Shared file: keep it short and talk before changing it.
+/* HokieBikeRack firmware for the Arduino Uno R3. Shared file: keep it short and talk before changing it.
  * Each part lives in its own .h/.cpp pair; main.cpp just connects them.
  * Walkthrough of a card tap from start to finish: docs/notes/overview.md
  *
- * Two things run at the same time:
- *   - loop() (core 1): cards, tamper sensor, lock timer, lights/buzzer. Never waits on the network.
- *   - the network task (core 0, backend_sync.cpp): Wi-Fi, clock, card list, uploads.
+ * Everything runs in loop(): cards, tamper sensor, lock timer, lights/buzzer.
+ * The Uno has no Wi-Fi, so this version works on its own:
+ *   - allowed cards are saved in EEPROM, added with the `enroll` serial command
+ *   - events (granted, denied, tamper...) are printed to the serial monitor
+ *     instead of being uploaded to the backend
+ * The last ESP32 version, with Wi-Fi and backend sync, is the git tag `esp32-final`.
+ *
+ * RAM is tiny (2 KB), so:
+ *   - every fixed message is wrapped in F("..."), which keeps it in flash
+ *   - no String objects (they chop up the little RAM there is)
  */
 #include <Arduino.h>
 #include <Wire.h>
-#include <esp_system.h>
+#include <avr/wdt.h>
+#include <string.h>
 
-#include "access_policy.h"
-#include "backend_sync.h"
 #include "card_reader.h"
+#include "card_store.h"
 #include "credential_ref.h"
 #include "device_config.h"
-#include "device_status.h"
-#include "event_queue.h"
 #include "feedback.h"
 #include "hbr_util.h"
 #include "lock.h"
 #include "pins.h"
 #include "tamper_detector.h"
 #include "tamper_sensor.h"
+
+// Runs before setup(), right after any reset. After a watchdog reset the
+// watchdog is still switched on, so turn it off before it fires again during
+// start-up. (Standard avr-libc pattern; ".init3" = very early start-up code.)
+void disableWatchdogAtBoot() __attribute__((naked, used, section(".init3")));
+void disableWatchdogAtBoot() {
+  MCUSR = 0;
+  wdt_disable();
+}
 
 namespace {
 hbr::TamperDetector tamper([] {
@@ -37,58 +51,133 @@ bool accelWasOk = true;
 bool simShakeActive = false;  // serial `shake` command
 uint32_t simShakeUntilMs = 0;
 
-// Only the first 12 characters are printed: enough to recognise a card in
-// the dashboard, without dumping the full reference into logs.
-String shortRef(const std::string &ref) { return String(ref.substr(0, 12).c_str()) + "..."; }
+// `enroll` / `unenroll`: the next card tapped is added / removed instead of checked.
+enum class CardMode : uint8_t { Check, Enroll, Unenroll };
+CardMode cardMode = CardMode::Check;
+uint32_t cardModeUntilMs = 0;
 
-void handleCard(const CardId &card) {
-  std::string ref;
-  if (!credentialRefFromCard(card, ref)) {
-    Serial.println("[card] read a card, but HBR_CARD_KEY isn't set in config.h -> denied");
-    if (debouncer.shouldProcess(hbr::toHex(card.bytes, card.length), millis()))
+// Bytes of free RAM between the heap and the stack. Shown by `status`.
+extern "C" char *__brkval;
+extern "C" char __heap_start;
+int freeRam() {
+  char top;
+  return &top - (__brkval ? __brkval : &__heap_start);
+}
+
+// Only the first 6 bytes (12 hex characters) are printed: enough to recognise
+// a card, without dumping the whole reference into the log.
+void printShortRef(const uint8_t ref[hbr::kCardRefLength]) {
+  char hex[13];
+  hbr::toHex(ref, 6, hex);
+  Serial.print(hex);
+  Serial.print(F("..."));
+}
+
+// "[event] t+12s ACCESS_GRANTED (INFO)". The caller adds details + newline.
+// These are the same event types the backend uses, so the log reads the same.
+void printEvent(const __FlashStringHelper *type, const __FlashStringHelper *severity) {
+  Serial.print(F("[event] t+"));
+  Serial.print(millis() / 1000);
+  Serial.print(F("s "));
+  Serial.print(type);
+  Serial.print(F(" ("));
+  Serial.print(severity);
+  Serial.print(F(")"));
+}
+
+void enrollCard(const uint8_t ref[hbr::kCardRefLength]) {
+  cardMode = CardMode::Check;
+  Serial.print(F("[cards] "));
+  printShortRef(ref);
+  switch (cardStore().add(ref)) {
+    case hbr::AddResult::Added:
+      Serial.print(F(" ENROLLED, "));
+      Serial.print(cardStore().count());
+      Serial.println(F(" cards saved"));
+      feedbackPlay(hbr::Pattern::Granted, 1000);
+      break;
+    case hbr::AddResult::AlreadyListed:
+      Serial.println(F(" was already enrolled"));
+      feedbackPlay(hbr::Pattern::Granted, 300);
+      break;
+    case hbr::AddResult::Full:
+      Serial.println(F(" NOT added: the list is full. Remove a card first (`list`, `remove <n>`)"));
       feedbackPlay(hbr::Pattern::Denied);
+      break;
+  }
+}
+
+void unenrollCard(const uint8_t ref[hbr::kCardRefLength]) {
+  cardMode = CardMode::Check;
+  int index = cardStore().find(ref);
+  Serial.print(F("[cards] "));
+  printShortRef(ref);
+  if (index < 0) {
+    Serial.println(F(" wasn't enrolled; nothing removed"));
+    feedbackPlay(hbr::Pattern::Denied);
     return;
   }
-  if (!debouncer.shouldProcess(ref, millis())) return;  // same card still on the reader
-  Serial.printf("[card] read a %u-byte card ID\n", card.length);  // length only, never the ID
+  cardStore().removeAt(static_cast<uint8_t>(index));
+  Serial.print(F(" REMOVED, "));
+  Serial.print(cardStore().count());
+  Serial.println(F(" cards left"));
+  feedbackPlay(hbr::Pattern::Denied);  // red = this card no longer opens the rack
+}
 
-  hbr::AccessResult result = accessPolicyCheck(ref);
-  JsonDocument details;
-  details["credentialReference"] = ref;
-  if (result.allowed) {
-    Serial.printf("[card] %s ALLOWED\n", shortRef(ref).c_str());
+void handleCard(const CardId &card) {
+  if (!debouncer.shouldProcess(card.bytes, card.length, millis())) return;  // still on the reader
+  Serial.print(F("[card] read a "));
+  Serial.print(card.length);
+  Serial.println(F("-byte card ID"));  // length only, never the ID
+
+  uint8_t ref[hbr::kCardRefLength];
+  if (!credentialRefFromCard(card, ref)) {
+    Serial.println(F("[card] HBR_CARD_KEY isn't set in config.h -> denied"));
+    feedbackPlay(hbr::Pattern::Denied);
+    printEvent(F("ACCESS_DENIED"), F("LOW"));
+    Serial.println(F(" reason=NO_CARD_KEY"));
+    return;
+  }
+  if (cardMode == CardMode::Enroll) return enrollCard(ref);
+  if (cardMode == CardMode::Unenroll) return unenrollCard(ref);
+
+  if (cardStore().contains(ref)) {
     lockRequestUnlock();
     // An allowed card also silences a tamper alarm (the owner is back).
     tamper.silence();
     feedbackStop();
     feedbackPlay(hbr::Pattern::Granted, HBR_UNLOCK_DURATION_MS);
-    eventQueuePush("ACCESS_GRANTED", "INFO", details);
+    printEvent(F("ACCESS_GRANTED"), F("INFO"));
+    Serial.print(F(" card="));
+    printShortRef(ref);
+    Serial.println();
   } else {
-    const char *reason = hbr::denyReasonName(result.reason);
-    Serial.printf("[card] %s DENIED (%s)\n", shortRef(ref).c_str(), reason);
     feedbackPlay(hbr::Pattern::Denied);
-    details["reason"] = reason;
-    eventQueuePush("ACCESS_DENIED", "LOW", details);
+    printEvent(F("ACCESS_DENIED"), F("LOW"));
+    Serial.print(F(" card="));
+    printShortRef(ref);
+    Serial.println(cardStore().count() ? F(" reason=NOT_LISTED")
+                                       : F(" reason=NOT_LISTED (no cards enrolled yet: use `enroll`)"));
   }
-  backendSyncRequestUpload();
 }
 
 void handleTamperSignal(hbr::TamperSignal signal) {
   if (signal == hbr::TamperSignal::None) return;
-  JsonDocument details;
-  details["deviationG"] = roundf(tamper.lastDeviationG() * 100) / 100;
-  details["thresholdG"] = tamper.config().thresholdG;
   if (signal == hbr::TamperSignal::Warning) {
-    Serial.printf("[tamper] WARNING (%.2f g)\n", tamper.lastDeviationG());
     feedbackPlay(hbr::Pattern::TamperWarning);
-    eventQueuePush("TAMPER_WARNING", "MEDIUM", details);
+    printEvent(F("TAMPER_WARNING"), F("MEDIUM"));
   } else {
-    Serial.printf("[tamper] ALARM (%.2f g) - siren for %u s\n", tamper.lastDeviationG(),
-                  (unsigned)(HBR_TAMPER_ALARM_MS / 1000));
     feedbackPlay(hbr::Pattern::TamperAlarm, HBR_TAMPER_ALARM_MS);
-    eventQueuePush("TAMPER_ALARM", "HIGH", details);
+    printEvent(F("TAMPER_ALARM"), F("HIGH"));
+    Serial.print(F(" siren for "));
+    Serial.print(HBR_TAMPER_ALARM_MS / 1000);
+    Serial.print(F(" s,"));
   }
-  backendSyncRequestUpload();
+  Serial.print(F(" deviation="));
+  Serial.print(tamper.lastDeviationG(), 2);
+  Serial.print(F(" g, threshold="));
+  Serial.print(tamper.config().thresholdG, 2);
+  Serial.println(F(" g"));
 }
 
 void sampleTamperSensor() {
@@ -108,195 +197,303 @@ void sampleTamperSensor() {
   // Don't treat a rider pulling their bike out as tampering.
   bool armed = !lockRecentlyUnlocked(HBR_TAMPER_GRACE_MS);
   handleTamperSignal(tamper.update(r.x, r.y, r.z, now, armed));
-  deviceStatus.lastDeviationG = tamper.lastDeviationG();
+}
+
+void printSensorFault(const __FlashStringHelper *sensor, bool ok) {
+  printEvent(F("SENSOR_FAULT"), ok ? F("INFO") : F("MEDIUM"));
+  Serial.print(F(" sensor="));
+  Serial.print(sensor);
+  Serial.println(ok ? F(" state=RECOVERED") : F(" state=NOT_RESPONDING"));
 }
 
 void reportSensorChanges() {
   bool readerOk = cardReaderHealthy();
   bool accelOk = tamperSensorHealthy();
-  deviceStatus.readerOk = readerOk;
-  deviceStatus.accelOk = accelOk;
   if (readerOk != readerWasOk) {
-    JsonDocument d;
-    d["sensor"] = "PN532";
-    d["state"] = readerOk ? "RECOVERED" : "NOT_RESPONDING";
-    eventQueuePush("SENSOR_FAULT", readerOk ? "INFO" : "MEDIUM", d);
+    printSensorFault(F("PN532"), readerOk);
     readerWasOk = readerOk;
   }
   if (accelOk != accelWasOk) {
-    JsonDocument d;
-    d["sensor"] = "MPU6050";
-    d["state"] = accelOk ? "RECOVERED" : "NOT_RESPONDING";
-    eventQueuePush("SENSOR_FAULT", accelOk ? "INFO" : "MEDIUM", d);
+    printSensorFault(F("MPU6050"), accelOk);
     accelWasOk = accelOk;
   }
 }
 
+bool rackReady() {
+  return cardStore().count() > 0 && credentialKeyConfigured() && cardReaderHealthy();
+}
+
 void printStatus() {
-  AccessPolicyInfo info = accessPolicyInfo();
-  int64_t now = deviceNowEpoch();
-  Serial.println("---- HokieBikeRack status ----");
-  Serial.printf("firmware %s, uptime %lu s, free heap %u\n", HBR_FIRMWARE_VERSION,
-                (unsigned long)(millis() / 1000), (unsigned)ESP.getFreeHeap());
-  Serial.printf("config.h %s, network %s, Wi-Fi %s\n", HBR_HAS_LOCAL_CONFIG ? "found" : "MISSING",
-                backendSyncConfigured() ? "configured" : "NOT configured",
-                backendSyncWifiConnected() ? "connected" : "disconnected");
-  Serial.printf("clock %s\n", now ? hbr::formatIsoUtc(now).c_str() : "NOT SET");
-  Serial.printf("card list: %s, revision %llu, %u cards, valid until %s\n",
-                info.loaded ? "yes" : "none", (unsigned long long)info.revision,
-                (unsigned)info.cardCount, hbr::formatIsoUtc(info.validUntilEpoch).c_str());
-  Serial.printf("ready for cards: %s, card key %s\n", accessPolicyReady() ? "YES" : "NO",
-                credentialKeyConfigured() ? "set" : "MISSING");
-  Serial.printf("reader %s, accelerometer %s (last %.2f g), servo %s, lock %s\n",
-                cardReaderHealthy() ? "OK" : "FAULT", tamperSensorHealthy() ? "OK" : "FAULT",
-                tamper.lastDeviationG(), lockServoEnabled() ? "REAL" : "simulated",
-                lockIsCommandedUnlocked() ? "UNLOCKED" : "locked");
-  Serial.printf("events waiting to upload: %u\n", (unsigned)eventQueueCount());
+  Serial.println(F("---- HokieBikeRack status ----"));
+  Serial.print(F("firmware " HBR_FIRMWARE_VERSION " (Arduino Uno R3), uptime "));
+  Serial.print(millis() / 1000);
+  Serial.print(F(" s, free RAM "));
+  Serial.print(freeRam());
+  Serial.println(F(" bytes"));
+  Serial.print(F("config.h "));
+  Serial.print(HBR_HAS_LOCAL_CONFIG ? F("found") : F("MISSING"));
+  Serial.print(F(", card key "));
+  Serial.println(credentialKeyConfigured() ? F("set") : F("MISSING"));
+  Serial.print(F("cards enrolled: "));
+  Serial.print(cardStore().count());
+  Serial.print(F(" of "));
+  Serial.println(cardStore().capacity());
+  Serial.print(F("ready for cards: "));
+  Serial.println(rackReady() ? F("YES") : F("NO"));
+  Serial.print(F("reader "));
+  Serial.print(cardReaderHealthy() ? F("OK") : F("FAULT"));
+  Serial.print(F(", accelerometer "));
+  Serial.print(tamperSensorHealthy() ? F("OK") : F("FAULT"));
+  Serial.print(F(" (last "));
+  Serial.print(tamper.lastDeviationG(), 2);
+  Serial.print(F(" g), servo "));
+  Serial.print(lockServoEnabled() ? F("REAL") : F("simulated"));
+  Serial.print(F(", lock "));
+  Serial.println(lockIsCommandedUnlocked() ? F("UNLOCKED") : F("locked"));
+  if (tamper.alarmActive(millis())) Serial.println(F("TAMPER ALARM is sounding"));
+}
+
+void listCards() {
+  uint8_t n = cardStore().count();
+  Serial.print(n);
+  Serial.println(F(" card(s) enrolled:"));
+  uint8_t ref[hbr::kCardRefLength];
+  for (uint8_t i = 0; i < n; i++) {
+    cardStore().get(i, ref);
+    Serial.print(F("  "));
+    Serial.print(i);
+    Serial.print(F(": "));
+    printShortRef(ref);
+    Serial.println();
+  }
+}
+
+void scanI2c() {
+  // Who answers on the I2C bus? Expect 0x24 (PN532) and 0x68 (MPU-6050).
+  Serial.println(F("Scanning I2C bus..."));
+  int found = 0;
+  for (uint8_t addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+      Serial.print(F("  found 0x"));
+      if (addr < 0x10) Serial.print('0');
+      Serial.print(addr, HEX);
+      if (addr == 0x24) Serial.print(F(" (PN532)"));
+      if (addr == 0x68) Serial.print(F(" (MPU-6050)"));
+      if (addr == 0x69) Serial.print(F(" (MPU-6050, AD0 high)"));
+      Serial.println();
+      found++;
+    }
+  }
+  Serial.print(found);
+  Serial.println(F(" device(s). None? Check SDA=A4, SCL=A5, power, GND, and the PN532 I2C switches."));
+}
+
+void printAccel() {
+  // 2 seconds of raw readings, for calibrating the tamper threshold.
+  // (This command pauses the rack for 2 s; it's only for testing.)
+  for (int i = 0; i < 20; i++) {
+    AccelReading r;
+    if (tamperSensorRead(r)) {
+      Serial.print(F("  x="));
+      Serial.print(r.x, 3);
+      Serial.print(F(" y="));
+      Serial.print(r.y, 3);
+      Serial.print(F(" z="));
+      Serial.print(r.z, 3);
+      Serial.print(F(" g   deviation from baseline "));
+      Serial.print(tamper.lastDeviationG(), 3);
+      Serial.print(F(" g (threshold "));
+      Serial.print(tamper.config().thresholdG, 2);
+      Serial.println(F(")"));
+    } else {
+      Serial.println(F("  no reading (sensor fault?)"));
+    }
+    delay(100);
+    wdt_reset();
+  }
+}
+
+void startCardMode(CardMode mode) {
+  cardMode = mode;
+  cardModeUntilMs = millis() + HBR_ENROLL_WINDOW_MS;
+  Serial.print(mode == CardMode::Enroll ? F("ok: tap the card to ADD within ")
+                                        : F("ok: tap the card to REMOVE within "));
+  Serial.print(HBR_ENROLL_WINDOW_MS / 1000);
+  Serial.println(F(" s"));
+}
+
+void addCardRef(const char *hex) {
+  // Paste a credential reference (e.g. from the dashboard). Only its first
+  // 32 hex characters are used; it must have been made with the same card key.
+  uint8_t ref[hbr::kCardRefLength];
+  if (!hbr::fromHex(hex, ref, hbr::kCardRefLength)) {
+    Serial.println(F("usage: add <reference>  (at least 32 hex characters)"));
+    return;
+  }
+  enrollCard(ref);
+}
+
+void removeCard(const char *number) {
+  char *end = nullptr;
+  long index = strtol(number, &end, 10);
+  if (end == number || index < 0 || index >= cardStore().count()) {
+    Serial.println(F("usage: remove <n>  (the number shown by `list`)"));
+    return;
+  }
+  cardStore().removeAt(static_cast<uint8_t>(index));
+  Serial.print(F("ok: removed card "));
+  Serial.print(index);
+  Serial.println(F(" (numbers of the other cards may have changed; see `list`)"));
+}
+
+#if HBR_ENABLE_SERIAL_SIM
+void simulateTap(const char *hex) {
+  // Pretend a card with this ID (hex) was tapped. Goes through the exact
+  // same path as a real card, so it can only unlock for an enrolled card.
+  CardId card{};
+  while (card.length < CARD_ID_MAX_LENGTH && hbr::fromHex(hex + 2 * card.length,
+                                                          &card.bytes[card.length], 1)) {
+    card.length++;
+  }
+  if (card.length) handleCard(card);
+  else Serial.println(F("usage: tap 04a1b2c3d4"));
+}
+#endif
+
+void printHelp() {
+  Serial.println(F("commands: status, enroll, unenroll, list, add <reference>, remove <n>,"));
+  Serial.print(F("          wipe-cards, i2c-scan, accel, reboot"));
+#if HBR_ENABLE_SERIAL_SIM
+  Serial.print(F(", tap <hex-id>, shake"));
+#endif
+  Serial.println();
+}
+
+bool is(const char *line, const char *command) { return strcmp_P(line, command) == 0; }
+
+// "add 1234" with prefix "add " -> pointer to "1234", otherwise nullptr.
+const char *after(const char *line, const char *prefix) {
+  size_t n = strlen_P(prefix);
+  return strncmp_P(line, prefix, n) == 0 ? line + n : nullptr;
+}
+
+void runCommand(const char *line) {
+  const char *arg;
+  if (is(line, PSTR("status"))) {
+    printStatus();
+  } else if (is(line, PSTR("enroll"))) {
+    startCardMode(CardMode::Enroll);
+  } else if (is(line, PSTR("unenroll"))) {
+    startCardMode(CardMode::Unenroll);
+  } else if (is(line, PSTR("list"))) {
+    listCards();
+  } else if ((arg = after(line, PSTR("add ")))) {
+    addCardRef(arg);
+  } else if ((arg = after(line, PSTR("remove ")))) {
+    removeCard(arg);
+  } else if (is(line, PSTR("wipe-cards"))) {
+    Serial.println(F("This deletes EVERY enrolled card. Type `wipe-cards yes` to confirm."));
+  } else if (is(line, PSTR("wipe-cards yes"))) {
+    cardStore().clear();
+    Serial.println(F("ok: all cards removed"));
+  } else if (is(line, PSTR("i2c-scan"))) {
+    scanI2c();
+  } else if (is(line, PSTR("accel"))) {
+    printAccel();
+  } else if (is(line, PSTR("reboot"))) {
+    Serial.println(F("rebooting..."));
+    Serial.flush();
+    wdt_enable(WDTO_15MS);  // let the watchdog reset the chip
+    for (;;) {
+    }
+#if HBR_ENABLE_SERIAL_SIM
+  } else if ((arg = after(line, PSTR("tap ")))) {
+    simulateTap(arg);
+  } else if (is(line, PSTR("shake"))) {
+    simShakeActive = true;
+    simShakeUntilMs = millis() + 400;
+    Serial.println(F("ok: simulating a 0.4 s shake"));
+#endif
+  } else if (line[0]) {
+    printHelp();
+  }
 }
 
 // Tiny serial console. Type a command in the PlatformIO serial monitor + Enter.
 void handleSerial() {
-  static String line;
+  static char line[80];  // `add` + a 64-character reference fits
+  static uint8_t length = 0;
   while (Serial.available()) {
     char c = static_cast<char>(Serial.read());
     if (c == '\r') continue;
     if (c != '\n') {
-      if (line.length() < 64) line += c;
+      if (length < sizeof(line) - 1) line[length++] = c;
       continue;
     }
-    line.trim();
-    if (line == "status") {
-      printStatus();
-    } else if (line == "sync") {
-      backendSyncRequestSnapshot();
-      backendSyncRequestUpload();
-      Serial.println("ok: asked the network task to sync now");
-    } else if (line == "forget-snapshot") {
-      accessPolicyForget();
-      backendSyncRequestSnapshot();
-      Serial.println("ok: card list forgotten; downloading a fresh one");
-    } else if (line == "clear-queue") {
-      eventQueueClear();
-      Serial.println("ok: event queue cleared");
-    } else if (line == "reboot") {
-      ESP.restart();
-    } else if (line == "i2c-scan") {
-      // Who answers on the I2C bus? Expect 0x24 (PN532) and 0x68 (MPU-6050).
-      Serial.println("Scanning I2C bus...");
-      int found = 0;
-      for (uint8_t addr = 1; addr < 127; addr++) {
-        Wire.beginTransmission(addr);
-        if (Wire.endTransmission() == 0) {
-          Serial.printf("  found 0x%02X%s\n", addr,
-                        addr == 0x24 ? " (PN532)" : addr == 0x68 ? " (MPU-6050)" : addr == 0x69 ? " (MPU-6050, AD0 high)" : "");
-          found++;
-        }
-      }
-      Serial.printf("%d device(s). None? Check SDA=21, SCL=22, power, GND, and the PN532 I2C switches.\n", found);
-    } else if (line == "accel") {
-      // 2 seconds of raw readings, for calibrating the tamper threshold.
-      // (This command pauses the rack for 2 s; it's only for testing.)
-      for (int i = 0; i < 20; i++) {
-        AccelReading r;
-        if (tamperSensorRead(r)) {
-          Serial.printf("  x=%+.3f y=%+.3f z=%+.3f g   deviation from baseline %.3f g (threshold %.2f)\n",
-                        r.x, r.y, r.z, tamper.lastDeviationG(), tamper.config().thresholdG);
-        } else {
-          Serial.println("  no reading (sensor fault?)");
-        }
-        delay(100);
-      }
-#if HBR_ENABLE_SERIAL_SIM
-    } else if (line.startsWith("tap ")) {
-      // Pretend a card with this ID (hex) was tapped. Goes through the exact
-      // same path as a real card, so it can only unlock for a registered card.
-      String hex = line.substring(4);
-      hex.trim();
-      CardId card{};
-      for (size_t i = 0; i + 1 < hex.length() && card.length < CARD_ID_MAX_LENGTH; i += 2) {
-        card.bytes[card.length++] = static_cast<uint8_t>(strtoul(hex.substring(i, i + 2).c_str(), nullptr, 16));
-      }
-      if (card.length) handleCard(card);
-      else Serial.println("usage: tap 04a1b2c3d4");
-    } else if (line == "shake") {
-      simShakeActive = true;
-      simShakeUntilMs = millis() + 400;
-      Serial.println("ok: simulating a 0.4 s shake");
-#endif
-    } else if (line.length()) {
-      Serial.println("commands: status, sync, forget-snapshot, clear-queue, reboot, i2c-scan, accel"
-#if HBR_ENABLE_SERIAL_SIM
-                     ", tap <hex-id>, shake"
-#endif
-      );
-    }
-    line = "";
+    while (length && line[length - 1] == ' ') length--;  // trailing spaces
+    line[length] = '\0';
+    const char *start = line;
+    while (*start == ' ') start++;  // leading spaces
+    runCommand(start);
+    length = 0;
   }
 }
 
-const char *resetReasonName(esp_reset_reason_t r) {
-  switch (r) {
-    case ESP_RST_POWERON: return "POWER_ON";
-    case ESP_RST_SW: return "SOFTWARE";
-    case ESP_RST_PANIC: return "CRASH";
-    case ESP_RST_INT_WDT:
-    case ESP_RST_TASK_WDT:
-    case ESP_RST_WDT: return "WATCHDOG";
-    case ESP_RST_BROWNOUT: return "BROWNOUT";  // power dipped: often the servo!
-    case ESP_RST_DEEPSLEEP: return "DEEP_SLEEP";
-    default: return "OTHER";
-  }
+void expireCardMode() {
+  if (cardMode == CardMode::Check) return;
+  if (static_cast<int32_t>(millis() - cardModeUntilMs) < 0) return;
+  cardMode = CardMode::Check;
+  Serial.println(F("[cards] no card tapped in time; back to normal"));
 }
 }  // namespace
 
 void setup() {
   Serial.begin(115200);
-  delay(200);
-  Serial.printf("\nHokieBikeRack firmware %s starting\n", HBR_FIRMWARE_VERSION);
-  if (!HBR_HAS_LOCAL_CONFIG) Serial.println("No include/config.h found: offline, all cards denied.");
+  Serial.println();
+  Serial.println(F("HokieBikeRack firmware " HBR_FIRMWARE_VERSION " (Arduino Uno R3) starting"));
+  if (!HBR_HAS_LOCAL_CONFIG) Serial.println(F("No include/config.h found: all cards denied."));
 
   // Lights/buzzer and lock first, so outputs are in a known safe state early.
   feedbackSetup();
   lockSetup();
 
-  if (!eventQueueSetup()) Serial.println("Event queue storage unavailable; events will not be saved.");
-  accessPolicySetup();
+  cardStoreSetup();
 
-  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN, I2C_CLOCK_HZ);
+  // A4 = SDA, A5 = SCL on the Uno.
+  Wire.begin();
+  Wire.setClock(I2C_CLOCK_HZ);
+#if defined(WIRE_HAS_TIMEOUT)
+  // Without this, a loose I2C wire can freeze the Uno forever inside Wire.
+  // 25 ms timeout, and reset the I2C hardware when it happens.
+  Wire.setWireTimeout(25000, true);
+#endif
   readerWasOk = cardReaderSetup();
   accelWasOk = tamperSensorSetup();
-  deviceStatus.readerOk = readerWasOk;
-  deviceStatus.accelOk = accelWasOk;
 
-  JsonDocument boot;
-  esp_reset_reason_t reason = esp_reset_reason();
-  boot["resetReason"] = resetReasonName(reason);
-  boot["servoEnabled"] = lockServoEnabled();
-  boot["readerOk"] = readerWasOk;
-  boot["accelOk"] = accelWasOk;
-  eventQueuePush("DEVICE_BOOT", reason == ESP_RST_BROWNOUT ? "MEDIUM" : "INFO", boot);
-  if (!readerWasOk) {
-    JsonDocument d;
-    d["sensor"] = "PN532";
-    d["state"] = "NOT_FOUND_AT_BOOT";
-    eventQueuePush("SENSOR_FAULT", "MEDIUM", d);
-  }
-  if (!accelWasOk) {
-    JsonDocument d;
-    d["sensor"] = "MPU6050";
-    d["state"] = "NOT_FOUND_AT_BOOT";
-    eventQueuePush("SENSOR_FAULT", "MEDIUM", d);
-  }
+  printEvent(F("DEVICE_BOOT"), F("INFO"));
+  Serial.print(F(" servo="));
+  Serial.print(lockServoEnabled() ? F("REAL") : F("SIMULATED"));
+  Serial.print(F(" reader="));
+  Serial.print(readerWasOk ? F("OK") : F("NOT_FOUND"));
+  Serial.print(F(" accel="));
+  Serial.println(accelWasOk ? F("OK") : F("NOT_FOUND"));
 
   feedbackPlay(hbr::Pattern::Boot);
-  backendSyncSetup();
-  Serial.println("Ready. Type `status` in the serial monitor for details.");
+#if HBR_ENABLE_WATCHDOG
+  // If loop() ever stops running for 4 s, the Uno restarts and the lock
+  // starts up LOCKED again.
+  wdt_enable(WDTO_4S);
+#endif
+  Serial.println(F("Ready. Type `status` in the serial monitor for details, `enroll` to add a card."));
 }
 
 void loop() {
+  wdt_reset();  // "still alive" (harmless if the watchdog is off)
   handleSerial();
+  expireCardMode();
 
-  // Card tapped -> decide locally (never depends on Wi-Fi) -> unlock or deny.
+  // Card tapped -> look it up in the EEPROM list -> unlock or deny.
   CardId card;
   if (cardReaderPoll(card)) handleCard(card);
 
@@ -304,15 +501,13 @@ void loop() {
   sampleTamperSensor();
 
   lockUpdate();
-  deviceStatus.lockUnlocked = lockIsCommandedUnlocked();
-  deviceStatus.alarmActive = tamper.alarmActive(millis());
   reportSensorChanges();
 
-  feedbackSetReady(accessPolicyReady() && credentialKeyConfigured() && cardReaderHealthy());
+  feedbackSetReady(rackReady());
   feedbackUpdate();
 
   // Short pause so the loop runs a few hundred times a second: fast enough
-  // for smooth patterns and quick card reads, while letting other tasks run.
+  // for smooth patterns and quick card reads.
   // Avoid long delay() calls anywhere: they freeze everything else.
   delay(2);
 }

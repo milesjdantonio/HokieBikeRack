@@ -7,7 +7,7 @@
 #include "pins.h"
 
 #if HBR_ENABLE_SERVO
-#include <ESP32Servo.h>
+#include <Servo.h>
 #endif
 
 namespace {
@@ -23,11 +23,14 @@ constexpr int kServoMaxUs = 2400;
 
 void moveTo(bool unlocked) {
 #if HBR_ENABLE_SERVO
-  servo.write(unlocked ? HBR_SERVO_UNLOCKED_DEG : HBR_SERVO_LOCKED_DEG);
-  Serial.printf("[lock] servo -> %s (%d deg)\n", unlocked ? "UNLOCKED" : "LOCKED",
-                unlocked ? HBR_SERVO_UNLOCKED_DEG : HBR_SERVO_LOCKED_DEG);
+  int angle = unlocked ? HBR_SERVO_UNLOCKED_DEG : HBR_SERVO_LOCKED_DEG;
+  servo.write(angle);
+  Serial.print(F("[lock] servo -> "));
+  Serial.print(unlocked ? F("UNLOCKED (") : F("LOCKED ("));
+  Serial.print(angle);
+  Serial.println(F(" deg)"));
 #else
-  Serial.printf("[lock] SIMULATED %s\n", unlocked ? "unlock" : "lock");
+  Serial.println(unlocked ? F("[lock] SIMULATED unlock") : F("[lock] SIMULATED lock"));
 #endif
 }
 }  // namespace
@@ -36,11 +39,11 @@ void lockSetup() {
 #if HBR_ENABLE_SERVO
   // Warning: the servo may jump to the LOCKED angle right here at power-on.
   // Keep fingers and the linkage clear during bench tests.
-  servo.setPeriodHertz(50);
+  // (The Uno's Servo library always runs at 50 Hz.)
   servo.attach(SERVO_SIGNAL_PIN, kServoMinUs, kServoMaxUs);
-  Serial.println("[lock] REAL servo enabled");
+  Serial.println(F("[lock] REAL servo enabled"));
 #else
-  Serial.println("[lock] SIMULATED lock ready (no servo output). Set HBR_ENABLE_SERVO 1 to drive it.");
+  Serial.println(F("[lock] SIMULATED lock ready (no servo output). Set HBR_ENABLE_SERVO 1 to drive it."));
 #endif
   controller.lock();
   moveTo(false);

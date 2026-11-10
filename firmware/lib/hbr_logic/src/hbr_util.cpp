@@ -1,58 +1,47 @@
 #include "hbr_util.h"
 
-#include <stdio.h>
+#include <string.h>
 
 namespace hbr {
 
-std::string toHex(const uint8_t *data, size_t length) {
+void toHex(const uint8_t *data, size_t length, char *out) {
   static const char kDigits[] = "0123456789abcdef";
-  std::string out;
-  out.reserve(length * 2);
   for (size_t i = 0; i < length; i++) {
-    out.push_back(kDigits[data[i] >> 4]);
-    out.push_back(kDigits[data[i] & 0x0F]);
+    out[2 * i] = kDigits[data[i] >> 4];
+    out[2 * i + 1] = kDigits[data[i] & 0x0F];
   }
-  return out;
+  out[2 * length] = '\0';
 }
 
-std::string formatUuidV4(const uint8_t randomBytes[16]) {
-  uint8_t b[16];
-  for (int i = 0; i < 16; i++) b[i] = randomBytes[i];
-  b[6] = (b[6] & 0x0F) | 0x40;  // version 4 = "random"
-  b[8] = (b[8] & 0x3F) | 0x80;  // variant bits (RFC 4122)
-  std::string hex = toHex(b, 16);
-  return hex.substr(0, 8) + "-" + hex.substr(8, 4) + "-" + hex.substr(12, 4) + "-" +
-         hex.substr(16, 4) + "-" + hex.substr(20, 12);
+namespace {
+int hexValue(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+}  // namespace
+
+bool fromHex(const char *text, uint8_t *out, size_t length) {
+  for (size_t i = 0; i < length; i++) {
+    int hi = hexValue(text[2 * i]);
+    if (hi < 0) return false;  // also catches the end of a too-short string
+    int lo = hexValue(text[2 * i + 1]);
+    if (lo < 0) return false;
+    out[i] = static_cast<uint8_t>((hi << 4) | lo);
+  }
+  return true;
 }
 
-// Converts days since 1970-01-01 to a calendar date. This is Howard Hinnant's
-// well-known "civil_from_days" algorithm; it avoids depending on gmtime(),
-// which behaves differently on the PC vs the ESP32.
-static void civilFromDays(int64_t z, int &year, unsigned &month, unsigned &day) {
-  z += 719468;
-  const int64_t era = (z >= 0 ? z : z - 146096) / 146097;
-  const unsigned doe = static_cast<unsigned>(z - era * 146097);
-  const unsigned yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
-  const int64_t y = static_cast<int64_t>(yoe) + era * 400;
-  const unsigned doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
-  const unsigned mp = (5 * doy + 2) / 153;
-  day = doy - (153 * mp + 2) / 5 + 1;
-  month = mp < 10 ? mp + 3 : mp - 9;
-  year = static_cast<int>(y + (month <= 2));
-}
-
-std::string formatIsoUtc(int64_t epochSeconds) {
-  if (epochSeconds <= 0) return "";
-  int64_t days = epochSeconds / 86400;
-  int64_t secs = epochSeconds % 86400;
-  int year;
-  unsigned month, day;
-  civilFromDays(days, year, month, day);
-  char buf[24];
-  snprintf(buf, sizeof(buf), "%04d-%02u-%02uT%02d:%02d:%02dZ", year, month, day,
-           static_cast<int>(secs / 3600), static_cast<int>((secs / 60) % 60),
-           static_cast<int>(secs % 60));
-  return buf;
+bool CardDebouncer::shouldProcess(const uint8_t *id, uint8_t length, uint32_t nowMs) {
+  if (length > kMaxCardIdLength) length = kMaxCardIdLength;
+  bool sameCard = hasLast_ && length == lastLength_ && memcmp(id, last_, length) == 0;
+  bool same = sameCard && (nowMs - lastSeenMs_) < quietMs_;
+  hasLast_ = true;
+  memcpy(last_, id, length);
+  lastLength_ = length;
+  lastSeenMs_ = nowMs;  // holding the card keeps refreshing this
+  return !same;
 }
 
 }  // namespace hbr

@@ -29,3 +29,7 @@ Each entry: **what**, **why**, and **what we didn't pick**. Newest last.
 | 22 | An allowed card **silences** the alarm. *Default.* | Owner returning shouldn't stand next to a siren. | Alarm always runs full 10 s. |
 | 23 | Events tagged `simulated: true` from the simulator → **SIM** badge. *Default.* | Plan says UI must distinguish demo data from live. | Separate demo database. |
 | 24 | No Claude co-author line on commits after the first three. *Confirmed by Miles.* | Miles's preference. | — |
+| 25 | Rack board is an **Arduino Uno R3**, working **offline**. *Confirmed by Miles 2026-11-10.* | Board choice. The Uno has no Wi-Fi and 2 KB RAM, so: cards enrolled at the rack into EEPROM (63 max), events to serial, no clock → no 72 h expiry. Last ESP32 code = tag `esp32-final`. | Uno R4 WiFi (keeps backend sync); staying on the ESP32. |
+| 26 | Own **SHA-256/HMAC** in `hbr_logic`, checked against RFC test vectors. *Default.* | The Uno has no mbedtls; keeps card references identical to the backend's. | rweather/Crypto library; storing raw UIDs. |
+| 27 | Store the **first 16 bytes** of each reference. *Default.* | 128 bits is unguessable and fits 63 cards in 1 KB EEPROM (vs 31 at 32 bytes). | Full 32-byte references. |
+| 28 | **Watchdog** (4 s) on the Uno. *Default.* | The servo holds its last position if the code freezes; a reset re-locks. | No watchdog. |

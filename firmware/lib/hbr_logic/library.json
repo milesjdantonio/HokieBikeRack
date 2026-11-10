@@ -1,10 +1,7 @@
 {
   "name": "hbr_logic",
-  "version": "0.2.0",
-  "description": "HokieBikeRack decision logic with NO hardware calls, so it can be unit-tested on a PC (pio test -e native).",
+  "version": "0.3.0",
+  "description": "HokieBikeRack decision logic with NO hardware calls, so it can be unit-tested on a PC (pio test -e native). Plain C++ with no standard library, so it also builds for the Arduino Uno.",
   "frameworks": "*",
-  "platforms": "*",
-  "dependencies": {
-    "bblanchon/ArduinoJson": "^7.0.4"
-  }
+  "platforms": "*"
 }
