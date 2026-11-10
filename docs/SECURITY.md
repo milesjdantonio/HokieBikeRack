@@ -9,7 +9,7 @@ Planning checklist for a supervised demo, not a security certification.
 - [x] Device token is bound to the device ID in the URL (token swap → 401).
 - [x] Admin authentication (HTTP Basic, bcrypt) with ADMIN/VIEWER roles enforced server-side.
 - [x] Audit log of every admin change.
-- [x] Raw NFC IDs never leave the ESP32 (HMAC-SHA256 references); not printed in logs.
+- [x] Raw NFC IDs are never stored, sent or printed (HMAC-SHA256 references; the Uno keeps the first 16 bytes in EEPROM).
 - [x] Idempotent event uploads; untrusted device timestamps replaced by server time.
 - [x] Input validation and size limits on every device/admin request.
 - [x] Dashboard: no `innerHTML` with data, Content-Security-Policy, no secrets in browser code.

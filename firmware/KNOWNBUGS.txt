@@ -1,41 +1,55 @@
 HokieBikeRack firmware - known bugs and limitations
 ==================================================
 
+Board: Arduino Uno R3 since 2026-11-10 (was ESP32; old code = git tag esp32-final).
+
 1. [FIXED 2026-11-02] Event upload could freeze the main loop for up to 8 seconds
    Was:    syncEvents() ran http.POST() inside loop() with an 8 s timeout, so card
            taps, tamper checks and the re-lock timer stopped while it waited.
-   Fix:    All network work now runs in its own FreeRTOS task on core 0
-           (src/backend_sync.cpp). loop() never waits on the network. The event
-           queue and card list are protected by mutexes because two tasks use them.
-           Timeouts are also shorter (4 s connect, 5 s reply).
-   Lesson: see docs/notes/firmware.md, "Two tasks at once".
+   Fix:    (ESP32) network work moved to its own FreeRTOS task.
+   Now:    The Uno version has no network code at all, so this can't happen.
+   Lesson: see docs/notes/firmware.md, "Non-blocking code".
 
-2. Not tested on real hardware yet (2026-11-02)
-   What:   Everything compiles and the logic passes 37 PC unit tests, but the
-           PN532 polling, MPU-6050 driver, servo, LEDs and buzzer have not run on
-           the real board. Follow docs/notes/hardware-test-checklist.md.
-   Status: Open - bench test planned.
+2. Uno firmware not tested on real hardware yet (2026-11-10)
+   What:   It builds for the Uno (846 bytes RAM, 21 KB flash) with no warnings.
+           The PC unit tests compile, but Windows Application Control on this
+           laptop blocks running them, so they have NOT been run since the port.
+           Run `pio test -e native` on another machine, then follow
+           docs/notes/hardware-test-checklist.md on the Uno.
+   Status: Open.
 
-3. After a full power loss with NO Wi-Fi, every card is denied
-   Why:    The ESP32 has no battery-backed clock. Until NTP sets the time, the
-           rack can't tell whether its saved card list has expired, so it fails
-           secure (denies). Soft resets keep the time; power cuts do not.
-   Fix later: add an RTC module (e.g. DS3231) with a coin cell.
+3. The rack is offline: nothing reaches the backend or the apps
+   Why:    The Uno has no Wi-Fi. Events (granted, denied, tamper) are printed
+           to the serial monitor only. The dashboard, rider app ("your bike is
+           parked here", alarm warnings) and HokieP linking need a networked
+           rack; the simulator (tools/device_simulator.py) still stands in for one.
+   Fix later: Uno R4 WiFi, or an ESP-01 Wi-Fi module on a serial port, or go
+           back to the ESP32 (git tag esp32-final).
+   Status: Accepted (board choice, 2026-11-10).
+
+4. Card list never expires; removing access is manual
+   Why:    The Uno has no clock, so the ESP32's "72 h snapshot" rule can't
+           exist. A card stays allowed until someone runs `unenroll` (and taps
+           it) or `list` + `remove <n>` at the rack.
+   Fix later: an RTC module (e.g. DS3231) would allow expiry dates.
    Status: Accepted for the demo.
 
-4. Card UID matching can be fooled by cloned cards
+5. Anyone with a USB cable can enrol a card
+   Why:    `enroll`, `add` and `wipe-cards` are serial commands with no password.
+   Fix:    Keep the Uno inside the locked housing; don't leave the USB port exposed.
+   Status: Accepted for the demo.
+
+6. Card UID matching can be fooled by cloned cards
    Why:    The PN532 reads the card's public ID. Cheap "magic" cards can copy it.
            We hash the ID (HMAC) so it isn't exposed, but a clone hashes the same.
    Fix later: cards with real cryptography (e.g. MIFARE DESFire EV2/EV3).
    Status: Accepted for the demo; documented in docs/SECURITY.md.
 
-5. Servo position is not verified
+7. Servo position is not verified
    Why:    A 3-wire MG90S has no position feedback. "Unlocked" means "told to
            unlock", not "is unlocked". A jam is not detected.
    Status: Accepted for the demo.
 
-6. Plain HTTP for the local demo
-   Why:    With HBR_ALLOW_INSECURE_HTTP 1, traffic to the laptop isn't encrypted,
-           so someone on the same hotspot could read the device token. Use https
-           + HBR_API_ROOT_CA beyond a supervised demo.
-   Status: Accepted for the demo (phone hotspot with a password).
+8. Max 63 cards
+   Why:    1 KB EEPROM, 16 bytes per card. `enroll` says "list is full" after that.
+   Status: Accepted for the demo.

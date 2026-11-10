@@ -1,29 +1,46 @@
-# Firmware notes (ESP32, C++, PlatformIO)
+# Firmware notes (Arduino Uno R3, C++, PlatformIO)
+
+> The rack moved from an ESP32 to an **Arduino Uno R3** on 2026-11-10. The Uno
+> has no Wi-Fi, so the rack now works **on its own**: cards are enrolled at the
+> rack and saved in EEPROM, and events are printed to the serial monitor
+> instead of being sent to the backend. The last ESP32 version (Wi-Fi, backend
+> sync, snapshots, event queue) is the git tag **`esp32-final`**.
 
 ## Layout: logic vs. hardware
 ```
 firmware/
   lib/hbr_logic/src/      ← plain C++ "brains", NO Arduino calls → unit-tested on your PC
-     access_rules         allow/deny + snapshot parsing + rollback rule
+     card_list            the allowed-card list in EEPROM + card reference math
+     hmac_sha256          SHA-256 + HMAC (the Uno has no crypto library built in)
      tamper_detector      baseline, threshold, warning → alarm
      feedback_player      LED/buzzer patterns as timed steps
      lock_controller      momentary unlock timer
-     hbr_util             UUID, ISO time, hex, card debounce
+     hbr_util             hex text, card debounce
   src/                    ← thin hardware "glue" that calls the brains
      card_reader.cpp      PN532 over I2C
      tamper_sensor.cpp    MPU-6050 registers
-     credential_ref.cpp   HMAC-SHA256 with mbedtls
-     lock.cpp             ESP32Servo (only if HBR_ENABLE_SERVO 1)
+     credential_ref.cpp   card ID → reference (uses HBR_CARD_KEY)
+     card_store.cpp       connects card_list to the real EEPROM
+     lock.cpp             Servo library (only if HBR_ENABLE_SERVO 1)
      feedback.cpp         digitalWrite to LEDs/buzzer
-     event_queue.cpp      LittleFS JSON-lines queue (+ mutex)
-     access_policy.cpp    current snapshot in RAM + flash (+ mutex)
-     backend_sync.cpp     the network task
      main.cpp             wires it together + serial console
-  test/                   ← Unity tests: pio test -e native  (37 tests)
+  test/                   ← Unity tests: pio test -e native
 ```
 **Lesson:** if logic doesn't touch hardware, you can test it in seconds on a
 laptop, including weird cases like `millis()` wrapping around after 49 days.
 That's why the "brains" live in `lib/`.
+
+## ESP32 → Uno: what changed and why
+| | ESP32 | Uno R3 | What we did |
+|---|---|---|---|
+| RAM | ~320 KB | **2 KB** | No `std::string`/`std::vector`/`String`; fixed arrays; every message in `F("...")` |
+| Program flash | 3 MB | **32 KB** | Dropped Wi-Fi, HTTP, JSON. We use ~21 KB (66%) |
+| Storage | ~900 KB file system | **1 KB EEPROM** | Card list only; 63 cards max |
+| Wi-Fi | yes | no | Rack works alone; enrol cards at the rack |
+| Clock | NTP over Wi-Fi | none | Card list doesn't expire; remove cards by hand |
+| Crypto | mbedtls | none | Own SHA-256/HMAC, checked against official test vectors |
+| CPU | 2 cores + FreeRTOS | 1 core, no OS | One `loop()`; no mutexes needed |
+| Logic level | 3.3 V | 5 V | Modules powered from 5V (wiring-guide.md) |
 
 ## Non-blocking code (why there's no `delay(1000)`)
 `loop()` runs hundreds of times a second. Each time, every part gets a quick
@@ -33,31 +50,40 @@ of `{ms, red, green, buzzer}` steps, and `FeedbackPlayer::update(now)` just
 asks "how long since we started? which step is that?".
 
 If any part used `delay()`, *everything* would freeze: a card tap during a
-2-second siren `delay` would be missed. That was the bug in the old firmware's
-upload code (KNOWNBUGS #1).
+2-second siren `delay` would be missed. On the Uno this matters even more,
+because there is only one core and nothing else can run in the meantime.
 
 **Time comparisons:** always `now - start >= duration`, never `now >= start + duration`.
 With unsigned math, the first still works when `millis()` wraps to 0. (Tested.)
 
-## Two tasks at once (FreeRTOS)
-The ESP32 has two CPU cores and runs FreeRTOS (a small operating system).
-- `loop()` runs in Arduino's task on **core 1**.
-- `backend_sync.cpp` starts its own task on **core 0** with `xTaskCreatePinnedToCore`.
-  HTTP calls can take seconds; now they only block that task.
+## Living in 2 KB of RAM
+- **`F("text")`** keeps a fixed message in flash instead of copying it into RAM
+  at start-up. Without it, the serial messages alone would fill the RAM.
+- **No `String`**: each one grabs heap memory, and many small grabs and frees
+  leave the heap full of holes ("fragmentation") until an allocation fails.
+  The serial console uses one fixed 80-character buffer.
+- **`PROGMEM`**: the SHA-256 constant table (256 bytes) lives in flash, read
+  with `pgm_read_dword`.
+- `status` shows **free RAM** (bytes between the heap and the stack). It
+  should stay well above 500. If it drops, look for a big local array.
 
-Two tasks touching the same data at the same time = corrupted data. So:
-- **Mutex** ("one at a time" lock) around the event queue file and the snapshot.
-  `Guard g;` takes it and releases it automatically at the end of the scope (RAII).
-- **`std::atomic`** for single flags/numbers shared for the heartbeat (`device_status.h`).
-- Rule of thumb: only one task owns each piece of hardware. I2C (reader, accel),
-  LEDs and servo are only touched by `loop()`. Wi-Fi only by the network task.
+## Watchdog
+`wdt_enable(WDTO_4S)` at the end of `setup()`; `wdt_reset()` at the top of `loop()`.
+If the code ever freezes for 4 s, the chip restarts and the lock starts up
+**locked**. That matters because the servo keeps holding its last position
+even if the code stops. The `reboot` command uses the same mechanism with a
+15 ms timeout. Turn it off with `HBR_ENABLE_WATCHDOG 0` only if your board is
+a clone with an old bootloader that gets stuck restarting.
 
 ## I2C in 60 seconds
 Two wires (SDA data, SCL clock) shared by many chips; each chip has an
-address. PN532 = `0x24`, MPU-6050 = `0x68`. To read a register:
+address. PN532 = `0x24`, MPU-6050 = `0x68`. On the Uno, SDA = **A4** and SCL = **A5**.
+To read a register:
 `beginTransmission(addr) → write(register) → endTransmission(false) → requestFrom(addr, n)`.
 `endTransmission()` returning 0 means the chip answered ("ACK"). Use the
 `i2c-scan` serial command to see who's on the bus.
+`Wire.setWireTimeout(25000, true)`: without it, a loose wire can make the
+Uno's Wire library wait forever.
 
 ## PN532: reading without freezing
 The Adafruit library's `readPassiveTargetID()` waits for a card. Instead we:
@@ -65,7 +91,11 @@ The Adafruit library's `readPassiveTargetID()` waits for a card. Instead we:
 2. Every 50 ms, read **one byte** over I2C: the PN532's status. `0x01` = answer ready.
 3. Then `readDetectedPassiveTargetID()` to get the ID.
 If the status read fails 5 times, the reader is marked faulty (`SENSOR_FAULT`
-event) and we retry setup every 15 s.
+in the log) and we retry setup every 15 s.
+
+The library calls `pinMode()` on the IRQ and reset pins, so they must be real
+pin numbers (2 and 3) even if unwired. On the Uno, a fake pin number like
+`-1` would make `pinMode()` write to a random memory address.
 
 ## MPU-6050 registers we use
 | Register | Value | Meaning |
@@ -93,52 +123,63 @@ event) and we retry setup every 15 s.
 - HMAC = a hash mixed with a secret key. Without the key you can't compute or
   reverse it. Every rack shares the key so a card has the same reference everywhere.
 - The `"hbr-card-v1:"` label lets us change the scheme later without confusion.
-- Same formula in `credential_ref.cpp`, `tools/device_simulator.py`, and the
-  backend test `ApiIntegrationTest.credentialRef()`.
+- Same formula in `card_list.cpp` (`makeCardRef`), `tools/device_simulator.py`,
+  and the backend test `ApiIntegrationTest.credentialRef()`. A PC test checks
+  the Uno gets the same answer as Python.
+- The Uno saves only the **first 16 bytes** (32 hex characters). 2^128
+  possibilities is still impossible to guess, and it lets 63 cards fit in 1 KB.
 - It hides the ID; it does **not** stop cloned cards (a clone has the same ID).
 
-## Snapshot rules (access_rules.cpp)
-- Deny if: no snapshot, clock not set (or > 1 h behind the server's issue time),
-  now ≥ `validUntil`, or reference not listed.
-- **Rollback protection:** reject a snapshot with a *lower* revision than the
-  current one. Otherwise someone could replay an old list where a revoked card
-  was still allowed. Same revision with a later issue time = accepted (that's
-  how the 72 h timer refreshes every minute while online).
-- The backend's revision is based on the clock in milliseconds, so wiping the
-  database doesn't make it go backwards. If it ever does, run `forget-snapshot`.
-- Flash wear: the snapshot is only re-saved when the revision changes or the
-  expiry moved ≥ 1 h (not every minute).
-
-## Clock (NTP)
-After Wi-Fi connects: `configTime(0, 0, "pool.ntp.org", …)`. Until it answers,
-`time()` returns ~1970, which `isClockPlausible()` treats as "unknown" (→ deny,
-events sent with `occurredAt: null`; the server fills in its receive time and
-marks `timeSource = SERVER`).
-
-## Event queue on flash (LittleFS)
-- One JSON object per line in `/events.jsonl`. Appending is cheap; a power cut
-  can only damage the last line, which is skipped when reading.
-- Removing sent events: write the survivors to `/events.tmp`, then `rename` over
-  the original. Rename is a single step, so we never end up with *no* queue file.
-- Size caps: above 256 KB only MEDIUM+ events are kept; above 400 KB nothing.
-- If the server says 400 for a batch, we switch to one-at-a-time so a single bad
-  event gets dropped instead of blocking all the good ones forever.
+## The card list in EEPROM (card_list.cpp)
+- Layout: `'H' 'B'`, format version, card count, then 16 bytes per card.
+  A blank or foreign EEPROM is detected and wiped to an empty list at boot.
+- **Power-cut safe ordering:** a new card's bytes are written *before* the
+  count goes up, so a cut half-way just loses that one card. Removing copies
+  the last card into the hole *before* the count goes down.
+- **Wear:** each EEPROM byte survives ~100,000 writes. `EEPROM.update()` skips
+  bytes that already hold the right value. Taps only *read* the list, so
+  normal use doesn't wear it at all.
+- **No expiry:** with no clock, the ESP32's 72 h snapshot rule can't exist. A
+  card stays allowed until someone removes it (`unenroll`, or `list` +
+  `remove <n>`).
+- Anyone with a USB cable and the serial monitor can enrol a card. Keep the
+  Uno inside the locked housing.
 
 ## Servo (MG90S)
-- 50 Hz signal; pulse width 500–2400 µs ↔ 0–180°. `ESP32Servo` handles the PWM.
+- 50 Hz signal; pulse width 500–2400 µs ↔ 0–180°. The `Servo` library handles
+  it with Timer1 (this disables PWM on pins 9 and 10; we don't need it there).
 - `HBR_ENABLE_SERVO 0` (default) = simulated: serial prints only.
 - The servo can jump at power-on when the signal starts. Keep the linkage disconnected for the first tests.
 - No position feedback: "unlocked" means "told to unlock".
-- If the ESP32 resets when the servo moves, that's a **brownout** (voltage dip). The
-  `DEVICE_BOOT` event reports `resetReason: BROWNOUT`. Fix: separate 5 V
-  supply, shared ground, big capacitor near the servo.
+- If the Uno restarts when the servo moves (you'll see the start-up messages
+  again), that's a **brownout** (voltage dip). Fix: separate 5 V supply,
+  shared ground, big capacitor near the servo.
 
 ## Memory / flash budget
-`huge_app.csv` partition: 3 MB app (we use ~1.4 MB, 44%), ~900 KB LittleFS.
-Trade-off: no over-the-air (OTA) updates; flash over USB.
+Normal build: **846 bytes RAM (41%)**, **21.3 KB flash (66%)**.
+With the servo and test commands on: 891 bytes RAM, 22.8 KB flash.
+There's room for small features, but not for Wi-Fi or JSON.
 
 ## Serial console (115200 baud)
-`status`, `sync`, `forget-snapshot`, `clear-queue`, `reboot`, `i2c-scan`, `accel`,
-and with `HBR_ENABLE_SERIAL_SIM 1`: `tap <hex-id>`, `shake`.
-`tap` goes through the exact same access check as a real card, so it can only
-unlock for a registered card. Still, set `HBR_ENABLE_SERIAL_SIM 0` for a real deployment.
+| Command | What it does |
+|---|---|
+| `status` | Everything at a glance (cards, sensors, lock, free RAM) |
+| `enroll` | The next card tapped (within 15 s) is **added** |
+| `unenroll` | The next card tapped (within 15 s) is **removed** |
+| `list` | Numbered list of enrolled cards (first 12 hex characters each) |
+| `add <reference>` | Add a card by its reference (≥ 32 hex chars, same card key) |
+| `remove <n>` | Remove card number `n` from `list` |
+| `wipe-cards` | Remove every card (asks you to type `wipe-cards yes`) |
+| `i2c-scan` | Who answers on the I2C bus |
+| `accel` | 2 s of raw accelerometer readings |
+| `reboot` | Restart the Uno |
+| `tap <hex-id>`, `shake` | Test commands, only with `HBR_ENABLE_SERIAL_SIM 1` |
+
+`tap` goes through the exact same check as a real card, so it can only
+unlock for an enrolled card. Still, set `HBR_ENABLE_SERIAL_SIM 0` for a real deployment.
+
+## Running the tests on this laptop
+Windows Application Control on this laptop blocks `pio.exe` and the test
+programs it builds. `python -m platformio run` works for building and
+uploading. `pio test -e native` builds the tests but Windows won't let them
+run; use a machine without that policy (or ask IT to allow MSYS2 programs).

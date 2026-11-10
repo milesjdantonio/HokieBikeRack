@@ -4,16 +4,21 @@ Work top to bottom. Each step only adds one new thing, so when something breaks
 you know what caused it. Write results in the "Notes" column (or in the
 PR) so they become part of the project record.
 
+**Board: Arduino Uno R3** (since 2026-11-10). The Uno is offline, so sections
+3 and 7 (network, dashboard, rider sign-up) need the networked ESP32 version
+(git tag `esp32-final`) and are kept here only for reference.
+
 Serial monitor: `pio device monitor` (115200 baud) from `firmware/`.
-Type commands + Enter.
+Type commands + Enter. On this laptop, use `~/.platformio/penv/Scripts/python.exe -m platformio`
+in place of `pio` (Windows blocks `pio.exe`).
 
 ## 0. Prep (laptop)
-- [ ] `cd firmware && pio test -e native` → 37 tests pass.
+- [ ] `cd firmware && pio test -e native` → all tests pass (on a machine that lets the test programs run).
 - [ ] Copy `include/config.example.h` → `include/config.h`. Set `HBR_CARD_KEY`
-      (`python -c "import secrets; print(secrets.token_hex(32))"`). Leave Wi-Fi empty for now.
-- [ ] `pio run -t upload` with **only the ESP32** plugged in. Monitor shows
-      "HokieBikeRack firmware 0.2.0 starting" and `[nfc] PN532 not found`, `[accel] … not found`. That's expected.
-- [ ] Type `status`. Everything reads sensibly.
+      (`python -c "import secrets; print(secrets.token_hex(32))"`).
+- [ ] `pio run -t upload` with **only the Uno** plugged in. Monitor shows
+      "HokieBikeRack firmware 0.3.0-uno (Arduino Uno R3) starting" and `[nfc] PN532 not found`, `[accel] … not found`. That's expected.
+- [ ] Type `status`. Everything reads sensibly; **free RAM** is well above 500 bytes.
 
 | Step | Pass? | Notes |
 |---|---|---|
@@ -21,22 +26,26 @@ Type commands + Enter.
 ## 1. Lights + buzzer (USB unplugged while wiring)
 - [ ] Wire LEDs and buzzer (wiring-guide.md). Power up.
 - [ ] Boot: red+green flash with a beep, then green.
-- [ ] Idle: a short **red** blip every 5 s (not ready: no card list yet). Expected.
-- [ ] `tap 0011223344` → red + two beeps, log says `DENIED (NO_SNAPSHOT)`.
+- [ ] Idle: a short **red** blip every 5 s (not ready: no cards enrolled yet). Expected.
+- [ ] `tap 0011223344` → red + two beeps, log says `ACCESS_DENIED ... reason=NOT_LISTED`.
+- [ ] `enroll`, then `tap 0011223344` → "ENROLLED". `tap 0011223344` again (after 2 s) → green + beep, `ACCESS_GRANTED`.
+- [ ] `reboot` → after start-up, `list` still shows the card (EEPROM survives).
+- [ ] `unenroll`, then `tap 0011223344` → "REMOVED". `list` → 0 cards.
 - [ ] `shake` → red blinks + 3 chirps (warning). `shake` again within 30 s (after 3 s) → flashing red + siren for 10 s.
 - [ ] Buzzer too quiet/loud? Note it. Transistor getting hot? Check the leg order.
 
 ## 2. I2C sensors
-- [ ] Set PN532 switches to I2C. Wire PN532 + MPU-6050 at **3.3 V**.
+- [ ] Set PN532 switches to I2C. Wire PN532 + MPU-6050 to the Uno's **5V**, SDA → **A4**, SCL → **A5**.
 - [ ] `i2c-scan` → `0x24 (PN532)` and `0x68 (MPU-6050)`.
 - [ ] Reboot. Log shows `[nfc] PN532 firmware 1.6` (or similar) and `[accel] WHO_AM_I = 0x..`.
 - [ ] Tap each kit card: `[card] read a 4-byte card ID` (or 7). **Record the length per card type.**
+- [ ] `enroll` + tap a kit card → tap it again → **green + beep**. A different card → denied.
 - [ ] Hold a card on the reader: only ONE event (debounce). Remove and tap again after 2 s: a new event.
 - [ ] `accel` with the board still: z ≈ ±1.0, x,y ≈ 0, deviation < 0.05 g.
 - [ ] Tap the table, then shake the board: watch the deviation. Note typical "bump" vs "shake" numbers.
 - [ ] Unplug the PN532 SDA wire for 5 s → `[nfc] reader stopped answering`. Plug back → `reader is back` (within ~15 s).
 
-## 3. Network + dashboard
+## 3. Network + dashboard (ESP32 version only; skip on the Uno)
 - [ ] Laptop **joined to the phone hotspot first** (2.4 GHz!), then start the backend
       (`mvn spring-boot:run -Dspring-boot.run.profiles=embedded`) and open http://localhost:8080 (no login in demo mode).
 - [ ] Windows firewall: the JDK that runs the server needs an inbound allow rule. On 2026-11-02 there
@@ -60,7 +69,7 @@ Type commands + Enter.
 - [ ] Wire servo to the **separate 5 V supply**, shared GND, capacitor across 5 V/GND.
 - [ ] `config.h`: `HBR_ENABLE_SERVO 1`. Re-flash. Keep hands clear: it may jump at boot.
 - [ ] Boot: servo moves to LOCKED angle. Allowed tap: moves to UNLOCKED, back after 5 s.
-- [ ] Watch for resets while moving: a `DEVICE_BOOT` event with reset reason **BROWNOUT** = power problem.
+- [ ] Watch for resets while moving: the start-up messages appearing again = **brownout** (power problem).
 - [ ] Find the real latch angles (change `HBR_SERVO_LOCKED_DEG`/`UNLOCKED_DEG`), avoid straining at the ends (buzzing = pushing past its limit).
 - [ ] Unplug the 5 V supply mid-unlock: what does the latch do? (Write it down: this is the fail-safe/fail-secure behaviour of the mechanism.)
 - [ ] Only then connect the linkage, with someone supervising.
@@ -72,13 +81,14 @@ Type commands + Enter.
 - [ ] Allowed card during an alarm → siren stops.
 
 ## 6. Failure tests
-- [ ] Turn the hotspot off → registered card still works (offline mode). Events queue (`status`).
-- [ ] Hotspot back on → backlog uploads (`[net] uploaded N event(s)`), no duplicates on the dashboard.
-- [ ] Stop the backend (Ctrl+C) → rack keeps working; events wait; restart backend → they arrive.
-- [ ] Power-cycle the ESP32 with the hotspot OFF → cards denied with `CLOCK_NOT_SET`. (Expected, KNOWNBUGS #3.) Hotspot on → works again.
+- [ ] Unplug the Uno's USB (power) mid-unlock, plug back → starts up **locked**; enrolled cards still work.
+- [ ] Unplug the MPU-6050 SDA wire → `[accel] sensor stopped answering`, rack keeps reading cards. Plug back → `sensor is back`.
+- [ ] Leave the rack running for 10+ minutes; `status` free RAM stays the same (no leak).
 - [ ] Unknown card, repeated taps, holding a card, two cards quickly: behaviour as expected?
 
-## 7. Rider sign-up with a real Hokie Passport (in person)
+## 7. Rider sign-up with a real Hokie Passport (ESP32 version only; skip on the Uno)
+On the Uno, a HokieP can still be checked offline: tap it 3 times and the log should show the
+same `card=` reference each time; then `enroll` + tap it, and it opens the rack.
 Needs sections 2 and 3 done (rack online, card list syncing). Two people is easiest: one "rider"
 with a phone, one "admin" at the laptop. Time: about 10 minutes.
 

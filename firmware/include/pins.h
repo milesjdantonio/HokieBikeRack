@@ -1,33 +1,36 @@
 #pragma once
 #include <stdint.h>
-// Which ESP32 pin connects to which part. Shared file: tell your teammate before changing it.
+// Which Arduino Uno R3 pin connects to which part. Shared file: tell your teammate before changing it.
 // Full wiring guide with pictures-in-words: docs/notes/wiring-guide.md
 //
-// Chosen for a standard "ESP32 DevKit" (ESP32-WROOM-32, 30 or 38 pins).
-// All of these are safe general-purpose pins: none are "strapping" pins
-// (0, 2, 5, 12, 15) that change how the chip boots, and none are input-only
-// pins (34-39).
+// Pins to keep free on the Uno:
+//   D0, D1   USB serial (the serial monitor and uploads use them)
+//   D13      the bootloader flashes it at power-on; bad for the servo
+//   A4, A5   the I2C bus (below)
+// The Servo library uses Timer1, which turns off PWM on D9 and D10. We only
+// need on/off for the LEDs and buzzer, so that doesn't matter here.
 
 // I2C bus, shared by the PN532 (address 0x24) and the MPU-6050 (address 0x68).
-// These are the ESP32's default I2C pins.
-constexpr int I2C_SDA_PIN = 21;
-constexpr int I2C_SCL_PIN = 22;
+// On the Uno R3 these are A4 = SDA and A5 = SCL (also repeated on the two
+// pins next to AREF). They're fixed in hardware, so they aren't set here.
 // 100 kHz ("standard mode") is slower but more forgiving of long breadboard wires.
 constexpr uint32_t I2C_CLOCK_HZ = 100000;
 
-// PN532 IRQ and RESET pins are not wired; we poll the chip over I2C instead.
-// If you wire them later, put the GPIO numbers here.
-constexpr int PN532_IRQ_PIN = -1;
-constexpr int PN532_RESET_PIN = -1;
+// PN532 IRQ and RESET. Wiring them is OPTIONAL: we poll the chip over I2C.
+// They still need real pin numbers, because the Adafruit library calls
+// pinMode() on them, and a made-up pin number would scribble over random
+// memory on the Uno. 2 and 3 are what the Adafruit PN532 Uno shield uses.
+constexpr uint8_t PN532_IRQ_PIN = 2;
+constexpr uint8_t PN532_RESET_PIN = 3;
 
 // MG90S servo signal wire (orange/yellow). Servo POWER comes from the separate
-// 5 V supply, NOT from the ESP32. Only the ground is shared.
-constexpr int SERVO_SIGNAL_PIN = 13;
+// 5 V supply, NOT from the Uno's 5V pin. Only the ground is shared.
+constexpr uint8_t SERVO_SIGNAL_PIN = 9;
 
-// LEDs: GPIO -> 220-330 ohm resistor -> LED long leg; LED short leg -> GND.
-constexpr int LED_GREEN_PIN = 25;
-constexpr int LED_RED_PIN = 26;
+// LEDs: pin -> 220-330 ohm resistor -> LED long leg; LED short leg -> GND.
+constexpr uint8_t LED_GREEN_PIN = 5;
+constexpr uint8_t LED_RED_PIN = 6;
 
 // Active buzzer, switched by an NPN transistor:
-// GPIO -> 1 k resistor -> transistor base. HIGH = buzzer on.
-constexpr int BUZZER_PIN = 27;
+// pin -> 1 k resistor -> transistor base. HIGH = buzzer on.
+constexpr uint8_t BUZZER_PIN = 7;

@@ -14,7 +14,7 @@ Hokie Passport). Questions marked "check during the bench test" get answered the
 ## Hardware (check during the bench test)
 | Default | Where to change | Question |
 |---|---|---|
-| Pins: SDA 21, SCL 22, servo 13, green 25, red 26, buzzer 27 | `firmware/include/pins.h` | OK for your exact board? (All are safe, non-strapping pins on ESP32-WROOM DevKits.) |
+| Pins (Uno R3): SDA A4, SCL A5, servo 9, green 5, red 6, buzzer 7, PN532 IRQ 2 / reset 3 | `firmware/include/pins.h` | OK for your exact board? (Keeps 0/1 for USB serial and 13 free.) |
 | Servo angles: locked 0°, unlocked 90° | `config.h` `HBR_SERVO_*_DEG` | What angles does the real latch need? Find them with the linkage disconnected. |
 | Unlock time 5 s | `device_config.h` `HBR_UNLOCK_DURATION_MS` | Long enough to pull a bike/lock free? |
 | Tamper threshold 0.35 g, 3 samples | `lib/hbr_logic/src/tamper_detector.h` | Too sensitive / not enough once mounted? Use `accel` to measure. |
@@ -22,7 +22,7 @@ Hokie Passport). Questions marked "check during the bench test" get answered the
 | Grace period after unlock 10 s | `HBR_TAMPER_GRACE_MS` | Long enough to remove a bike? |
 | Card type | — | What do the kit cards report? (4-byte = MIFARE Classic, 7-byte = NTAG/Ultralight usually.) Log shows `[card] read a N-byte card ID`. |
 | Hokie Passport | — | Does the PN532 read a HokieP, with the **same** ID every tap? (Checklist 7.) If not, use kit cards for the demo. |
-| PN532 power 3.3 V | wiring guide | Keep at 3.3 V so its I2C pull-ups don't put 5 V on ESP32 pins. |
+| PN532 power 5 V | wiring guide | The Uno is a 5 V board; the PN532 V3 and GY-521 have their own 3.3 V regulators. |
 
 ## Product / policy
 - **72 h offline** confirmed. Should *expired* (`validUntil`) cards also be capped to the snapshot? Today a card whose end date passes while a rack is offline keeps working until the snapshot expires.

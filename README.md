@@ -1,8 +1,14 @@
 # HokieBikeRack
 
-Smart bike-rack access and tamper monitoring: an ESP32 rack that reads NFC
-cards, unlocks a servo latch for allowed riders, sounds an alarm when shaken,
-and reports everything to a Spring Boot backend with a live admin dashboard.
+Smart bike-rack access and tamper monitoring: an Arduino Uno R3 rack that reads NFC
+cards, unlocks a servo latch for allowed riders and sounds an alarm when shaken,
+plus a Spring Boot backend with a live admin dashboard.
+
+**Hardware change (2026-11-10):** the rack moved from an ESP32 to an **Arduino Uno R3**.
+The Uno has no Wi-Fi, so the rack now works **on its own**: cards are enrolled at
+the rack (saved in EEPROM) and events go to the serial monitor. The backend,
+dashboard and simulator still work together as before, but the real rack no
+longer reports to them. The last ESP32 firmware is the git tag `esp32-final`.
 
 **Status (Nov 2026):** full end-to-end prototype for a supervised local demo.
 Software is complete and tested (37 firmware logic tests, 14 backend
@@ -24,21 +30,23 @@ python tools/device_simulator.py demo
 
 ## With the real rack
 1. Wire it: [docs/notes/wiring-guide.md](docs/notes/wiring-guide.md)
-2. `firmware/include/config.example.h` → `config.h` (Wi-Fi, device ID/token from the dashboard, card key)
+2. `firmware/include/config.example.h` → `config.h` (card key, servo switch)
 3. `cd firmware && pio run -t upload && pio device monitor`
-4. Follow [docs/notes/hardware-test-checklist.md](docs/notes/hardware-test-checklist.md)
+   (on this laptop: `~/.platformio/penv/Scripts/python.exe -m platformio ...`, because Windows blocks `pio.exe`)
+4. In the serial monitor, type `enroll` and tap a card to allow it
+5. Follow [docs/notes/hardware-test-checklist.md](docs/notes/hardware-test-checklist.md)
 
 ## Stack
 | Part | Tech |
 |---|---|
-| Rack | ESP32 DevKit, Arduino core 3 / PlatformIO, PN532 NFC (I2C), MPU-6050 accelerometer (I2C), MG90S servo, red/green LEDs, active buzzer |
+| Rack | Arduino Uno R3 (ATmega328P) / PlatformIO, PN532 NFC (I2C), MPU-6050 accelerometer (I2C), MG90S servo, red/green LEDs, active buzzer |
 | Backend | Java 21, Spring Boot 3.5, Spring Security, JdbcClient (plain SQL), Flyway |
 | Database | PostgreSQL 17 (embedded for dev/demo, or your own) |
 | Web | Four versions at `/rider/`, `/staff/`, `/police/`, `/admin/` (browser + app layouts), HTML/CSS/JS modules, no build step; Rive animations, MapLibre 3D campus map (OpenFreeMap + Esri imagery) |
 | Simulator | Python 3 standard library |
 
 ## Repository map
-- `firmware/`: ESP32 code. `lib/hbr_logic` = PC-tested logic, `src/` = hardware glue. [README](firmware/README.md)
+- `firmware/`: Arduino Uno code. `lib/hbr_logic` = PC-tested logic, `src/` = hardware glue. [README](firmware/README.md)
 - `backend/`: REST API, security, migrations, tests. [README](backend/README.md)
 - `frontend/`: the four versions + `/` chooser, Rive lab (`/lab`). [README](frontend/README.md)
 - `tools/device_simulator.py`: fake rack for demos/tests
@@ -50,8 +58,8 @@ python tools/device_simulator.py demo
 - `CONTRIBUTING.md`: team workflow
 
 ## Key safety and security points
-- The rack decides locally from a card list that's valid for **72 h**; after that, or with an unknown clock, it **denies everyone** (fail-secure).
-- Raw card IDs never leave the ESP32; only an HMAC "credential reference" does. Cloned cards are **not** stopped (UID-based cards).
+- The rack decides locally from the card list in its EEPROM. No card key or no enrolled cards → it **denies everyone** (fail-secure). With no clock, the list doesn't expire: remove cards by hand.
+- Raw card IDs are never stored or printed; only the first half of an HMAC "credential reference" is saved. Cloned cards are **not** stopped (UID-based cards).
 - Tamper events never move the lock.
-- Never power the servo from an ESP32 pin; use a separate 5 V supply with a shared ground.
+- Never power the servo from the Uno's 5V pin; use a separate 5 V supply with a shared ground.
 - Never commit `firmware/include/config.h`, `.env` files, or device tokens.

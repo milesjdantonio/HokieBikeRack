@@ -1,5 +1,36 @@
 # Overview: how the whole system fits together
 
+> **2026-11-10: the rack is now an Arduino Uno R3, working offline.** The Uno
+> has no Wi-Fi, so the real rack no longer talks to the backend. "Journey 0"
+> below is how the Uno rack works today. Everything after it describes the
+> networked design (ESP32, git tag `esp32-final`), which the backend, the
+> dashboard and `tools/device_simulator.py` still implement.
+
+## Journey 0: the Uno rack (offline)
+
+```
+ ┌──────────── RACK (Arduino Uno R3) ───────────┐
+ │ PN532 ──I2C──┐                                │   USB serial    ┌──── LAPTOP ─────────┐
+ │ MPU-6050 ─I2C┤ loop(): cards, tamper, lock,  │◀──────────────▶│ serial monitor:     │
+ │ LEDs, buzzer ┤        lights                 │ (115200 baud)   │ enroll, list, logs  │
+ │ MG90S servo ─┘                               │                 └─────────────────────┘
+ │ EEPROM: up to 63 allowed card references     │
+ └───────────────────────────────────────────────┘
+```
+
+| # | What happens | Code |
+|---|---|---|
+| 1 | Admin types `enroll` in the serial monitor and taps the rider's card. Its reference (HMAC, first 16 bytes) is saved in EEPROM. | `main.cpp`, `card_list.cpp` |
+| 2 | Rider taps. The loop reads the ID over I2C without waiting, debounces it, and turns it into the reference. | `card_reader.cpp`, `credential_ref.cpp` |
+| 3 | Reference in the EEPROM list → unlock 5 s, green + beep. Not listed → red + two beeps. | `card_store.cpp`, `lock.cpp` |
+| 4 | Every event is printed as `[event] t+12s ACCESS_GRANTED (INFO) card=cb9df64f5164...`. | `main.cpp` |
+| 5 | Shaking works exactly like Journey 2 below. | `tamper_detector.cpp` |
+| 6 | To take access away: `unenroll` + tap, or `list` + `remove <n>`. | `main.cpp` |
+
+---
+
+## The networked design (ESP32 version, tag `esp32-final`)
+
 ```
  ┌──────────── RACK (ESP32) ─────────────┐          ┌──── LAPTOP ────────────────────┐
  │ PN532 ──I2C──┐                         │  Wi-Fi   │ Spring Boot API  ── PostgreSQL │

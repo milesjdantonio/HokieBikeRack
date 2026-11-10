@@ -4,7 +4,7 @@
 // after HBR_UNLOCK_DURATION_MS (timing logic: lib/hbr_logic/src/lock_controller.h).
 //
 // HBR_ENABLE_SERVO 0 (default): SIMULATED, only prints messages.
-// HBR_ENABLE_SERVO 1: really moves the servo. Only after the bench test in
+// HBR_ENABLE_SERVO 1: really moves the servo (Servo library, pin 9). Only after the bench test in
 // docs/notes/hardware-test-checklist.md.
 #include <stdint.h>
 

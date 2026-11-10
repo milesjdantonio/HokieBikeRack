@@ -8,11 +8,13 @@
 // See docs/notes/firmware.md ("Reading cards without freezing the loop").
 #include <stdint.h>
 
+#include "hbr_util.h"
+
 // Most NFC cards have a 4- or 7-byte ID. 10 leaves room for longer ones.
-constexpr uint8_t CARD_ID_MAX_LENGTH = 10;
+constexpr uint8_t CARD_ID_MAX_LENGTH = hbr::kMaxCardIdLength;
 
 // A card's ID: up to 10 bytes, plus how many of them are actually used.
-// Treat this as SENSITIVE: never print it or send it anywhere. Turn it into a
+// Treat this as SENSITIVE: never print it or save it. Turn it into a
 // credential reference first (credential_ref.h).
 struct CardId {
   uint8_t bytes[CARD_ID_MAX_LENGTH];

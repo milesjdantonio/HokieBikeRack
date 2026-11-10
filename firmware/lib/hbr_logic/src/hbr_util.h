@@ -1,49 +1,39 @@
 #pragma once
-// Small helpers with no hardware: UUIDs, time text, hex, card debounce.
-// Tested in firmware/test/test_util.
+// Small helpers with no hardware: hex text and card debounce.
+// Tested in firmware/test/test_feedback_lock_util.
+//
+// No std::string here: the Arduino Uno has no C++ standard library. Callers
+// pass in their own char buffers instead.
 #include <stddef.h>
 #include <stdint.h>
 
-#include <string>
-
 namespace hbr {
 
-// Turns 16 random bytes into a version-4 UUID string like
-// "1b4e28ba-2fa1-41d2-883f-0016d3cca427". The backend stores event IDs as
-// UUIDs, and a stable ID per event is what makes retries safe (idempotent).
-std::string formatUuidV4(const uint8_t randomBytes[16]);
+// {0xAB, 0x01} -> "ab01". `out` must have room for 2 * length + 1 chars.
+void toHex(const uint8_t *data, size_t length, char *out);
 
-// 1730559845 -> "2024-11-02T15:04:05Z" (UTC, ISO-8601). Returns "" for <= 0.
-std::string formatIsoUtc(int64_t epochSeconds);
+// "ab01" -> {0xAB, 0x01}. Reads exactly `length` bytes (2 * length hex
+// characters, upper or lower case). Returns false on a bad character or if
+// the text is too short.
+bool fromHex(const char *text, uint8_t *out, size_t length);
 
-// Any time before 2025-01-01 means the clock was never set (the ESP32 starts
-// at 1970 after power-on until NTP sets it).
-constexpr int64_t kEarliestPlausibleEpoch = 1735689600;  // 2025-01-01T00:00:00Z
-inline bool isClockPlausible(int64_t epochSeconds) {
-  return epochSeconds >= kEarliestPlausibleEpoch;
-}
-
-// {0xAB, 0x01} -> "ab01"
-std::string toHex(const uint8_t *data, size_t length);
+// Longest card ID we keep. Most NFC cards have a 4- or 7-byte ID.
+constexpr uint8_t kMaxCardIdLength = 10;
 
 // A card held on the reader is seen over and over. Only act on it once:
 // ignore the same card until it has been gone for `quietMs`.
 class CardDebouncer {
  public:
   explicit CardDebouncer(uint32_t quietMs = 2000) : quietMs_(quietMs) {}
-  // Returns true if this read should be acted on.
-  bool shouldProcess(const std::string &cardKey, uint32_t nowMs) {
-    bool same = hasLast_ && cardKey == lastKey_ && (nowMs - lastSeenMs_) < quietMs_;
-    hasLast_ = true;
-    lastKey_ = cardKey;
-    lastSeenMs_ = nowMs;  // holding the card keeps refreshing this
-    return !same;
-  }
+  // Returns true if this read should be acted on. IDs longer than
+  // kMaxCardIdLength are compared on their first kMaxCardIdLength bytes.
+  bool shouldProcess(const uint8_t *id, uint8_t length, uint32_t nowMs);
 
  private:
   uint32_t quietMs_;
   bool hasLast_ = false;
-  std::string lastKey_;
+  uint8_t last_[kMaxCardIdLength] = {};
+  uint8_t lastLength_ = 0;
   uint32_t lastSeenMs_ = 0;
 };
 
