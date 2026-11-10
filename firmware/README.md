@@ -10,7 +10,7 @@ monitor. The previous ESP32 version (Wi-Fi + backend sync) is the git tag `esp32
 
 ## Commands (from this folder)
 ```bash
-pio test -e native      # 38 logic tests on your PC (needs g++; MSYS2 on Windows)
+pio test -e native      # 43 logic tests on your PC (needs g++; MSYS2 on Windows)
 pio run                 # build for the Uno
 pio run -t upload       # flash over USB
 pio device monitor      # serial console, 115200 baud
@@ -18,8 +18,13 @@ pio device monitor      # serial console, 115200 baud
 On this laptop Windows blocks `pio.exe`; use `~/.platformio/penv/Scripts/python.exe -m platformio`
 instead (e.g. `... -m platformio run -t upload`). Windows also blocks the test
 programs, so run the tests as WebAssembly instead:
-`cd tools/wasm-tests && npm install && npm test` (38 tests).
+`cd tools/wasm-tests && npm install && npm test` (43 tests).
 How it works: [firmware.md → Running the tests on this laptop](../docs/notes/firmware.md#running-the-tests-on-this-laptop).
+
+No Uno on the bench yet? `node tools/model/build.mjs` (from the repo root) compiles this firmware to
+WebAssembly for the Rack Model page, which runs it on an emulated Uno: http://localhost:8080/model/.
+See [model/README.md](model/README.md). Smaller build? `pio run -e nano` builds the same code for an
+Arduino Nano (same chip).
 
 ## Setup
 1. Copy `include/config.example.h` to `include/config.h` (git-ignored).
@@ -50,10 +55,10 @@ What each does: [firmware.md → Serial console](../docs/notes/firmware.md#seria
 | Green + short beep, 1 s (after `enroll`) | card enrolled |
 | Red + two beeps | access denied (or card removed after `unenroll`) |
 | Red blinks + 3 quick chirps | tamper warning |
-| Flashing red + siren for 10 s | tamper alarm (an allowed card stops it) |
+| Flashing red + siren, at least 10 s, until the rack is still for 5 s | tamper alarm (an allowed card stops it) |
 
 ## Memory
-846 bytes of 2048 RAM, 21.3 KB of 32 KB flash (servo + test commands on: 891 bytes, 22.8 KB).
+863 bytes of 2048 RAM, 21.8 KB of 32 KB flash (servo + test commands on: 908 bytes, 23.2 KB). The Nano build is the same size.
 
 ## Safety
 Servo power from a separate 5 V supply, never the Uno's 5V pin. Test with the linkage

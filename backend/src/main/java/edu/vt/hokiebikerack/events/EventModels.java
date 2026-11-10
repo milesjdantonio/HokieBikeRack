@@ -40,6 +40,9 @@ public final class EventModels {
                           String credentialReference, UUID credentialId, String credentialLabel,
                           Instant acknowledgedAt, String acknowledgedBy, boolean simulated) {}
 
+  /** "Mark All Handled" result: alerts marked handled, and whether an open police incident was resolved. */
+  public record RackHandled(int acknowledged, boolean incidentResolved) {}
+
   public record EventPage(List<EventView> items, int page, int size, long total) {}
 
   public record EventFilter(UUID rackId, String severity, String eventType, String credentialReference,

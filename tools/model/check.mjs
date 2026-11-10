@@ -1,0 +1,241 @@
+#!/usr/bin/env node
+// Runs the firmware model (frontend/model/firmware.js) through the bench-test scenarios in Node
+// and checks what the REAL firmware does. Expected numbers come from the compiled firmware's
+// own config, never typed in here, so changing a timing in src/ cannot make this lie.
+//
+//   node tools/model/check.mjs
+//
+// Also a cheap way to try a firmware change before the Uno is on the bench.
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const MODEL = path.join(ROOT, "frontend", "model");
+const load = (f) => import(pathToFileURL(path.join(MODEL, f)).href);
+const { FirmwareRunner, RESET } = await load("runner.js");
+const { Physics } = await load("physics.js");
+
+const modelConfig = fs.readFileSync(path.join(ROOT, "firmware", "model", "config.h"), "utf8");
+const define = (name) => modelConfig.match(new RegExp(`#define ${name} "([^"]*)"`))[1];
+
+let failures = 0;
+function check(name, ok, detail = "") {
+  console.log(`${ok ? "  ok  " : "  FAIL"} ${name}${!ok && detail ? `\n         ${detail}` : ""}`);
+  if (!ok) failures++;
+}
+
+function fresh() {
+  const t = {};
+  t.physics = new Physics();
+  t.runner = new FirmwareRunner({ physics: t.physics });
+  t.serial = "";
+  t.logs = [];
+  t.run = (ms) => {
+    const step = 50;
+    for (let done = 0; done < ms; done += step) {
+      const log = t.runner.run(Math.min(step, ms - done));
+      t.serial += log.serial;
+      t.logs.push(log);
+      if (t.runner.restartRequested) throw new Error("unexpected restart");
+    }
+  };
+  t.tap = (uid, ms = 300) => { t.runner.card(uid); t.run(ms); t.runner.card(null); };
+  t.edges = (pin) => t.logs.flatMap((l) => l.edges).filter((e) => e[1] === pin);
+  t.servo = () => t.logs.flatMap((l) => l.servo);
+  t.mark = () => { t.serial = ""; t.logs = []; };
+  return t;
+}
+
+const t = fresh();
+await t.runner.boot(RESET.POWER_ON);
+const cfg = t.runner.config;
+const val = Object.fromEntries(cfg.values.map((v) => [v.id, v.value]));
+const pulseFor = (deg) => Math.round(cfg.seen.servoMinUs + deg / 180 * (cfg.seen.servoMaxUs - cfg.seen.servoMinUs));
+const debounceGap = () => t.run(val.debouncer + 500);
+
+console.log("Boot");
+t.run(3000);
+check("prints the firmware banner", t.serial.includes(`HokieBikeRack firmware ${cfg.firmwareVersion} (Arduino Uno R3) starting`));
+check("a new EEPROM becomes an empty card list", t.serial.includes("EEPROM had no card list") && t.runner.state().cards.count === 0);
+check("finds the PN532", t.serial.includes("[nfc] PN532 firmware 1.6"));
+check("finds the MPU-6050", t.serial.includes("[accel] WHO_AM_I = 0x68"));
+check("logs DEVICE_BOOT", /\[event\] t\+\d+s DEVICE_BOOT \(INFO\) servo=REAL reader=OK accel=OK/.test(t.serial));
+const pulses = t.servo().map((s) => s[1]);
+check("servo starts at the library's 1500 us, then goes to LOCKED", pulses[0] === 1500 && pulses[1] === pulseFor(val.HBR_SERVO_LOCKED_DEG),
+  JSON.stringify(pulses));
+check("MPU set to +/-4 g by the firmware", (cfg.seen.mpuAccelConfig >> 3 & 3) === 1, String(cfg.seen.mpuAccelConfig));
+check("I2C on A4/A5 at the pins.h speed, with a timeout", cfg.seen.i2cBegun && cfg.seen.i2cHz === val.I2C_CLOCK_HZ &&
+  cfg.pins.sda === 18 && cfg.pins.scl === 19 && cfg.seen.i2cTimeoutUs > 0);
+check("PN532 library got real pins (2 and 3), none made up", cfg.seen.pnIrqPin === 2 && cfg.seen.pnResetPin === 3 && cfg.seen.badPins.length === 0,
+  JSON.stringify(cfg.seen));
+check("watchdog armed at 4 s", cfg.seen.watchdogMs >= 4000 && cfg.seen.watchdogMs < 4200, String(cfg.seen.watchdogMs));
+check("idle blip is red: no cards yet", !t.runner.state().cards.ready);
+
+console.log("Unknown card, then enrolled at the rack");
+const uid = "04a224b27c5e80";
+t.mark();
+t.tap(uid);
+t.run(1500);
+check("denied NOT_LISTED", /ACCESS_DENIED \(LOW\) card=[0-9a-f]{12}\.\.\. reason=NOT_LISTED/.test(t.serial), t.serial);
+const deniedBeeps = cfg.patterns.Denied.filter((s) => s[3]).length;
+const beeps = t.edges(cfg.pins.buzzer).filter((e) => e[2] === 1).length;
+check(`buzzer beeps ${deniedBeeps}x (Denied pattern)`, beeps === deniedBeeps, `beeps ${beeps}`);
+check("red LED on for the Denied pattern", t.edges(cfg.pins.red).some((e) => e[2] === 1));
+const ref = t.runner.cardRef(uid);
+const hmac = crypto.createHmac("sha256", define("HBR_CARD_KEY")).update("hbr-card-v1:" + uid).digest("hex");
+check("card reference = first half of HMAC-SHA256 (matches Node's crypto)", ref === hmac.slice(0, 32), `${ref} vs ${hmac}`);
+check("the log shows only the first 12 hex characters", t.serial.includes(`card=${ref.slice(0, 12)}...`) && !t.serial.includes(ref));
+t.mark();
+t.runner.serial("enroll\n");
+t.run(200);
+check("`enroll` waits for a tap", t.runner.state().cards.mode === "enroll");
+debounceGap();
+t.tap(uid);
+t.run(1500);
+check("tap during enroll saves the card", t.serial.includes("ENROLLED, 1 cards saved") && t.runner.state().cards.count === 1);
+check("it is saved in EEPROM (bytes written)", t.runner.state().cards.eepromWrites >= 16);
+check("idle blip is green now", t.runner.state().cards.ready);
+debounceGap();
+t.mark();
+t.tap(uid);
+t.run(500);
+check("now ACCESS_GRANTED", t.serial.includes("ACCESS_GRANTED (INFO)"));
+check("servo -> UNLOCKED pulse", t.servo().some((s) => s[1] === pulseFor(val.HBR_SERVO_UNLOCKED_DEG)));
+check("lock reports open", t.runner.state().lock.unlocked);
+t.run(val.HBR_UNLOCK_DURATION_MS);
+check(`re-locks by itself after ${val.HBR_UNLOCK_DURATION_MS} ms`, !t.runner.state().lock.unlocked &&
+  t.servo().at(-1)[1] === pulseFor(val.HBR_SERVO_LOCKED_DEG));
+
+console.log("Holding a card on the reader");
+debounceGap();
+t.mark();
+const readsBefore = t.runner.state().reader.reads;
+t.runner.card(uid);
+t.run(4000);
+t.runner.card(null);
+t.run(1000);
+const reads = t.runner.state().reader.reads - readsBefore;
+const granted = (t.serial.match(/ACCESS_GRANTED/g) || []).length;
+check("the reader reads it many times, the firmware acts once", reads > 3 && granted === 1, `reads ${reads}, granted ${granted}`);
+
+console.log("Tamper");
+t.run(val.HBR_UNLOCK_DURATION_MS + val.HBR_TAMPER_GRACE_MS);
+t.mark();
+t.physics.knock(t.runner.worldMs);
+t.run(2000);
+check("a light knock is not a jolt", !t.serial.includes("TAMPER"));
+t.physics.shake(t.runner.worldMs, 1500);
+t.run(2500);
+check("a shake gives a WARNING", t.serial.includes("TAMPER_WARNING (MEDIUM)"));
+t.run(val.cooldownMs);
+t.physics.shake(t.runner.worldMs, 1500);
+t.run(2000);
+check("shaking again soon gives the ALARM", t.serial.includes("TAMPER_ALARM (HIGH)") && t.runner.state().tamper.alarm);
+check("siren is sounding", t.edges(cfg.pins.buzzer).length > 10);
+t.tap(uid);
+t.run(300);
+check("an allowed card stops the alarm", !t.runner.state().tamper.alarm);
+check("tamper never moved the lock", t.servo().filter((s) => s[1] === pulseFor(val.HBR_SERVO_UNLOCKED_DEG)).length === 1);
+
+console.log("Power cut (EEPROM keeps the cards)");
+t.run(val.HBR_UNLOCK_DURATION_MS + 1000);
+t.mark();
+await t.runner.boot(RESET.POWER_ON);
+t.run(3000);
+check("card list survives in EEPROM", t.serial.includes("[cards] 1 of 63 card slots used"));
+check("starts LOCKED after the power cut", !t.runner.state().lock.unlocked &&
+  t.servo().at(-1)[1] === pulseFor(val.HBR_SERVO_LOCKED_DEG));
+t.tap(uid);
+t.run(500);
+check("the card still opens it: no clock or Wi-Fi needed", t.serial.includes("ACCESS_GRANTED"));
+
+console.log("Taking a card away");
+t.run(val.HBR_UNLOCK_DURATION_MS + 1000);
+t.mark();
+t.runner.serial("unenroll\n");
+t.run(200);
+t.tap(uid);
+t.run(1000);
+check("`unenroll` + tap removes it", t.serial.includes("REMOVED, 0 cards left") && t.runner.state().cards.count === 0);
+debounceGap();
+t.mark();
+t.tap(uid);
+t.run(500);
+check("then it is denied", t.serial.includes("reason=NOT_LISTED"));
+t.mark();
+t.runner.serial(`add ${hmac}\n`);
+t.run(300);
+check("`add <64-char reference>` from the dashboard enrols it too", t.serial.includes("ENROLLED") && t.runner.state().cards.count === 1);
+t.mark();
+t.runner.serial("enroll\n");
+t.run(val.HBR_ENROLL_WINDOW_MS + 500);
+check("`enroll` gives up if nobody taps in time", t.serial.includes("no card tapped in time") && t.runner.state().cards.mode === "check");
+t.mark();
+t.runner.serial("wipe-cards\n");
+t.run(200);
+check("`wipe-cards` asks first", t.serial.includes("wipe-cards yes") && t.runner.state().cards.count === 1);
+t.runner.serial("wipe-cards yes\n");
+t.run(200);
+check("`wipe-cards yes` removes every card", t.runner.state().cards.count === 0);
+
+console.log("Unplugging the PN532");
+t.mark();
+t.runner.link(0, false);
+t.run(3000);
+check("reader stopped answering", t.serial.includes("[nfc] reader stopped answering"));
+check("SENSOR_FAULT logged", t.serial.includes("SENSOR_FAULT (MEDIUM) sensor=PN532 state=NOT_RESPONDING"));
+t.runner.link(0, true);
+t.run(val.kRetryInitEveryMs + 1000);
+check("reader is back", t.serial.includes("[nfc] reader is back"));
+
+console.log("Serial console");
+t.mark();
+t.runner.serial("i2c-scan\n");
+t.run(500);
+check("i2c-scan finds 0x24 and 0x68", t.serial.includes("found 0x24 (PN532)") && t.serial.includes("found 0x68 (MPU-6050)"));
+t.mark();
+t.runner.serial("status\n");
+t.run(300);
+check("status shows the board and card slots", t.serial.includes("(Arduino Uno R3)") && t.serial.includes("cards enrolled: 0 of 63"));
+
+console.log("Watchdog");
+t.mark();
+t.runner.serial("accel\n");
+t.run(3000);
+check("the 2 s `accel` command keeps the watchdog fed", !t.runner.restartRequested && t.serial.includes("deviation from baseline"));
+t.runner.serial("reboot\n");
+t.runner.run(200);
+check("`reboot` resets the chip through the watchdog", t.runner.restartRequested && t.runner.resetReason === RESET.WATCHDOG);
+
+console.log("Alarm keeps going while the post is shaken");
+const a = fresh();
+await a.runner.boot(RESET.POWER_ON);
+a.run(5000);
+a.physics.shake(a.runner.worldMs, 1000);
+a.run(val.cooldownMs + 1000);
+a.physics.shake(a.runner.worldMs, 1000);
+a.run(1200);
+check("second shake starts the alarm", a.runner.state().tamper.alarm);
+const shakenFor = val.HBR_TAMPER_ALARM_MS + 6000;  // shaken well past the minimum
+for (let done = 0; done < shakenFor; done += 2000) {
+  a.physics.shake(a.runner.worldMs, 1000);
+  a.run(2000);
+}
+check("still sounding while shaken past the minimum", a.runner.state().tamper.alarm);
+a.run(val.HBR_TAMPER_ALARM_QUIET_MS - 1500);
+check("still sounding just before the quiet time is up", a.runner.state().tamper.alarm);
+a.mark();
+a.run(2500);
+check("stops once the post has been still long enough", !a.runner.state().tamper.alarm && a.serial.includes("[tamper] siren off"));
+a.run(1000);
+check("the buzzer is quiet after it stops", a.edges(cfg.pins.buzzer).every((e, i, all) => i < all.length - 1 || e[2] === 0));
+a.run(val.escalationWindowMs - 8000);
+a.mark();
+a.physics.shake(a.runner.worldMs, 1000);
+a.run(1500);
+check("a jolt inside the window after it stops is an alarm again", a.serial.includes("TAMPER_ALARM (HIGH)"));
+
+console.log(failures ? `\n${failures} check(s) failed.` : "\nAll checks passed.");
+process.exit(failures ? 1 : 0);

@@ -27,7 +27,7 @@ enum class Pattern : uint8_t {
   Granted,        // green on while unlocked + one short beep
   Denied,         // red + two beeps
   TamperWarning,  // red blinks + 3 quick chirps
-  TamperAlarm,    // flashing red + siren for 10 s
+  TamperAlarm,    // flashing red + siren until stop() (the tamper detector decides when)
 };
 
 struct Output {
@@ -47,7 +47,7 @@ constexpr uint8_t kMaxSteps = 8;
 class FeedbackPlayer {
  public:
   // holdMs: for Granted, how long green stays on (= unlock time).
-  // For TamperAlarm, total siren length.
+  // For TamperAlarm, total siren length, or kUntilStopped.
   void play(Pattern pattern, uint32_t nowMs, uint32_t holdMs = 0);
   void stop();  // e.g. an allowed card silences the alarm
 
@@ -70,6 +70,7 @@ class FeedbackPlayer {
   bool ready_ = false;
 };
 
+constexpr uint32_t kUntilStopped = 0xFFFFFFFFu;  // holdMs: loop the siren until stop()
 constexpr uint32_t kIdleBlipEveryMs = 5000;
 constexpr uint32_t kIdleBlipMs = 30;
 

@@ -1,0 +1,9 @@
+{
+  "name": "hbr-model-tools",
+  "private": true,
+  "description": "Build tools for the Rack Model page (docs/notes/firmware-model.md). binaryen = the wasm-opt optimizer as WebAssembly, used where Windows Smart App Control blocks MSYS2's wasm-opt.exe.",
+  "type": "module",
+  "dependencies": {
+    "binaryen": "129.0.0"
+  }
+}

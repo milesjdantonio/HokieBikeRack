@@ -44,7 +44,7 @@ uint8_t FeedbackPlayer::stepsFor(Pattern pattern, uint32_t holdMs, Step out[kMax
           .add(500, true, false, false);
       break;
     case Pattern::TamperAlarm:
-      // One siren "cycle"; play() loops it for the full alarm time.
+      // One siren "cycle"; play() loops it for the alarm time or until stop().
       // Long-short-short pulses sound more urgent than a steady tone.
       w.add(300, true, false, true).add(100, false, false, false)
           .add(100, true, false, true).add(100, false, false, false)
@@ -77,7 +77,7 @@ Output FeedbackPlayer::update(uint32_t nowMs) {
     uint32_t cycle = 0;
     for (uint8_t i = 0; i < stepCount_; i++) cycle += steps_[i].ms;
     uint32_t playFor = repeatForMs_ ? repeatForMs_ : cycle;
-    if (cycle == 0 || elapsed >= playFor) {
+    if (cycle == 0 || (repeatForMs_ != kUntilStopped && elapsed >= playFor)) {
       stop();  // finished; fall through to the idle blip below
     } else {
       uint32_t t = elapsed % cycle;  // position inside the (possibly repeating) cycle

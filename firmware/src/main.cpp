@@ -31,23 +31,28 @@
 
 // Runs before setup(), right after any reset. After a watchdog reset the
 // watchdog is still switched on, so turn it off before it fires again during
-// start-up. (Standard avr-libc pattern; ".init3" = very early start-up code.)
+// start-up. (Standard avr-libc pattern; ".init3" = very early start-up code.
+// Only AVR chips have that start-up section, so the browser model skips it.)
+#if defined(__AVR__)
 void disableWatchdogAtBoot() __attribute__((naked, used, section(".init3")));
 void disableWatchdogAtBoot() {
   MCUSR = 0;
   wdt_disable();
 }
+#endif
 
 namespace {
 hbr::TamperDetector tamper([] {
   hbr::TamperConfig c;
-  c.alarmDurationMs = HBR_TAMPER_ALARM_MS;
+  c.alarmMinMs = HBR_TAMPER_ALARM_MS;
+  c.alarmQuietMs = HBR_TAMPER_ALARM_QUIET_MS;
   return c;
 }());
 hbr::CardDebouncer debouncer(2000);
 uint32_t lastTamperSampleMs = 0;
 bool readerWasOk = true;
 bool accelWasOk = true;
+bool alarmWasOn = false;
 bool simShakeActive = false;  // serial `shake` command
 uint32_t simShakeUntilMs = 0;
 
@@ -145,6 +150,7 @@ void handleCard(const CardId &card) {
     lockRequestUnlock();
     // An allowed card also silences a tamper alarm (the owner is back).
     tamper.silence();
+    alarmWasOn = false;
     feedbackStop();
     feedbackPlay(hbr::Pattern::Granted, HBR_UNLOCK_DURATION_MS);
     printEvent(F("ACCESS_GRANTED"), F("INFO"));
@@ -167,10 +173,13 @@ void handleTamperSignal(hbr::TamperSignal signal) {
     feedbackPlay(hbr::Pattern::TamperWarning);
     printEvent(F("TAMPER_WARNING"), F("MEDIUM"));
   } else {
-    feedbackPlay(hbr::Pattern::TamperAlarm, HBR_TAMPER_ALARM_MS);
+    // The siren runs until loop() sees the tamper detector say the post is still again.
+    feedbackPlay(hbr::Pattern::TamperAlarm, hbr::kUntilStopped);
     printEvent(F("TAMPER_ALARM"), F("HIGH"));
-    Serial.print(F(" siren for "));
+    Serial.print(F(" siren for at least "));
     Serial.print(HBR_TAMPER_ALARM_MS / 1000);
+    Serial.print(F(" s, until still for "));
+    Serial.print(HBR_TAMPER_ALARM_QUIET_MS / 1000);
     Serial.print(F(" s,"));
   }
   Serial.print(F(" deviation="));
@@ -499,6 +508,14 @@ void loop() {
 
   // Shaking -> warning, then alarm. Never moves the lock.
   sampleTamperSensor();
+
+  // The siren stops once the post has been still long enough (or a card silenced it).
+  bool alarmOn = tamper.alarmActive(millis());
+  if (alarmWasOn && !alarmOn) {
+    feedbackStopSiren();
+    Serial.println(F("[tamper] siren off: the post has been still"));
+  }
+  alarmWasOn = alarmOn;
 
   lockUpdate();
   reportSensorChanges();

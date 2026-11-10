@@ -24,7 +24,7 @@ firmware/
      lock.cpp             Servo library (only if HBR_ENABLE_SERVO 1)
      feedback.cpp         digitalWrite to LEDs/buzzer
      main.cpp             wires it together + serial console
-  test/                   ← Unity tests: pio test -e native
+  test/                   ← Unity tests: pio test -e native  (43 tests)
 ```
 **Lesson:** if logic doesn't touch hardware, you can test it in seconds on a
 laptop, including weird cases like `millis()` wrapping around after 49 days.
@@ -34,7 +34,7 @@ That's why the "brains" live in `lib/`.
 | | ESP32 | Uno R3 | What we did |
 |---|---|---|---|
 | RAM | ~320 KB | **2 KB** | No `std::string`/`std::vector`/`String`; fixed arrays; every message in `F("...")` |
-| Program flash | 3 MB | **32 KB** | Dropped Wi-Fi, HTTP, JSON. We use ~21 KB (66%) |
+| Program flash | 3 MB | **32 KB** | Dropped Wi-Fi, HTTP, JSON. We use ~22 KB (68%) |
 | Storage | ~900 KB file system | **1 KB EEPROM** | Card list only; 63 cards max |
 | Wi-Fi | yes | no | Rack works alone; enrol cards at the rack |
 | Clock | NTP over Wi-Fi | none | Card list doesn't expire; remove cards by hand |
@@ -112,8 +112,12 @@ pin numbers (2 and 3) even if unwired. On the Uno, a fake pin number like
   "teach itself" as normal.
 - Deviation = length of the vector `(reading - baseline)` in g.
 - 3 consecutive samples over 0.35 g = jolt (filters one-sample noise spikes).
-- Warning → (another jolt within 30 s) → Alarm (10 s). 3 s cooldown so one
+- Warning → (another jolt within 30 s) → Alarm. 3 s cooldown so one
   shake = one event, not fifty.
+- The siren runs at least 10 s (`HBR_TAMPER_ALARM_MS`) and stops only once the post has
+  been still for 5 s (`HBR_TAMPER_ALARM_QUIET_MS`): every jolt during it pushes the end
+  back. The 30 s escalation window counts from when the siren stops, so a thief who
+  waits for silence and tries again gets the siren straight away.
 - **Tuning:** use `accel` in the serial monitor, bump the rack normally, shake
   it "like a thief", and pick a threshold between the two. Change `thresholdG`
   in `tamper_detector.h`.
@@ -156,8 +160,8 @@ pin numbers (2 and 3) even if unwired. On the Uno, a fake pin number like
   shared ground, big capacitor near the servo.
 
 ## Memory / flash budget
-Normal build: **846 bytes RAM (41%)**, **21.3 KB flash (66%)**.
-With the servo and test commands on: 891 bytes RAM, 22.8 KB flash.
+Normal build: **863 bytes RAM (42%)**, **21.8 KB flash (68%)**.
+With the servo and test commands on: 908 bytes RAM, 23.2 KB flash. The Nano (`pio run -e nano`) is the same.
 There's room for small features, but not for Wi-Fi or JSON.
 
 ## Serial console (115200 baud)

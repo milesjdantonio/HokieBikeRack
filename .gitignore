@@ -21,3 +21,4 @@ Thumbs.db
 tools/.sim-device*.json
 __pycache__/
 firmware/tools/wasm-tests/node_modules/
+tools/model/node_modules/

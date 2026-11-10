@@ -50,6 +50,13 @@ Pin 6 ── 330 Ω ──► RED LED long leg (+)     short leg (−) ── GN
 The resistor limits current (~9 mA at 5 V with 330 Ω). No resistor = burnt LED or pin.
 220 Ω also works (~14 mA).
 
+**Light tubing around the post.** Wrap the tubing around the top of the post and push one
+end over the green LED and the other over the red LED, so the whole tube shows the colour
+(both on at boot = amber). Seal each joint with heat-shrink so outside light doesn't leak
+in. At about 9 mA (330 Ω at 5 V) a 5 mm LED lights a short tube well but fades along a long one: test the
+length first. If it's too dim, use high-brightness LEDs; don't just lower the resistor
+below 220 Ω (an Uno pin is good for about 20 mA; 40 mA is its absolute limit).
+
 ## Active buzzer through an NPN transistor
 ```
                       Buzzer +  ── 5 V

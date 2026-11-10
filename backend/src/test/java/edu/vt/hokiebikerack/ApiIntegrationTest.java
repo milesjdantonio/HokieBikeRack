@@ -478,6 +478,32 @@ class ApiIntegrationTest {
   }
 
   @Test
+  void staffMarkHandledStopsTheAlarmAndResolvesTheIncident() throws Exception {
+    Device d = newRackWithDevice("Handled");
+    json(asDevice(jsonBody(post("/api/v1/devices/" + d.deviceId() + "/events"),
+        "{\"events\":[" + event("TAMPER_ALARM", "HIGH", null, "{\"deviationG\":1.4}") + "]}"), d), 200);
+    String id = json(jsonBody(post("/api/v1/racks/" + d.rackId() + "/alert-authorities"), "{}").with(ADMIN), 201)
+        .at("/incident/id").asText();
+
+    JsonNode handled = json(post("/api/v1/events/acknowledge-rack/" + d.rackId()).with(ADMIN), 200);
+    assertThat(handled.get("acknowledged").asInt()).isEqualTo(1);
+    assertThat(handled.get("incidentResolved").asBoolean()).isTrue();
+    JsonNode after = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);
+    assertThat(after.at("/rack/openAlarms").asLong()).isZero();
+    assertThat(after.at("/rack/incidentStatus").isNull()).isTrue();   // pin and rider page stop alarming
+    assertThat(json(get("/api/v1/incidents/" + id).with(ADMIN), 200).at("/incident/status").asText())
+        .isEqualTo("RESOLVED");
+
+    // Same through the single "Handled" button on the last open tamper alarm.
+    UUID alarmId = UUID.randomUUID();
+    json(asDevice(jsonBody(post("/api/v1/devices/" + d.deviceId() + "/events"),
+        "{\"events\":[" + event(alarmId, "TAMPER_ALARM", "HIGH", null, "{\"deviationG\":1.5}") + "]}"), d), 200);
+    json(jsonBody(post("/api/v1/racks/" + d.rackId() + "/alert-authorities"), "{}").with(ADMIN), 201);
+    json(post("/api/v1/events/" + alarmId + "/acknowledge").with(ADMIN), 200);
+    assertThat(json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200).at("/rack/incidentStatus").isNull()).isTrue();
+  }
+
+  @Test
   void deviceProvisioningReturnsConfigSnippetOnce() throws Exception {
     Device d = newRackWithDevice("Snippet");
     JsonNode rack = json(get("/api/v1/racks/" + d.rackId()).with(ADMIN), 200);

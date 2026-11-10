@@ -78,6 +78,59 @@ void test_alarm_stops_after_10_seconds() {
   TEST_ASSERT_FALSE(d.alarmActive(now));
 }
 
+// Warning, then alarm. Returns with the siren just started.
+static void startAlarm(TamperDetector &d) {
+  feedStill(d, 3000);
+  feedShake(d, 300);
+  feedStill(d, 3000);
+  TEST_ASSERT_EQUAL(static_cast<int>(TamperSignal::Alarm), static_cast<int>(feedShake(d, 100)));
+}
+
+void test_alarm_runs_at_least_10_seconds_when_still() {
+  TamperDetector d;
+  startAlarm(d);
+  feedStill(d, 9500);  // still since the alarm started, but under the 10 s minimum
+  TEST_ASSERT_TRUE(d.alarmActive(now));
+  feedStill(d, 600);
+  TEST_ASSERT_FALSE(d.alarmActive(now));
+}
+
+void test_shaking_keeps_alarm_going_until_5_seconds_still() {
+  TamperDetector d;
+  startAlarm(d);
+  for (int i = 0; i < 5; i++) {  // keeps getting shaken for ~20 s
+    feedStill(d, 3500);
+    feedShake(d, 500);
+  }
+  TEST_ASSERT_TRUE(d.alarmActive(now));
+  feedStill(d, 4800);  // not yet 5 s since the last jolt
+  TEST_ASSERT_TRUE(d.alarmActive(now));
+  TEST_ASSERT_TRUE(d.alarmLeftMs(now) <= 200);
+  feedStill(d, 300);
+  TEST_ASSERT_FALSE(d.alarmActive(now));
+}
+
+void test_jolt_late_in_alarm_leaves_5_more_seconds() {
+  TamperDetector d;
+  startAlarm(d);
+  feedStill(d, 9000);
+  feedShake(d, 200);  // at ~9 s: the siren now ends 5 s after this, not at 10 s
+  feedStill(d, 2000);
+  TEST_ASSERT_TRUE(d.alarmActive(now));
+  feedStill(d, 3200);
+  TEST_ASSERT_FALSE(d.alarmActive(now));
+}
+
+void test_jolt_within_30_seconds_of_siren_stopping_is_alarm_again() {
+  TamperDetector d;
+  startAlarm(d);
+  feedShake(d, 15000);  // shaken the whole time: siren keeps going
+  feedStill(d, 5100);   // still: siren stops
+  TEST_ASSERT_FALSE(d.alarmActive(now));
+  feedStill(d, 25000);  // 25 s after it stopped (but 45 s after the alarm started)
+  TEST_ASSERT_EQUAL(static_cast<int>(TamperSignal::Alarm), static_cast<int>(feedShake(d, 300)));
+}
+
 void test_one_long_shake_inside_cooldown_gives_one_warning() {
   TamperDetector d;
   feedStill(d, 3000);
@@ -131,6 +184,10 @@ int main() {
   RUN_TEST(test_shaking_during_warmup_is_ignored);
   RUN_TEST(test_first_shake_is_warning_then_continued_shake_is_alarm);
   RUN_TEST(test_alarm_stops_after_10_seconds);
+  RUN_TEST(test_alarm_runs_at_least_10_seconds_when_still);
+  RUN_TEST(test_shaking_keeps_alarm_going_until_5_seconds_still);
+  RUN_TEST(test_jolt_late_in_alarm_leaves_5_more_seconds);
+  RUN_TEST(test_jolt_within_30_seconds_of_siren_stopping_is_alarm_again);
   RUN_TEST(test_one_long_shake_inside_cooldown_gives_one_warning);
   RUN_TEST(test_calm_for_long_time_resets_to_warning_level);
   RUN_TEST(test_disarmed_while_rider_uses_rack);
