@@ -1,0 +1,135 @@
+<!doctype html>
+<!--
+  Rack Model: the real Arduino Uno firmware (firmware/src, lib/hbr_logic) running in the browser
+  on an emulated Uno and parts, inside a 3D model of the rack. http://localhost:8080/model
+  How it works: docs/notes/firmware-model.md. After changing firmware: node tools/model/build.mjs
+  A learning and rehearsal tool only: it never talks to the real backend or a real rack.
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Rack Model · HokieBikeRack</title>
+  <link rel="icon" href="../favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="../shared/tokens.css">
+  <link rel="stylesheet" href="model.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <a class="brand" href="/">HokieBikeRack</a>
+    <h1>Rack Model</h1>
+    <p class="bar-note" id="bar-note">Starting the firmware</p>
+    <div class="bar-controls">
+      <div class="seg" role="radiogroup" aria-label="Speed" id="speed">
+        <button type="button" role="radio" aria-checked="false" data-speed="0.25">0.25x</button>
+        <button type="button" role="radio" aria-checked="true" data-speed="1">1x</button>
+        <button type="button" role="radio" aria-checked="false" data-speed="4">4x</button>
+      </div>
+      <button type="button" class="btn" id="pause">Pause</button>
+      <button type="button" class="btn" id="power">Power Cycle</button>
+      <label class="check"><input type="checkbox" id="sound"> Sound</label>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="stage" aria-label="3D model of the rack">
+      <canvas id="scene" tabindex="0" aria-label="The rack in 3D. Drag to turn it, drag the post to shake it, click a part to read about it."></canvas>
+      <div class="labels" id="labels"></div>
+      <div class="stage-tools">
+        <div class="seg" role="radiogroup" aria-label="View" id="view">
+          <button type="button" role="radio" aria-checked="true" data-view="outside">Outside</button>
+          <button type="button" role="radio" aria-checked="false" data-view="inside">Inside</button>
+        </div>
+        <div class="seg" role="radiogroup" aria-label="Build option" id="option">
+          <button type="button" role="radio" aria-checked="true" data-option="a">A Standard</button>
+          <button type="button" role="radio" aria-checked="false" data-option="b">B 0.75x</button>
+          <button type="button" role="radio" aria-checked="false" data-option="c">C 0.5x Mini</button>
+        </div>
+        <div class="seg" aria-label="Camera" id="camera">
+          <button type="button" data-cam="rack">Rack</button>
+          <button type="button" data-cam="head">Lock Module</button>
+          <button type="button" data-cam="latch">Latch</button>
+          <button type="button" data-cam="sensor">Sensor</button>
+        </div>
+        <p class="stage-note" id="option-note"></p>
+      </div>
+      <p class="stage-hint">Drag the post to shake it. Click the reader window to tap the card.</p>
+      <article class="part-card" id="part-card" hidden aria-live="polite"></article>
+      <div class="stage-message" id="stage-message" hidden></div>
+    </section>
+
+    <section class="strip" aria-label="Timeline of the last 12 seconds">
+      <canvas id="timeline"></canvas>
+    </section>
+
+    <aside class="side">
+      <section class="live" aria-label="What the firmware is doing">
+        <h2>What the Firmware Is Doing</h2>
+        <dl id="live"></dl>
+      </section>
+
+      <div class="tabs" role="tablist" aria-label="Panels">
+        <button type="button" role="tab" aria-selected="true" aria-controls="tab-try" id="t-try">Try It</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="tab-cards" id="t-cards">Cards</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="tab-values" id="t-values">Values</button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="tab-serial" id="t-serial">Serial</button>
+      </div>
+
+      <div class="panel" role="tabpanel" id="tab-try" aria-labelledby="t-try">
+        <section class="block">
+          <h3>Card</h3>
+          <div class="seg seg-wide" role="radiogroup" aria-label="Which card" id="card-pick"></div>
+          <div class="row">
+            <button type="button" class="btn btn-primary" id="tap">Tap Card</button>
+            <label class="check"><input type="checkbox" id="hold"> Leave It on the Reader</label>
+          </div>
+          <p class="readout" id="card-readout">No card tapped yet.</p>
+        </section>
+        <section class="block">
+          <h3>Shackle</h3>
+          <div class="row">
+            <button type="button" class="btn" id="shackle">Pull Shackle Out</button>
+          </div>
+          <p class="readout" id="shackle-readout">In and latched.</p>
+          <p class="note">Mechanics only. The firmware has no sensor for the shackle, so it never knows whether it's in.</p>
+        </section>
+        <section class="block">
+          <h3>The Post</h3>
+          <div class="row">
+            <button type="button" class="btn" id="knock">Knock</button>
+            <button type="button" class="btn" id="shake">Shake</button>
+          </div>
+          <label class="slider" for="lean">
+            <span>Lean</span>
+            <input type="range" id="lean" min="0" max="25" step="1" value="0">
+            <output id="lean-out" for="lean">0°</output>
+          </label>
+          <p class="note" id="lean-note">Lean it slowly and the baseline follows, like a post settling. Flick it far enough and it counts as a jolt.</p>
+        </section>
+        <section class="block">
+          <h3>Wires and Power</h3>
+          <label class="toggle"><input type="checkbox" id="link-pn" checked> PN532 Wired</label>
+          <label class="toggle"><input type="checkbox" id="link-mpu" checked> MPU-6050 Wired</label>
+          <label class="toggle"><input type="checkbox" id="servo-power" checked> Servo 5 V Supply On</label>
+          <p class="note">No network: the Uno has no Wi-Fi. Cards are enrolled at the rack and events go to the serial monitor.</p>
+        </section>
+      </div>
+
+      <div class="panel" role="tabpanel" id="tab-cards" aria-labelledby="t-cards" hidden></div>
+      <div class="panel" role="tabpanel" id="tab-values" aria-labelledby="t-values" hidden></div>
+
+      <div class="panel panel-serial" role="tabpanel" id="tab-serial" aria-labelledby="t-serial" hidden>
+        <p class="note" id="serial-note">The same console as <code>pio device monitor</code>.</p>
+        <div class="serial-out" id="serial-out" role="log" aria-live="off" tabindex="0"></div>
+        <form class="serial-form" id="serial-form">
+          <input id="serial-in" autocomplete="off" spellcheck="false" placeholder="status" aria-label="Serial command">
+          <button type="submit" class="btn">Send</button>
+        </form>
+        <div class="row chips" id="serial-chips"></div>
+      </div>
+    </aside>
+  </main>
+</body>
+</html>

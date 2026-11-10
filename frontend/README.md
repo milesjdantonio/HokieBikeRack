@@ -12,10 +12,11 @@ Explained in [../docs/notes/frontend.md](../docs/notes/frontend.md); who each ve
 | http://localhost:8080/police/ | Police: reported incidents and their status |
 | http://localhost:8080/admin/ | Admin: everything, terminal, Reports, Audit Log |
 | http://localhost:8080/lab | Rive lab (every animation state) |
+| http://localhost:8080/model/ | Rack Model: the real firmware running in 3D ([../docs/notes/firmware-model.md](../docs/notes/firmware-model.md)) |
 
 Add `?view=app` for the phone layout or `?view=desktop` for the browser layout.
 
-Vendored: `vendor/rive` (Rive runtime), `vendor/maplibre` (MapLibre GL JS). Fonts in `shared/fonts`
+Vendored: `vendor/rive` (Rive runtime), `vendor/maplibre` (MapLibre GL JS), `vendor/three` (three.js). Fonts in `shared/fonts`
 (Fraunces, Hanken Grotesk; SIL OFL).
 
 Login is off for the demo; with `HBR_LOGIN_REQUIRED=true` the backend enforces admin vs read-only.

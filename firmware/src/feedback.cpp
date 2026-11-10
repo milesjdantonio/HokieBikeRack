@@ -33,6 +33,9 @@ void feedbackSetup() {
 void feedbackPlay(hbr::Pattern pattern, uint32_t holdMs) { player.play(pattern, millis(), holdMs); }
 
 void feedbackStop() { player.stop(); }
+void feedbackStopSiren() {
+  if (player.current() == hbr::Pattern::TamperAlarm) player.stop();
+}
 
 void feedbackSetReady(bool ready) { player.setReady(ready); }
 

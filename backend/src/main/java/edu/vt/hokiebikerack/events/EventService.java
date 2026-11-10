@@ -8,6 +8,7 @@ import edu.vt.hokiebikerack.common.ApiException;
 import edu.vt.hokiebikerack.common.Db;
 import edu.vt.hokiebikerack.devices.DevicePrincipal;
 import edu.vt.hokiebikerack.events.EventModels.*;
+import edu.vt.hokiebikerack.incidents.IncidentService;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Clock;
@@ -36,17 +37,19 @@ public class EventService {
   private final AuditService audit;
   private final Clock clock;
   private final org.springframework.context.ApplicationEventPublisher publisher;
+  private final IncidentService incidents;
 
   /** Published for every NEW refused tap of a card; riders use it to link a Hokie Passport. */
   public record CardRefused(String credentialReference, java.util.UUID rackId) {}
 
   public EventService(JdbcClient jdbc, ObjectMapper mapper, AuditService audit, Clock clock,
-                      org.springframework.context.ApplicationEventPublisher publisher) {
+                      org.springframework.context.ApplicationEventPublisher publisher, IncidentService incidents) {
     this.jdbc = jdbc;
     this.mapper = mapper;
     this.audit = audit;
     this.clock = clock;
     this.publisher = publisher;
+    this.incidents = incidents;
   }
 
   /**
@@ -174,11 +177,22 @@ public class EventService {
         .query((rs, n) -> map(rs)).optional()
         .orElseThrow(() -> ApiException.notFound("Event"));
     if (changed > 0) audit.record(actor, "EVENT_ACKNOWLEDGED", "EVENT", eventId, Map.of("eventType", view.eventType()));
+    // That was the rack's last open tamper alarm: the issue is over, so close the police incident too.
+    if (changed > 0 && "TAMPER_ALARM".equals(view.eventType()) && view.rackId() != null) {
+      long stillOpen = jdbc.sql("""
+              SELECT count(*) FROM security_events WHERE rack_id = :rackId AND event_type = 'TAMPER_ALARM'
+                AND acknowledged_at IS NULL AND received_at > :since
+              """)
+          .param("rackId", view.rackId()).param("since", Db.ts(clock.instant().minus(Duration.ofHours(24))))
+          .query(Long.class).single();
+      if (stillOpen == 0) incidents.resolveForRack(view.rackId(), actor);
+    }
     return view;
   }
 
+  /** "Mark All Handled": every open alert on the rack, and its open police incident if there is one. */
   @Transactional
-  public int acknowledgeAllForRack(UUID rackId, String actor) {
+  public RackHandled acknowledgeAllForRack(UUID rackId, String actor) {
     int changed = jdbc.sql("""
             UPDATE security_events SET acknowledged_at = :now, acknowledged_by = :actor
             WHERE rack_id = :rackId AND acknowledged_at IS NULL AND severity IN ('MEDIUM','HIGH','CRITICAL')
@@ -186,6 +200,6 @@ public class EventService {
         .param("now", Db.ts(clock.instant())).param("actor", actor).param("rackId", rackId)
         .update();
     if (changed > 0) audit.record(actor, "RACK_ALERTS_ACKNOWLEDGED", "RACK", rackId, Map.of("count", changed));
-    return changed;
+    return new RackHandled(changed, incidents.resolveForRack(rackId, actor));
   }
 }

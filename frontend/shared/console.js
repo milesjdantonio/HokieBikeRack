@@ -143,7 +143,7 @@ async function run(text) {
       break;
     }
     case "ack":
-      if (!r.openAlerts) { log("info", [{ b: slug(r.name) }, " has no open alerts"]); break; }
+      if (!r.openAlerts && !r.incidentStatus) { log("info", [{ b: slug(r.name) }, " has no open alerts"]); break; }
       await ackRack(r);
       break;
     case "alert":
@@ -236,7 +236,7 @@ const term = h("section", { class: "term", "aria-label": CAN.terminal ? "Termina
 // =====================================================================================
 async function ackRack(r) {
   const res = await act(() => api(`/events/acknowledge-rack/${r.id}`, { method: "POST" }));
-  if (res) log("ok", [{ b: slug(r.name) }, ` ${res.acknowledged} alert(s) marked handled`]);
+  if (res) log("ok", [{ b: slug(r.name) }, ` ${res.acknowledged} alert(s) marked handled${res.incidentResolved ? `. ${AGENCY} incident resolved, alarm stopped` : ""}`]);
 }
 async function ackEvent(e, r) {
   const res = await act(() => api(`/events/${e.id}/acknowledge`, { method: "POST" }));
@@ -447,7 +447,8 @@ function renderDetail(body, r, data, { focus } = {}) {
   const now = [];
   if (isAlarm(r) && !r.incidentStatus) now.push(btn("Alert Authorities", () => askAuthorities(r), "btn-police"));
   if (r.status === "UNCONFIRMED") now.push(btn("Confirm Online", () => confirmOnline(r), "btn-primary"));
-  if (r.openAlerts) now.push(btn(r.openAlerts > 1 ? "Mark All Handled" : "Mark Handled", () => ackRack(r)));
+  // An open police incident also counts: Mark Handled resolves it, so staff can always end the alarm.
+  if (r.openAlerts || r.incidentStatus) now.push(btn(r.openAlerts > 1 ? "Mark All Handled" : "Mark Handled", () => ackRack(r)));
 
   const alerts = data ? (data.alerts.length
     ? h("div", { class: "list" }, data.alerts.map((e) => {
@@ -900,7 +901,7 @@ function showDrop(r, level, extraInfo = {}) {
     dropAnim("shake", { level: 1 });
     title.textContent = "Tamper Alarm";
     where.textContent = `${r.name}${jolt} · just now`;
-    fill(extra, h("span", { class: "siren" }, h("span", { class: "siren-bar" })), h("span", { class: "drop-note" }, "Siren on for 10 s. The alarm stays open until handled."));
+    fill(extra, h("span", { class: "siren" }, h("span", { class: "siren-bar" })), h("span", { class: "drop-note" }, "Siren on until the rack is still for 5 s, at least 10 s. The alarm stays open until handled."));
     fill(actions, r.incidentStatus ? null : btn("Alert Authorities", () => askAuthorities(rackById(r.id) || r), "btn-police"), open, dismiss);
   } else if (level === "confirm") {
     drop.classList.add("alarm");
@@ -918,7 +919,7 @@ function showDrop(r, level, extraInfo = {}) {
         if (dropState.rack !== r.id) return;
         title.textContent = `${AGENCY} Alerted`;
         where.textContent = `${r.name} · by ${res.incident.alertedBy}`;
-        fill(extra, h("span", { class: "drop-note" }, "The pin flashes red and blue until the police resolve it."));
+        fill(extra, h("span", { class: "drop-note" }, "The pin flashes red and blue until the police resolve it or you mark it handled."));
         fill(actions, btn("Open Rack", () => openRack(r.id)), btn("Dismiss", hideDrop, "btn-quiet"));
       }, 2100);
     }, "btn-danger"), btn("Cancel", () => (isAlarm(rackById(r.id) || r) ? showDrop(r, "alarm") : hideDrop()), "btn-quiet"));
@@ -1011,12 +1012,12 @@ function appNow() {
     h("div", { class: "steps-head" }, riveIcon("shake", { size: 72, height: 48, inputs: { level: 1 } }).el,
       h("div", {}, h("b", {}, "Tamper Alarm"), h("span", {}, `${r.name}${r.locationDescription ? `, ${r.locationDescription}` : ""}`))),
     h("ol", {},
-      h("li", { class: "done" }, h("div", {}, h("b", {}, "The rack sounded its siren"), h("p", {}, "It flashed red for 10 s. Bikes stay locked."))),
+      h("li", { class: "done" }, h("div", {}, h("b", {}, "The rack sounded its siren"), h("p", {}, "It flashed red until the rack was still. Bikes stay locked."))),
       h("li", {}, h("div", {}, h("b", {}, "Go and look, or send someone"), h("p", {}, "Check whether a bike or the lock is being forced."),
         btn("Open Rack", () => openRack(r.id)))),
       h("li", { class: r.incidentStatus ? "done" : "" }, h("div", {},
         h("b", {}, r.incidentStatus ? `${AGENCY}: ${INCIDENT_WORD[r.incidentStatus]}` : "If a bike is being stolen, alert the authorities"),
-        r.incidentStatus ? h("p", {}, "The pin flashes red and blue until they resolve it.") : btn("Alert Authorities", () => askAuthorities(r), "btn-police"))),
+        r.incidentStatus ? h("p", {}, "The pin flashes red and blue until they resolve it or you mark it handled.") : btn("Alert Authorities", () => askAuthorities(r), "btn-police"))),
       h("li", {}, h("div", {}, h("b", {}, "When it's safe, mark it handled"), btn("Mark Handled", () => ackRack(r)))))));
   const rest = needsList().filter((n) => n.kind !== "alarm");
   const up = S.racks.filter(isUp).length;

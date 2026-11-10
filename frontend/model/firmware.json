@@ -1,0 +1,319 @@
+{
+  "builtAt": "2026-11-10T20:35:34.394Z",
+  "toolchain": "emcc (Emscripten gcc/clang-like replacement + linker emulating GNU ld) 6.0.0-git (afa15e0c56d1292e073c2c91bafc1d5e0cdf0dd3)",
+  "localConfig": false,
+  "sourceHash": "67a9fff12c7ad3b0390b4ce589fcc26f2aba27c7513e2612794daa2ba42891aa",
+  "files": [
+    {
+      "path": "firmware/include/card_reader.h",
+      "sha256": "799d1773d5f3e195d780d60f5e74425216b5dd6e5c58ef091e47647bf6a24960"
+    },
+    {
+      "path": "firmware/include/card_store.h",
+      "sha256": "e86a503ab8105dd5c9c4a4fe5e91756e90382c5ea2adb3be2788a8db5528954c"
+    },
+    {
+      "path": "firmware/include/config.example.h",
+      "sha256": "0aa46eab900dd20b32388dd6428f0b8f533e94b91f3703e2139d4e6ec24799ce"
+    },
+    {
+      "path": "firmware/include/credential_ref.h",
+      "sha256": "183cb3b3c10ec99448fa5e7e59c9c03ad8ab78393f46cfbcee2b1b6ef94edb62"
+    },
+    {
+      "path": "firmware/include/device_config.h",
+      "sha256": "0d39bfc1c1d72e3c36392ca185f4eb020b2855bc20330ef98c7d6f35a4830a92"
+    },
+    {
+      "path": "firmware/include/feedback.h",
+      "sha256": "05f251dd163afd9e8c48c75e3730dcefacc1369abb857c3f4d1e3ff2ec1b88a2"
+    },
+    {
+      "path": "firmware/include/lock.h",
+      "sha256": "2f860614930a51894297593faa9bdff129b538a59ec2033752a24da1b1b0b21f"
+    },
+    {
+      "path": "firmware/include/pins.h",
+      "sha256": "4b4ece984e76ff2ac600997689cf14f139a2cf637be2be05bf8925bb2c005038"
+    },
+    {
+      "path": "firmware/include/tamper_sensor.h",
+      "sha256": "e70357ece1f526b0fe2878ee58170b3529d938ec830552c2af809d26f06c8947"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/card_list.cpp",
+      "sha256": "cd0eef3cd67b809807a4a0a61e546c901b7f0fa2db97e99e9ab0ed8b7022b06d"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/card_list.h",
+      "sha256": "303499e5c9be411514a67c65d3b3906fe1251b7d4beca2339683117cc980a8f0"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/feedback_player.cpp",
+      "sha256": "6844da46a069f11e3dfe58e514b021d4aff3de248865ac29fe80b67ef7c849c2"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/feedback_player.h",
+      "sha256": "1c4c3c19ab7816dd77611ed62b4471431b802f961d41596d03b57e88fd093929"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/hbr_util.cpp",
+      "sha256": "ef5d818917b1580509dda46b67d823c072a9eb409c0f0d86a2c94202942d5255"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/hbr_util.h",
+      "sha256": "988693e22c180516d968ab8dcca9f4a0cd5c6ec40fe943dd59ba31fd69e56426"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/hmac_sha256.cpp",
+      "sha256": "003d6a09efc28129160da628089b49fb334ee65e7e909f70de636d6b6efadd71"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/hmac_sha256.h",
+      "sha256": "4d40b5514b4e7158d822d643d2693fb5e6b4ead67acc01aff1d8f4930d160768"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/lock_controller.h",
+      "sha256": "fc8a9a75014d0186c04cd53d154b182590091e8dbbdb0703d0ee177aae59bb3e"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/tamper_detector.cpp",
+      "sha256": "99fe6a865f34585156fc1f42543884aa4159491865916b097888fd066db409e5"
+    },
+    {
+      "path": "firmware/lib/hbr_logic/src/tamper_detector.h",
+      "sha256": "c3da46bda45f67c0e6cf3a47c70ec9e6cbf091e3e9eb49d496413bda811d9726"
+    },
+    {
+      "path": "firmware/model/config.h",
+      "sha256": "e83d1cf5ab95c6fe22c367bb9f77edca978c7c0a8bc23f838dcd7bb689dfbcd6"
+    },
+    {
+      "path": "firmware/model/hw.cpp",
+      "sha256": "8493fca6798991ca4fe40fc58b5c82a483a1c2f3082c3f5a441173bf754c422a"
+    },
+    {
+      "path": "firmware/model/hw.h",
+      "sha256": "9e770c85a4623bdd4f63951e163c61e6d77c70e24de22ded5a13ca69266eb4b4"
+    },
+    {
+      "path": "firmware/model/model_api.cpp",
+      "sha256": "d5407b2cd44c0b4ee44a087451064d278fb53a3eb7b64b971dfb07d1be90c64e"
+    },
+    {
+      "path": "firmware/model/shim/Adafruit_PN532.h",
+      "sha256": "e974c90809c971746333e97eb37d815cd10fb4386044a8c684ab6332d2c4e7a4"
+    },
+    {
+      "path": "firmware/model/shim/Arduino.h",
+      "sha256": "3a3aacbb1dc031df9013f2a47a744d8036621c6d3a99e2acd2b733a23eb4e116"
+    },
+    {
+      "path": "firmware/model/shim/EEPROM.h",
+      "sha256": "a338d0dd33ce17929403027a902e1b43685a20c3f7c6a1c4fa2d1494570f3d95"
+    },
+    {
+      "path": "firmware/model/shim/Servo.h",
+      "sha256": "871b0c1a85237645dacf79ac4e25222ca73336c4f4a86ca3c3e12d389e326497"
+    },
+    {
+      "path": "firmware/model/shim/WString.h",
+      "sha256": "b107449439acaba7aff56481a2c7fc0fc68f829940919ed6dfe468d560eaf710"
+    },
+    {
+      "path": "firmware/model/shim/Wire.h",
+      "sha256": "43087b127de348d40533725b4a3498cd32ca7fe845810298b799258788a17c33"
+    },
+    {
+      "path": "firmware/model/shim/avr/pgmspace.h",
+      "sha256": "115dfcac538db8fa2a742ad11bb85ab76b4ae190b377eabad7bd25c502cfbce1"
+    },
+    {
+      "path": "firmware/model/shim/avr/wdt.h",
+      "sha256": "20657b2e4b5fee2a69d93d88aab09fb541fc6d231493d1fa16be49f63bb9d034"
+    },
+    {
+      "path": "firmware/src/card_reader.cpp",
+      "sha256": "38595602a4a092fc039ae26cf8e8ea65a67e365bfe752921f008431decb619ff"
+    },
+    {
+      "path": "firmware/src/card_store.cpp",
+      "sha256": "b29adcd2278c07187a5f29f73b1cb04a21a0868a53f8e90b1316f6c150c3bd16"
+    },
+    {
+      "path": "firmware/src/credential_ref.cpp",
+      "sha256": "bd8bcad6916bd198e8de0032e1951f3e53a65a98eaf5b68193f5d6c405c86721"
+    },
+    {
+      "path": "firmware/src/feedback.cpp",
+      "sha256": "7b9bb65ab9eae819ac976f3a78798966e199838cc6a8fee32ebd4e27583812bd"
+    },
+    {
+      "path": "firmware/src/lock.cpp",
+      "sha256": "c2a708c1bbfb9b2ddd8036af9826243d917c7f9ddba3d076951800095e1725ed"
+    },
+    {
+      "path": "firmware/src/main.cpp",
+      "sha256": "603728d5fdb9fb264e0b89b5438206899e45a1a5008d6c97c20b8dae08917d3b"
+    },
+    {
+      "path": "firmware/src/tamper_sensor.cpp",
+      "sha256": "a47f08cd9fb64df2ccb4029f100a166c29268e0e25281b428b6a5b868c10019d"
+    },
+    {
+      "path": "tools/model/build.mjs",
+      "sha256": "1f0a0aacc504365e7f7423bf60cf2d777a28baf657f94cdb84955af5e27e91d4"
+    },
+    {
+      "path": "tools/model/emscripten_msys2.py",
+      "sha256": "226b70064e242c5586ddf2485ac626a2e6e16179889a84fd1910e39219217096"
+    }
+  ],
+  "locations": {
+    "HBR_UNLOCK_DURATION_MS": {
+      "file": "include/device_config.h",
+      "line": 43,
+      "code": "constexpr uint32_t HBR_UNLOCK_DURATION_MS = 5000;     // momentary unlock length"
+    },
+    "HBR_SERVO_LOCKED_DEG": {
+      "file": "include/device_config.h",
+      "line": 30,
+      "code": "#define HBR_SERVO_LOCKED_DEG 0"
+    },
+    "HBR_SERVO_UNLOCKED_DEG": {
+      "file": "include/device_config.h",
+      "line": 33,
+      "code": "#define HBR_SERVO_UNLOCKED_DEG 90"
+    },
+    "kServoMinUs": {
+      "file": "src/lock.cpp",
+      "line": 20,
+      "code": "constexpr int kServoMinUs = 500;"
+    },
+    "kServoMaxUs": {
+      "file": "src/lock.cpp",
+      "line": 21,
+      "code": "constexpr int kServoMaxUs = 2400;"
+    },
+    "HBR_ENABLE_SERVO": {
+      "file": "model/config.h",
+      "line": 9,
+      "code": "#define HBR_ENABLE_SERVO 1"
+    },
+    "kIdleBlipEveryMs": {
+      "file": "lib/hbr_logic/src/feedback_player.h",
+      "line": 74,
+      "code": "constexpr uint32_t kIdleBlipEveryMs = 5000;"
+    },
+    "kIdleBlipMs": {
+      "file": "lib/hbr_logic/src/feedback_player.h",
+      "line": 75,
+      "code": "constexpr uint32_t kIdleBlipMs = 30;"
+    },
+    "thresholdG": {
+      "file": "lib/hbr_logic/src/tamper_detector.h",
+      "line": 26,
+      "code": "float thresholdG = 0.35f;          // deviation that counts as a jolt (tune on real rack!)"
+    },
+    "samplesToTrigger": {
+      "file": "lib/hbr_logic/src/tamper_detector.h",
+      "line": 27,
+      "code": "uint8_t samplesToTrigger = 3;      // jolt must last this many samples in a row (3 x 20 ms)"
+    },
+    "baselineFollow": {
+      "file": "lib/hbr_logic/src/tamper_detector.h",
+      "line": 28,
+      "code": "float baselineFollow = 0.02f;      // how fast the baseline follows when calm (0..1)"
+    },
+    "baselineFollowShaking": {
+      "file": "lib/hbr_logic/src/tamper_detector.h",
+      "line": 29,
+      "code": "float baselineFollowShaking = 0.002f;  // much slower while shaking, so a shake can't"
+    },
+    "warmupMs": {
+      "file": "lib/hbr_logic/src/tamper_detector.h",
+      "line": 32,
+      "code": "uint32_t warmupMs = 2000;          // learn the baseline for this long after start"
+    },
+    "cooldownMs": {
+      "file": "lib/hbr_logic/src/tamper_detector.h",
+      "line": 33,
+      "code": "uint32_t cooldownMs = 3000;        // after a signal, ignore jolts for this long"
+    },
+    "escalationWindowMs": {
+      "file": "lib/hbr_logic/src/tamper_detector.h",
+      "line": 35,
+      "code": "uint32_t escalationWindowMs = 30000;  // a jolt within this time of the last signal, or of"
+    },
+    "HBR_TAMPER_ALARM_MS": {
+      "file": "include/device_config.h",
+      "line": 46,
+      "code": "constexpr uint32_t HBR_TAMPER_ALARM_MS = 10000;       // the siren runs at least this long..."
+    },
+    "HBR_TAMPER_ALARM_QUIET_MS": {
+      "file": "include/device_config.h",
+      "line": 47,
+      "code": "constexpr uint32_t HBR_TAMPER_ALARM_QUIET_MS = 5000;  // ...and until the post has been still this long"
+    },
+    "HBR_TAMPER_SAMPLE_MS": {
+      "file": "include/device_config.h",
+      "line": 45,
+      "code": "constexpr uint32_t HBR_TAMPER_SAMPLE_MS = 20;         // 50 accelerometer samples per second"
+    },
+    "HBR_TAMPER_GRACE_MS": {
+      "file": "include/device_config.h",
+      "line": 44,
+      "code": "constexpr uint32_t HBR_TAMPER_GRACE_MS = 10000;       // ignore jolts this long after re-lock"
+    },
+    "kPollEveryMs": {
+      "file": "src/card_reader.cpp",
+      "line": 10,
+      "code": "constexpr uint32_t kPollEveryMs = 50;        // how often to check \"is a card there?\""
+    },
+    "kRestAfterReadMs": {
+      "file": "src/card_reader.cpp",
+      "line": 11,
+      "code": "constexpr uint32_t kRestAfterReadMs = 150;   // short pause after a read"
+    },
+    "kRetryInitEveryMs": {
+      "file": "src/card_reader.cpp",
+      "line": 12,
+      "code": "constexpr uint32_t kRetryInitEveryMs = 15000;"
+    },
+    "kFailuresBeforeUnhealthy": {
+      "file": "src/card_reader.cpp",
+      "line": 13,
+      "code": "constexpr uint8_t kFailuresBeforeUnhealthy = 5;"
+    },
+    "debouncer": {
+      "file": "src/main.cpp",
+      "line": 51,
+      "code": "hbr::CardDebouncer debouncer(2000);"
+    },
+    "CARD_ID_MAX_LENGTH": {
+      "file": "include/card_reader.h",
+      "line": 14,
+      "code": "constexpr uint8_t CARD_ID_MAX_LENGTH = hbr::kMaxCardIdLength;"
+    },
+    "kCardRefLength": {
+      "file": "lib/hbr_logic/src/card_list.h",
+      "line": 29,
+      "code": "constexpr uint8_t kCardRefLength = 16;"
+    },
+    "HBR_ENROLL_WINDOW_MS": {
+      "file": "include/device_config.h",
+      "line": 48,
+      "code": "constexpr uint32_t HBR_ENROLL_WINDOW_MS = 15000;      // `enroll`: how long to wait for a tap"
+    },
+    "I2C_CLOCK_HZ": {
+      "file": "include/pins.h",
+      "line": 17,
+      "code": "constexpr uint32_t I2C_CLOCK_HZ = 100000;"
+    },
+    "HBR_ENABLE_WATCHDOG": {
+      "file": "model/config.h",
+      "line": 18,
+      "code": "#define HBR_ENABLE_WATCHDOG 1"
+    }
+  }
+}

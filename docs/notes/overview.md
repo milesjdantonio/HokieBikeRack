@@ -79,7 +79,7 @@ Three rules shape everything:
 2. `TamperDetector` keeps a slowly-moving **baseline** (normal reading, roughly gravity).
 3. Distance from baseline above **0.35 g** for **3 samples in a row** = a jolt.
 4. First jolt → **WARNING**: red blinks + 3 quick chirps, `TAMPER_WARNING` (MEDIUM) event.
-5. Another jolt within **30 s** (after a 3 s cooldown) → **ALARM**: flashing red + siren for **10 s**, `TAMPER_ALARM` (HIGH) event.
+5. Another jolt within **30 s** (after a 3 s cooldown) → **ALARM**: flashing red + siren for **at least 10 s, until the rack has been still for 5 s**, `TAMPER_ALARM` (HIGH) event.
 6. Dashboard: rack turns **WARNING** (amber) until an admin clicks *Acknowledge*.
 7. Riders using the rack legitimately don't trigger it: tamper is ignored while unlocked and for 10 s after.
 8. **The lock never moves because of tamper.** An allowed card tap silences the alarm.

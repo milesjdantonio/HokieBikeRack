@@ -17,9 +17,20 @@ void TamperDetector::silence() {
   overCount_ = 0;
 }
 
+// Times are kept as offsets from the siren's start, so "now - start < offset" stays right
+// even when millis() wraps around to 0.
+uint32_t TamperDetector::alarmEndOffsetMs() const {
+  uint32_t quietEnd = (lastJoltMs_ - alarmStartMs_) + config_.alarmQuietMs;
+  return quietEnd > config_.alarmMinMs ? quietEnd : config_.alarmMinMs;
+}
+
 bool TamperDetector::alarmActive(uint32_t nowMs) const {
-  // "now - start < duration" is safe even when millis() wraps around to 0.
-  return alarmOn_ && (nowMs - alarmStartMs_) < config_.alarmDurationMs;
+  return alarmOn_ && (nowMs - alarmStartMs_) < alarmEndOffsetMs();
+}
+
+uint32_t TamperDetector::alarmLeftMs(uint32_t nowMs) const {
+  if (!alarmActive(nowMs)) return 0;
+  return alarmEndOffsetMs() - (nowMs - alarmStartMs_);
 }
 
 TamperSignal TamperDetector::update(float x, float y, float z, uint32_t nowMs, bool armed) {
@@ -46,7 +57,10 @@ TamperSignal TamperDetector::update(float x, float y, float z, uint32_t nowMs, b
   baseY_ += (y - baseY_) * follow;
   baseZ_ += (z - baseZ_) * follow;
 
-  if (alarmOn_ && !alarmActive(nowMs)) alarmOn_ = false;  // siren finished
+  if (alarmOn_ && !alarmActive(nowMs)) {  // siren finished: still for long enough
+    alarmOn_ = false;
+    escalateFromMs_ = alarmStartMs_ + alarmEndOffsetMs();  // the 30 s window starts now
+  }
 
   if (warmingUp || !armed) {
     overCount_ = 0;
@@ -57,6 +71,8 @@ TamperSignal TamperDetector::update(float x, float y, float z, uint32_t nowMs, b
     return TamperSignal::None;
   }
   if (overCount_ < 255) overCount_++;
+  // Still being shaken while the siren runs: keep it going.
+  if (alarmOn_ && overCount_ >= config_.samplesToTrigger) lastJoltMs_ = nowMs;
   // Fire exactly once per jolt: on the sample where the count reaches the target.
   if (overCount_ != config_.samplesToTrigger) return TamperSignal::None;
   return trigger(nowMs);
@@ -64,15 +80,16 @@ TamperSignal TamperDetector::update(float x, float y, float z, uint32_t nowMs, b
 
 TamperSignal TamperDetector::trigger(uint32_t nowMs) {
   if (alarmActive(nowMs)) return TamperSignal::None;  // already screaming
-  uint32_t sinceLast = nowMs - lastSignalMs_;
-  if (hasSignaled_ && sinceLast < config_.cooldownMs) return TamperSignal::None;
+  if (hasSignaled_ && nowMs - lastSignalMs_ < config_.cooldownMs) return TamperSignal::None;
 
-  bool escalate = hasSignaled_ && sinceLast <= config_.escalationWindowMs;
+  bool escalate = hasSignaled_ && nowMs - escalateFromMs_ <= config_.escalationWindowMs;
   hasSignaled_ = true;
   lastSignalMs_ = nowMs;
+  escalateFromMs_ = nowMs;
   if (escalate) {
     alarmOn_ = true;
     alarmStartMs_ = nowMs;
+    lastJoltMs_ = nowMs;
     return TamperSignal::Alarm;
   }
   return TamperSignal::Warning;

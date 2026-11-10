@@ -22,5 +22,8 @@ public class WebConfig implements WebMvcConfigurer {
       registry.addViewController("/" + version + "/").setViewName("forward:/" + version + "/index.html");
     }
     registry.addRedirectViewController("/lab", "/lab/rive.html");
+    // The rack model: the firmware compiled to WebAssembly (docs/notes/firmware-model.md).
+    registry.addRedirectViewController("/model", "/model/");
+    registry.addViewController("/model/").setViewName("forward:/model/index.html");
   }
 }

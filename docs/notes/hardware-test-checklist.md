@@ -13,7 +13,7 @@ Type commands + Enter. On this laptop, use `~/.platformio/penv/Scripts/python.ex
 in place of `pio` (Windows blocks `pio.exe`).
 
 ## 0. Prep (laptop)
-- [ ] `cd firmware && pio test -e native` → 38 tests pass. On this laptop: `cd firmware/tools/wasm-tests && npm test` instead. (Passed 2026-11-10.)
+- [ ] `cd firmware && pio test -e native` → 43 tests pass. On this laptop: `cd firmware/tools/wasm-tests && npm test` instead. (Passed 2026-11-10.)
 - [ ] Copy `include/config.example.h` → `include/config.h`. Set `HBR_CARD_KEY`
       (`python -c "import secrets; print(secrets.token_hex(32))"`).
 - [ ] `pio run -t upload` with **only the Uno** plugged in. Monitor shows
@@ -31,7 +31,7 @@ in place of `pio` (Windows blocks `pio.exe`).
 - [ ] `enroll`, then `tap 0011223344` → "ENROLLED". `tap 0011223344` again (after 2 s) → green + beep, `ACCESS_GRANTED`.
 - [ ] `reboot` → after start-up, `list` still shows the card (EEPROM survives).
 - [ ] `unenroll`, then `tap 0011223344` → "REMOVED". `list` → 0 cards.
-- [ ] `shake` → red blinks + 3 chirps (warning). `shake` again within 30 s (after 3 s) → flashing red + siren for 10 s.
+- [ ] `shake` → red blinks + 3 chirps (warning). `shake` again within 30 s (after 3 s) → flashing red + siren. Keep shaking now and then: it keeps going. Stop: it ends 5 s later (at least 10 s in all).
 - [ ] Buzzer too quiet/loud? Note it. Transistor getting hot? Check the leg order.
 
 ## 2. I2C sensors
@@ -112,6 +112,8 @@ with a phone, one "admin" at the laptop. Time: about 10 minutes.
 - [ ] Shake the rack until the siren goes. Phone: red **"Alarm at <rack>, where your bike is"**
       banner + toast; the map pin is the slashed, pulsing red one. Admin: alarm in Needs You.
 - [ ] Admin: Mark Handled (or police Resolved). Phone banner goes away within ~5 s.
+- [ ] Shake again until the siren, Alert Authorities, then **only** Mark Handled (no police Resolved):
+      the red/blue pin stops, the incident shows Resolved, and the phone banner goes away within ~5 s.
 - [ ] Tap the HokieP once more (leave): phone says "Not parked right now"; the rack's open spots go up.
 
 **Edge cases worth one try each**

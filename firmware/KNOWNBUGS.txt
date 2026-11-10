@@ -11,8 +11,8 @@ Board: Arduino Uno R3 since 2026-11-10 (was ESP32; old code = git tag esp32-fina
    Lesson: see docs/notes/firmware.md, "Non-blocking code".
 
 2. Uno firmware not tested on real hardware yet (2026-11-10)
-   What:   It builds for the Uno (846 bytes RAM, 21 KB flash) with no warnings,
-           and all 38 PC unit tests pass (run as WebAssembly, see
+   What:   It builds for the Uno and Nano (863 bytes RAM, 21.8 KB flash) with no warnings,
+           and all 43 PC unit tests pass (run as WebAssembly, see
            firmware/tools/wasm-tests, because Smart App Control on this laptop
            blocks normal test programs). What's left is the real board:
            follow docs/notes/hardware-test-checklist.md on the Uno.

@@ -44,6 +44,16 @@ void test_alarm_loops_for_10_seconds_then_stops() {
   TEST_ASSERT_EQUAL(static_cast<int>(Pattern::None), static_cast<int>(p.current()));
 }
 
+void test_alarm_until_stopped_keeps_going_past_10_seconds() {
+  FeedbackPlayer p;
+  p.play(Pattern::TamperAlarm, 0, kUntilStopped);
+  int buzzerOnSamples = 0;
+  for (uint32_t t = 60000; t < 61000; t += 10) buzzerOnSamples += p.update(t).buzzer ? 1 : 0;
+  TEST_ASSERT_TRUE(buzzerOnSamples > 30);  // still sounding a minute later
+  p.stop();  // what main.cpp does once the post has been still long enough
+  TEST_ASSERT_FALSE(p.update(61010).buzzer);
+}
+
 void test_less_important_pattern_does_not_interrupt_alarm() {
   FeedbackPlayer p;
   p.play(Pattern::TamperAlarm, 0, 10000);
@@ -142,6 +152,7 @@ int main() {
   RUN_TEST(test_granted_is_green_with_short_beep_then_green_hold);
   RUN_TEST(test_denied_is_red_never_green);
   RUN_TEST(test_alarm_loops_for_10_seconds_then_stops);
+  RUN_TEST(test_alarm_until_stopped_keeps_going_past_10_seconds);
   RUN_TEST(test_less_important_pattern_does_not_interrupt_alarm);
   RUN_TEST(test_finished_pattern_lets_lower_one_play);
   RUN_TEST(test_idle_blip_shows_ready_state);
