@@ -179,7 +179,15 @@ There's room for small features, but not for Wi-Fi or JSON.
 unlock for an enrolled card. Still, set `HBR_ENABLE_SERIAL_SIM 0` for a real deployment.
 
 ## Running the tests on this laptop
-Windows Application Control on this laptop blocks `pio.exe` and the test
-programs it builds. `python -m platformio run` works for building and
-uploading. `pio test -e native` builds the tests but Windows won't let them
-run; use a machine without that policy (or ask IT to allow MSYS2 programs).
+Windows **Smart App Control** on this laptop blocks `pio.exe` and any new
+program it builds, including the test programs from `pio test -e native`.
+- Building/uploading: `~/.platformio/penv/Scripts/python.exe -m platformio run` works.
+- Tests: `cd firmware/tools/wasm-tests && npm install && npm test`. This
+  compiles the same tests to **WebAssembly** with a clang that is itself
+  WebAssembly (npm package `@yowasp/clang`) and runs them inside Node, which
+  Windows trusts. No `.exe` is made and Smart App Control stays on.
+  (First run downloads ~100 MB. Unity must have been downloaded once by
+  PlatformIO; the script tells you how if it's missing.)
+- One small difference: WebAssembly has no `setjmp`, so Unity is built with
+  `UNITY_EXCLUDE_SETJMP_H`. A failed check still fails the test.
+- On any other computer, `pio test -e native` is still the normal way.

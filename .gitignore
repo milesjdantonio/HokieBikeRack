@@ -20,3 +20,4 @@ Thumbs.db
 # Simulator's saved device token
 tools/.sim-device*.json
 __pycache__/
+firmware/tools/wasm-tests/node_modules/

@@ -11,7 +11,7 @@ dashboard and simulator still work together as before, but the real rack no
 longer reports to them. The last ESP32 firmware is the git tag `esp32-final`.
 
 **Status (Nov 2026):** full end-to-end prototype for a supervised local demo.
-Software is complete and tested (37 firmware logic tests, 14 backend
+Software is complete and tested (38 firmware logic tests, 14 backend
 integration tests, browser-checked dashboard). The hardware has **not** been bench-tested yet;
 see [docs/notes/hardware-test-checklist.md](docs/notes/hardware-test-checklist.md).
 The servo output is **off by default** until that test. Not a security-certified lock.
