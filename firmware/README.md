@@ -10,14 +10,16 @@ monitor. The previous ESP32 version (Wi-Fi + backend sync) is the git tag `esp32
 
 ## Commands (from this folder)
 ```bash
-pio test -e native      # logic tests on your PC (needs g++; MSYS2 on Windows)
+pio test -e native      # 38 logic tests on your PC (needs g++; MSYS2 on Windows)
 pio run                 # build for the Uno
 pio run -t upload       # flash over USB
 pio device monitor      # serial console, 115200 baud
 ```
 On this laptop Windows blocks `pio.exe`; use `~/.platformio/penv/Scripts/python.exe -m platformio`
 instead (e.g. `... -m platformio run -t upload`). Windows also blocks the test
-programs, so run `pio test` on another machine.
+programs, so run the tests as WebAssembly instead:
+`cd tools/wasm-tests && npm install && npm test` (38 tests).
+How it works: [firmware.md → Running the tests on this laptop](../docs/notes/firmware.md#running-the-tests-on-this-laptop).
 
 ## Setup
 1. Copy `include/config.example.h` to `include/config.h` (git-ignored).

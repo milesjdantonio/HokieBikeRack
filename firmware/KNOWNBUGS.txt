@@ -11,12 +11,12 @@ Board: Arduino Uno R3 since 2026-11-10 (was ESP32; old code = git tag esp32-fina
    Lesson: see docs/notes/firmware.md, "Non-blocking code".
 
 2. Uno firmware not tested on real hardware yet (2026-11-10)
-   What:   It builds for the Uno (846 bytes RAM, 21 KB flash) with no warnings.
-           The PC unit tests compile, but Windows Application Control on this
-           laptop blocks running them, so they have NOT been run since the port.
-           Run `pio test -e native` on another machine, then follow
-           docs/notes/hardware-test-checklist.md on the Uno.
-   Status: Open.
+   What:   It builds for the Uno (846 bytes RAM, 21 KB flash) with no warnings,
+           and all 38 PC unit tests pass (run as WebAssembly, see
+           firmware/tools/wasm-tests, because Smart App Control on this laptop
+           blocks normal test programs). What's left is the real board:
+           follow docs/notes/hardware-test-checklist.md on the Uno.
+   Status: Open (hardware only).
 
 3. The rack is offline: nothing reaches the backend or the apps
    Why:    The Uno has no Wi-Fi. Events (granted, denied, tamper) are printed

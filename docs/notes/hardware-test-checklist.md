@@ -13,7 +13,7 @@ Type commands + Enter. On this laptop, use `~/.platformio/penv/Scripts/python.ex
 in place of `pio` (Windows blocks `pio.exe`).
 
 ## 0. Prep (laptop)
-- [ ] `cd firmware && pio test -e native` → all tests pass (on a machine that lets the test programs run).
+- [ ] `cd firmware && pio test -e native` → 38 tests pass. On this laptop: `cd firmware/tools/wasm-tests && npm test` instead. (Passed 2026-11-10.)
 - [ ] Copy `include/config.example.h` → `include/config.h`. Set `HBR_CARD_KEY`
       (`python -c "import secrets; print(secrets.token_hex(32))"`).
 - [ ] `pio run -t upload` with **only the Uno** plugged in. Monitor shows

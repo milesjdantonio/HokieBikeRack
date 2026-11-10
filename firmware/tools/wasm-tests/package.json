@@ -1,0 +1,12 @@
+{
+  "name": "hbr-wasm-tests",
+  "private": true,
+  "description": "Runs the firmware PC unit tests as WebAssembly in Node (for machines where Smart App Control blocks native test programs).",
+  "type": "module",
+  "scripts": {
+    "test": "node --no-warnings run_tests.mjs"
+  },
+  "dependencies": {
+    "@yowasp/clang": "22.0.0-git20542-10"
+  }
+}
