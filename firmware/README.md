@@ -61,6 +61,8 @@ What each does: [firmware.md → Serial console](../docs/notes/firmware.md#seria
 863 bytes of 2048 RAM, 21.8 KB of 32 KB flash (servo + test commands on: 908 bytes, 23.2 KB). The Nano build is the same size.
 
 ## Safety
-Servo power from a separate 5 V supply, never the Uno's 5V pin. Test with the linkage
+Servo power: the Uno's 5V with a 100–1000 µF capacitor next to the servo is fine for the MG90S
+on the bench. If the Uno restarts when it moves, switch to a separate 5 V supply (shared GND,
+never into the Uno's 5V/VIN). See docs/notes/wiring-guide.md. Test with the linkage
 disconnected first. Commanded position is not proof the latch moved. A 4 s watchdog
 restarts the Uno (and re-locks) if the code ever freezes.

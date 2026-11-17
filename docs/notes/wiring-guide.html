@@ -287,7 +287,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
             <tr><td>PN532 NFC module</td><td>1</td><td><strong>Needs header pins attached.</strong> See the box on the right.</td></tr>
             <tr><td>MPU-6050 (GY-521)</td><td>1</td><td><strong>Needs header pins attached.</strong> See the box on the right.</td></tr>
             <tr><td>MG90S servo</td><td>1</td><td>Its plug takes male jumper ends or a 3-pin header.</td></tr>
-            <tr><td>External 5 V supply</td><td>1</td><td>For the servo only. No-solder options on the right.</td></tr>
+            <tr><td>External 5 V supply</td><td>0–1</td><td><strong>Optional.</strong> The servo runs from the Uno's 5V. Only needed if the Uno restarts when the servo moves. Options on the right.</td></tr>
             <tr><td>330 Ω resistor</td><td>2</td><td>Bands: orange, orange, brown.</td></tr>
             <tr><td>1 kΩ resistor</td><td>1</td><td>Bands: brown, black, red.</td></tr>
             <tr><td>LEDs (green, red)</td><td>1 each</td><td>Long leg = +.</td></tr>
@@ -301,7 +301,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
     </section>
 
     <section class="card">
-      <span class="eyebrow">The one soldering catch</span>
+      <span class="eyebrow">Soldering and servo power</span>
       <h2>Sensor header pins</h2>
       <p>The PN532 and GY-521 usually ship with their pin strips loose, meant to be soldered on. Check yours: if the pins are already fixed in the board, you're fine.</p>
       <ul class="plain">
@@ -309,11 +309,14 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
         <li><strong>Also fine:</strong> ask anyone with a soldering iron (a campus makerspace or lab). It's about 10 pins and a few minutes.</li>
         <li><strong>Test-only stop-gap:</strong> push the loose pins through the module's holes, then push the female jumper ends onto them. Tilt the module slightly so the pins press against the holes. It's flaky: if <code>i2c-scan</code> finds a module only sometimes, this is why. Don't build the final model on it.</li>
       </ul>
-      <h2>External 5 V supply, no solder</h2>
+      <h2>Servo power</h2>
+      <p>Our build powers the servo from the Uno's 5V (the lab ULA OK'd it for a small MG90S). The capacitor next to the servo covers the short current spikes when it starts moving. If the start-up messages reappear in the serial monitor when the servo moves, or the sensors drop out, the Uno is browning out: switch to a separate 5 V supply (step 12 explains the swap).</p>
+      <h3>If you need a separate supply (no solder)</h3>
       <ul class="plain">
         <li><strong>5 V, 2 A wall adapter + a barrel-jack-to-screw-terminal adapter.</strong> Clamp a jumper into each terminal (+ and −).</li>
         <li><strong>4×AA holder with rechargeable NiMH batteries</strong> (about 4.8 V). Twist stranded leads tight before pushing them into the board. Four fresh alkalines give about 6.4 V, which is over the MG90S's 6 V limit.</li>
         <li>Avoid breadboard power modules that plug into the rails. In this layout the rails belong to the Uno's 5V.</li>
+        <li>It must say <b>5V DC</b> and at least <b>2 A</b>. Not 9 V or 12 V.</li>
       </ul>
     </section>
   </div>
@@ -407,7 +410,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
   var CHECKS = [
     ["usb", "USB is unplugged while you wire."],
     ["rails", "Uno 5V is on the top + rail, GND on the top − rail, and both are linked to the bottom rails."],
-    ["ext", "The external supply's + is only in column 29. It touches no rail and not the Uno."],
+    ["ext", "Servo power link i29 → bottom + rail is in. (Separate supply instead? Then that link is out, and the supply's + is only in j29.)"],
     ["gndlink", "Ground link from i28 to the bottom − rail is in."],
     ["cap", "Capacitor stripe (−) is in h28."],
     ["pn", "PN532 switches set to I2C: 1 ON, 2 OFF."],
@@ -637,20 +640,17 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
 
     // 11: servo signal, supply, plug
     { s: 11, h: ["f30"], svg: tag(862, 44, "Uno ~9", C.sv, "middle") + wire([[862, 54], [862, 302]], "f30", C.sv) },
-    { s: 11, h: ["j28", "j29"], svg:
-      wire([[750, 520], [750, 505], [770, 505], [770, 400]], "j28", C.gnd) +
-      wire([[792, 520], [792, 400]], "j29", C.ext) +
-      '<rect x="700" y="520" width="134" height="76" rx="6" fill="var(--supply)"/>' +
-      '<rect x="746" y="516" width="8" height="8" fill="var(--pin)" stroke="var(--header)"/><rect x="788" y="516" width="8" height="8" fill="var(--pin)" stroke="var(--header)"/>' +
-      '<text class="wt" x="750" y="540" text-anchor="middle" font-size="12" font-weight="700">−</text><text class="wt" x="792" y="540" text-anchor="middle" font-size="12" font-weight="700">+</text>' +
-      '<text class="wt" x="710" y="566" font-size="12" font-weight="700">External 5 V</text><text class="wt" x="710" y="582" font-size="9">servo only · keep OFF</text>' },
+    { s: 11, h: [], svg: "" },  // was the external supply; now only the fallback in the step text
     { s: 11, h: ["g28", "g29", "g30"], svg:
       '<path d="M816 318 C838 318 838 352 846 352" fill="none" stroke-width="2.5" stroke="' + BAND.brown + '"/>' +
       '<path d="M816 324 C834 324 834 356 846 356" fill="none" stroke-width="2.5" stroke="' + BAND.red + '"/>' +
       '<path d="M816 330 C830 330 830 360 846 360" fill="none" stroke-width="2.5" stroke="' + BAND.orange + '"/>' +
       '<rect x="745" y="311" width="72" height="26" rx="3" fill="#222726"/>' +
       '<rect x="754" y="319" width="10" height="10" fill="' + BAND.brown + '"/><rect x="776" y="319" width="10" height="10" fill="' + BAND.red + '"/><rect x="798" y="319" width="10" height="10" fill="' + BAND.orange + '"/>' +
-      tag(848, 356, "servo", C.sv, "start") }
+      tag(848, 356, "servo", C.sv, "start") },
+
+    // step 11, added later and kept last so the wire-list numbers stay put: servo power from the Uno
+    { s: 10, h: ["i29", "B+29"], svg: path(poly([[781, 368], [794, 380], [794, 420], [781, 432]]), C.v5) + end("i29", C.v5) + end("B+29", C.v5) }
   ];
 
   PARTS.forEach(function (p) {
@@ -684,7 +684,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       need(["2 jumpers"]) +
       list([["Top + rail", "bottom + rail"], ["Top − rail", "bottom − rail"]]) +
       "<p>Now every + rail is the Uno's 5V and every − rail is ground.</p>" +
-      callout("<strong>The external servo supply never goes on a rail.</strong> It gets its own column in step 12.", true) },
+      callout("If you ever add a separate servo supply, <strong>it never goes on a rail.</strong> Step 12 shows where it goes.", true) },
 
     { t: "Green LED on pin 5", body:
       need(["330 Ω resistor (orange-orange-brown)", "green LED", "2 jumpers"]) +
@@ -731,25 +731,25 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       callout("Quick check: column 4 now holds A4 + both SDAs, column 6 holds A5 + both SCLs.") },
 
     { t: "Servo header and capacitor", body:
-      need(["3-pin male header (or 3 jumpers)", "100–1000 µF capacitor", "1 jumper"]) +
-      list([["3-pin header", "g28 · g29 · g30"], ["Capacitor <b>− leg</b> (stripe side, shorter)", "h28"], ["Capacitor <b>+ leg</b> (longer)", "h29"], ["Wire (servo ground to Uno ground)", "i28 → bottom − rail"]]) +
-      "<p>From here on: column 28 = ground, 29 = servo power, 30 = servo signal.</p>" +
+      need(["3-pin male header (or 3 jumpers)", "100–1000 µF capacitor", "2 jumpers"]) +
+      list([["3-pin header", "g28 · g29 · g30"], ["Capacitor <b>− leg</b> (stripe side, shorter)", "h28"], ["Capacitor <b>+ leg</b> (longer)", "h29"], ["Wire (servo ground to Uno ground)", "i28 → bottom − rail"], ["Wire (servo power from the Uno's 5V)", "i29 → bottom + rail"]]) +
+      "<p>From here on: column 28 = ground, 29 = servo power (the Uno's 5V), 30 = servo signal. The capacitor sits right beside the servo plug, where it smooths the current spikes best.</p>" +
       callout("<strong>A capacitor in backwards can pop.</strong> The stripe goes in 28.", true) },
 
-    { t: "Servo signal and external supply", body:
-      need(["MG90S servo", "external 5 V supply (switched OFF)", "3 jumpers"]) +
-      list([["Wire from Uno pin <b>~9</b>", "f30"], ["Supply <b>−</b> (black lead or − terminal)", "j28"], ["Supply <b>+</b> (red lead or + terminal)", "j29"], ["Servo plug: brown on 28, red on 29, orange on 30", "g28–g30"]]) +
-      callout("<strong>Column 29 is the external supply's only home.</strong> Nothing else plugs into it, and it never touches a rail or the Uno's 5V / VIN.", true) +
-      "<p>Keep the supply switched off for now.</p>" },
+    { t: "Servo signal and plug", body:
+      need(["MG90S servo", "1 jumper"]) +
+      list([["Wire from Uno pin <b>~9</b>", "f30"], ["Servo plug: brown on 28, red on 29, orange on 30", "g28–g30"]]) +
+      "<p>The servo now runs from the Uno's 5V through the <code>i29</code> link.</p>" +
+      callout("<strong>Uno restarting when the servo moves?</strong> (Start-up messages reappear in the serial monitor, or the sensors drop out.) Switch to a separate 5 V supply: <b>first pull the <code>i29</code> → + rail wire</b>, then supply <b>−</b> → <code>j28</code> and supply <b>+</b> → <code>j29</code>. Never both at once, and the supply's + never touches a rail or the Uno's 5V / VIN.", true) },
 
     { t: "Check, then power up", body:
       '<ol class="do">' +
       '<li>Tick through the <a href="#precheck">pre-power check</a> at the bottom of this page.</li>' +
-      "<li>Plug in <b>USB only</b>. Leave the servo supply off. The PN532 and MPU-6050 power LEDs should both be on. One dark? Its VCC/GND or a rail link is missing.</li>" +
+      "<li>Plug in <b>USB</b>. The PN532 and MPU-6050 power LEDs should both be on. One dark? Its VCC/GND or a rail link is missing.</li>" +
       "<li>Open the serial monitor and run <code>i2c-scan</code>. You should see <code>0x24</code> (PN532) and <code>0x68</code> (MPU-6050). Missing one? Recheck that sensor's 4 wires, and the PN532 switches.</li>" +
-      "<li>Set <code>HBR_ENABLE_SERVO 0</code>, take everything off the horn, then switch the servo supply on. Carry on with <code>hardware-test-checklist.md</code>.</li>" +
+      "<li>First servo test: nothing on the horn and <code>HBR_ENABLE_SERVO 0</code>, then <code>1</code>. Watch the serial monitor while it moves: no start-up messages in the middle means Uno power is enough. Carry on with <code>hardware-test-checklist.md</code>.</li>" +
       "</ol>" +
-      callout("<strong>Anything gets hot?</strong> Unplug USB and the supply straight away, then recheck steps 2, 3 and 12.", true) }
+      callout("<strong>Anything gets hot?</strong> Unplug USB (and any servo supply) straight away, then recheck steps 2, 3, 11 and 12.", true) }
   ];
 
   var LAST = STEPS.length - 1;
@@ -825,10 +825,11 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       "PN532: GND → bottom − rail, VCC → bottom + rail, SDA → g4, SCL → i6",
       "MPU-6050: VCC → bottom + rail, GND → its own Uno GND pin, SDA → h4, SCL → h6",
       "3-pin header in g28, g29, g30", "Capacitor: − (stripe) h28, + h29", "i28 → bottom − rail (servo ground link)",
-      "Uno ~9 → f30 (servo signal)", "External 5 V: − → j28, + → j29", "Servo plug: brown g28, red g29, orange g30"];
+      "Uno ~9 → f30 (servo signal)", null, "Servo plug: brown g28, red g29, orange g30",
+      "i29 → bottom + rail (servo power from the Uno's 5V)"];
     var SW = [null, C.v5, C.gnd, C.v5, C.gnd, C.g, "var(--res)", C.g, C.gnd, C.r, "var(--res)", "#e0303a", C.gnd,
       C.bz, "var(--res)", "var(--chip)", C.gnd, C.bz, "var(--buzzer)", C.v5, C.sda, C.scl, "var(--pn)", "var(--gy)",
-      "#1a1d1c", "#2b4a8a", C.gnd, C.sv, C.ext, C.sv];
+      "#1a1d1c", "#2b4a8a", C.gnd, C.sv, C.ext, C.sv, C.v5];
 
     function hp(id) { var p = P(id); return [p[0] + DX, p[1]]; }
     function dot(x, y, c) { return '<circle cx="' + x + '" cy="' + y + '" r="4.4" fill="' + c + '" stroke="var(--surface)" stroke-width="1.5"/>'; }

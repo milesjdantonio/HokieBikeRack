@@ -8,16 +8,19 @@
 
 ## Power plan
 ```
-Laptop USB ──► Uno (powers the Uno, PN532, MPU-6050, LEDs via its 5V pin)
-5 V supply ──► servo (+ buzzer if you like)
-              └── GND of the 5 V supply ──► Uno GND   (shared ground: REQUIRED)
+Laptop USB ──► Uno 5V pin ──► rails ──► PN532, MPU-6050, buzzer, servo
 ```
-- Do **not** connect the external 5 V to the Uno's 5V or VIN pin while USB is
-  plugged in (two supplies fighting). Only the grounds are joined.
-- The Uno's 5V pin can't feed the servo: an MG90S can pull ~700 mA when it
-  starts moving, and the dip resets the Uno.
-- Put the **100–1000 µF capacitor** across the servo's 5 V and GND, close to
-  the servo. Electrolytic caps have polarity: stripe/short leg = GND.
+- **Servo on the Uno's 5V (our build, OK'd by the lab ULA for a small MG90S).** It works
+  on the bench, but an MG90S can pull ~0.7–1 A for a moment when it starts or strains,
+  and USB gives ~0.5 A. A big dip restarts the Uno (it boots LOCKED) or knocks the
+  sensors off I2C.
+- Put the **100–1000 µF capacitor** across the servo's 5 V and GND, close to the servo.
+  It covers those short spikes. Electrolytic caps have polarity: stripe/short leg = GND.
+- **Fallback: separate 5 V supply** (5 V ⎓ 2 A adapter, or 4×AA NiMH). Use it if the
+  start-up messages reappear in the serial monitor when the servo moves, or the sensors
+  drop out. Then the servo's red wire goes to the supply's + only; the supply's − joins
+  the Uno's GND (shared ground: required). Never connect the supply's + to the Uno's 5V
+  or VIN, or to the rails.
 
 ## I2C bus (PN532 + MPU-6050 share it)
 | Uno | PN532 (I2C mode) | MPU-6050 (GY-521) |
@@ -84,7 +87,7 @@ Pin 7 ──── 1 kΩ ──── Base (B)
 | Servo wire | Goes to |
 |---|---|
 | Brown / black | GND (shared with the Uno) |
-| Red | **+5 V external supply** |
+| Red | **5 V**: the Uno's 5V rail (or the external supply's +, if you need the fallback) |
 | Orange / yellow (signal) | Pin 9 |
 
 - The Uno's 5 V signal is what the MG90S expects.
