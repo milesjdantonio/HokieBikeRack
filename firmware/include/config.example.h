@@ -27,6 +27,10 @@
 // (handy without a card or while testing). Set 0 for a real deployment.
 #define HBR_ENABLE_SERIAL_SIM 1
 
+// 1 = PN532 reader on UART (pins 2/3, reader switches both OFF) instead of I2C.
+// Use it if your reader locks up the I2C bus when it looks for a card (ours did).
+#define HBR_READER_UART 0
+
 // 1 = the buzzer is PASSIVE (needs a tone; one click on plain 5V).
 // 0 = ACTIVE buzzer (beeps by itself on plain 5V). Tone pitch in Hz below.
 #define HBR_BUZZER_PASSIVE 0

@@ -284,7 +284,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
             <tr><td>Half-size breadboard</td><td>1</td><td>400 holes, 30 columns. The steps use its hole names.</td></tr>
             <tr><td>Male–male jumpers</td><td>~20</td><td>For everything on the board.</td></tr>
             <tr><td>Female–male jumpers</td><td>~12</td><td>For the two sensors, plus spares to move LEDs and the buzzer onto the model.</td></tr>
-            <tr><td>PN532 NFC module</td><td>1</td><td><strong>Needs header pins attached.</strong> See the box on the right.</td></tr>
+            <tr><td>PN532 NFC module</td><td>1</td><td><strong>Needs header pins attached.</strong> See the box on the right. Runs in UART mode on pins 2 and 3 (step 9).</td></tr>
             <tr><td>MPU-6050 (GY-521)</td><td>1</td><td><strong>Needs header pins attached.</strong> See the box on the right.</td></tr>
             <tr><td>MG90S servo</td><td>1</td><td>Its plug takes male jumper ends or a 3-pin header.</td></tr>
             <tr><td>External 5 V supply</td><td>0–1</td><td><strong>Optional.</strong> The servo runs from the Uno's 5V. Only needed if the Uno restarts when the servo moves. Options on the right.</td></tr>
@@ -372,6 +372,8 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
             <tr><td>GND (another pin)</td><td>MPU-6050 GND, its own wire</td><td>10</td></tr>
             <tr><td>~5</td><td><code>a3</code> (green LED)</td><td>4</td></tr>
             <tr><td>~6</td><td><code>a11</code> (red LED)</td><td>5</td></tr>
+            <tr><td>2</td><td>PN532 SDA/TXD pin, direct</td><td>9</td></tr>
+            <tr><td>3</td><td>PN532 SCL/RXD pin, direct</td><td>9</td></tr>
             <tr><td>7</td><td><code>a18</code> (buzzer transistor)</td><td>6</td></tr>
             <tr><td>A4</td><td><code>f4</code> (SDA)</td><td>8</td></tr>
             <tr><td>A5</td><td><code>j6</code> (SCL)</td><td>8</td></tr>
@@ -396,7 +398,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       <h2>Pre-power check</h2>
       <div class="checks" id="checks"></div>
       <span class="progress" id="progress"></span>
-      <p class="foot">After power-up, both sensor power LEDs should be on. Then run <code>i2c-scan</code> in the serial monitor. You should see <code>0x24</code> (PN532) and <code>0x68</code> (MPU-6050).</p>
+      <p class="foot">After power-up, both sensor power LEDs should be on. The startup log should say <code>reader=OK accel=OK</code>, and <code>i2c-scan</code> should show <code>0x68</code> (MPU-6050). The reader is on UART, so it won't appear in the scan.</p>
       <button class="btn-text" id="resetChecks" type="button">Clear all ticks</button>
     </section>
   </div>
@@ -413,12 +415,12 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
     ["ext", "Servo power link i29 → bottom + rail is in. (Separate supply instead? Then that link is out, and the supply's + is only in j29.)"],
     ["gndlink", "Ground link from i28 to the bottom − rail is in."],
     ["cap", "Capacitor stripe (−) is in h28."],
-    ["pn", "PN532 switches set to I2C: 1 ON, 2 OFF."],
+    ["pn", "PN532 switches both OFF (UART). Its SDA/TXD pin goes to Uno 2, SCL/RXD pin to Uno 3, and HBR_READER_UART is 1."],
     ["mpugnd", "MPU-6050 GND has its own wire to a Uno GND pin."],
     ["buzz", "Buzzer wires are away from SDA/SCL, and HBR_BUZZER_PASSIVE matches your buzzer (ours: 1)."],
     ["leds", "Both LEDs have their 330 Ω resistor; long legs in c7 and c15."],
     ["q1", "Transistor flat face toward the gap (BC547: toward row a)."],
-    ["i2c", "Column 4 has A4 + both SDAs, column 6 has A5 + both SCLs, column 5 is empty."],
+    ["i2c", "Column 4 has A4 + the MPU's SDA, column 6 has A5 + the MPU's SCL, column 5 is empty."],
     ["pins", "Sensor header pins are firm, not wobbling in their holes."],
     ["horn", "Nothing on the servo horn, and HBR_ENABLE_SERVO is 0 for the first test."]
   ];
@@ -599,11 +601,11 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
     { s: 7, h: ["j6"], svg: tag(112, 390, "Uno A5", C.scl, "end") + wire([[112, 379], [264, 379]], "j6", C.scl) },
 
     // 8: PN532
-    { s: 8, h: ["B-1", "B+3", "g4", "i6"], svg:
+    { s: 8, h: ["B-1", "B+3"], svg:
       wire([[166, 520]], "B-1", C.gnd) +
       wire([[190, 520], [190, 506], [198, 506], [198, 442]], "B+3", C.v5) +
-      wire([[214, 520], [214, 500], [242, 500], [242, 334]], "g4", C.sda) +
-      wire([[238, 520], [238, 494], [286, 494], [286, 378]], "i6", C.scl) +
+      path(poly([[214, 520], [214, 500], [134, 500]]), C.sda) + tag(132, 500, "Uno 2", C.sda, "end") +
+      path(poly([[238, 520], [238, 490], [150, 490], [150, 480], [134, 480]]), C.scl) + tag(132, 480, "Uno 3", C.scl, "end") +
       '<rect x="150" y="520" width="190" height="80" rx="6" fill="var(--pn)"/>' +
       [[166, "GND"], [190, "VCC"], [214, "SDA"], [238, "SCL"], [290, "IRQ"], [316, "RSTO"]].map(function (p) {
         return '<rect x="' + (p[0] - 4) + '" y="516" width="8" height="8" fill="var(--pin)" stroke="var(--header)"/>' +
@@ -611,7 +613,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       }).join("") +
       '<text class="wt" x="303" y="550" text-anchor="middle" font-size="8">skip</text>' +
       '<text class="wt" x="160" y="570" font-size="14" font-weight="700">PN532</text>' +
-      '<text class="wt" x="160" y="588" font-size="9">switches: 1 ON · 2 OFF</text>' },
+      '<text class="wt" x="160" y="588" font-size="9">switches: 1 OFF · 2 OFF (UART)</text>' },
 
     // 9: MPU-6050
     { s: 9, h: ["B+14", "h4", "h6"], svg:
@@ -714,13 +716,14 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
     { t: "SDA and SCL rows", body:
       need(["2 jumpers"]) +
       list([["Wire from Uno <b>A4</b>", "f4"], ["Wire from Uno <b>A5</b>", "j6"]]) +
-      "<p>Column 4 (f–j) is now <b>SDA</b> and column 6 (f–j) is <b>SCL</b>. Both sensors plug into these next. Column 5 stays empty so the two can't touch.</p>" },
+      "<p>Column 4 (f–j) is now <b>SDA</b> and column 6 (f–j) is <b>SCL</b>. The MPU-6050 plugs into these in step 10. (The NFC reader doesn't: it talks over UART on pins 2 and 3.) Column 5 stays empty so the two can't touch.</p>" },
 
-    { t: "PN532 NFC reader", body:
+    { t: "PN532 NFC reader (UART)", body:
       need(["PN532 (pins attached)", "4 female–male jumpers"]) +
-      callout("<strong>First:</strong> set the PN532's little switches to I2C: <b>1 ON, 2 OFF</b> (red Elechouse V3 board; other boards print their own table).") +
-      list([["PN532 <b>VCC</b>", "bottom + rail"], ["PN532 <b>GND</b>", "bottom − rail"], ["PN532 <b>SDA</b>", "g4"], ["PN532 <b>SCL</b>", "i6"]]) +
-      "<ul><li>Female end on the module's pin, male end in the breadboard.</li><li>Match by the names printed on the module, not by position.</li><li>Skip IRQ and RSTO. The firmware reads cards over I2C without them.</li></ul>" +
+      callout("<strong>First:</strong> set the PN532's little switches to UART (HSU): <b>1 OFF, 2 OFF</b>. And in <code>config.h</code>: <code>#define HBR_READER_UART 1</code>.") +
+      list([["PN532 <b>VCC</b>", "bottom + rail"], ["PN532 <b>GND</b>", "bottom − rail"], ["PN532 <b>SDA</b> pin (TXD on the back)", "Uno pin 2"], ["PN532 <b>SCL</b> pin (RXD on the back)", "Uno pin 3"]]) +
+      "<ul><li>The same 4-pin header does both jobs: the front says GND, VCC, SDA, SCL, the back says GND, VCC, TXD, RXD.</li><li>The reader's data wires go straight to the Uno, <b>not</b> into the SDA/SCL rows.</li><li>Startup log should say <code>[nfc] PN532 firmware 1.6 (UART)</code>. If it says \"not answering\", swap the wires on pins 2 and 3.</li><li>Skip IRQ and RSTO.</li></ul>" +
+      callout("<strong>Why UART and not I2C?</strong> Our reader answered fine over I2C until it switched its antenna on to look for a card. Then it held the I2C clock line low until its power was cut, which also knocked the MPU-6050 off the bus. Over UART the same board reads cards reliably.") +
       callout("<strong>Power check:</strong> with USB plugged in, the PN532's power LED must be on. If it's dark, the reader has no 5V: check its VCC and GND jumpers, that the bottom rails are linked (step 3), and that the Uno's 5V wire is really in the top + rail (step 2). Fix this before checking SDA/SCL or the switches.", true) },
 
     { t: "MPU-6050 tamper sensor", body:
@@ -728,7 +731,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       list([["MPU <b>VCC</b>", "bottom + rail"], ["MPU <b>GND</b>", "a spare Uno GND pin (its own wire)"], ["MPU <b>SDA</b>", "h4"], ["MPU <b>SCL</b>", "h6"]]) +
       "<p>The Uno has three GND pins. Give the MPU its own one, so it doesn't share the ground rail with the LEDs and buzzer. On our build the sensor dropped off the bus every time the buzzer beeped until it had its own ground.</p>" +
       "<p>Leave XDA, XCL, AD0 and INT empty.</p>" +
-      callout("Quick check: column 4 now holds A4 + both SDAs, column 6 holds A5 + both SCLs.") },
+      callout("Quick check: column 4 (f–j) holds A4 + the MPU's SDA, column 6 (f–j) holds A5 + the MPU's SCL.") },
 
     { t: "Servo header and capacitor", body:
       need(["3-pin male header (or 3 jumpers)", "100–1000 µF capacitor", "2 jumpers"]) +
@@ -746,7 +749,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       '<ol class="do">' +
       '<li>Tick through the <a href="#precheck">pre-power check</a> at the bottom of this page.</li>' +
       "<li>Plug in <b>USB</b>. The PN532 and MPU-6050 power LEDs should both be on. One dark? Its VCC/GND or a rail link is missing.</li>" +
-      "<li>Open the serial monitor and run <code>i2c-scan</code>. You should see <code>0x24</code> (PN532) and <code>0x68</code> (MPU-6050). Missing one? Recheck that sensor's 4 wires, and the PN532 switches.</li>" +
+      "<li>Open the serial monitor. The startup log should say <code>reader=OK accel=OK</code>. Run <code>i2c-scan</code>: you should see <code>0x68</code> (MPU-6050) only, because the reader is on UART. Reader missing? Check its switches (both OFF) and swap the wires on pins 2 and 3.</li>" +
       "<li>First servo test: nothing on the horn and <code>HBR_ENABLE_SERVO 0</code>, then <code>1</code>. Watch the serial monitor while it moves: no start-up messages in the middle means Uno power is enough. Carry on with <code>hardware-test-checklist.md</code>.</li>" +
       "</ol>" +
       callout("<strong>Anything gets hot?</strong> Unplug USB (and any servo supply) straight away, then recheck steps 2, 3, 11 and 12.", true) }
@@ -822,7 +825,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       "Uno 7 → a18", "1 kΩ resistor: c18 ↔ c22", "Transistor: E e21, B e22, C e23", "a21 → top − rail (emitter ground)",
       "a23 → a26 (transistor C to buzzer −)", "Buzzer: − in e26, + in e29", "a29 → top + rail (buzzer +)",
       "Uno A4 → f4 (SDA)", "Uno A5 → j6 (SCL)",
-      "PN532: GND → bottom − rail, VCC → bottom + rail, SDA → g4, SCL → i6",
+      "PN532 (UART): GND → bottom − rail, VCC → bottom + rail, SDA/TXD → Uno 2, SCL/RXD → Uno 3",
       "MPU-6050: VCC → bottom + rail, GND → its own Uno GND pin, SDA → h4, SCL → h6",
       "3-pin header in g28, g29, g30", "Capacitor: − (stripe) h28, + h29", "i28 → bottom − rail (servo ground link)",
       "Uno ~9 → f30 (servo signal)", null, "Servo plug: brown g28, red g29, orange g30",

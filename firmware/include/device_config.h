@@ -35,6 +35,9 @@
 #ifndef HBR_ENABLE_SERIAL_SIM
 #define HBR_ENABLE_SERIAL_SIM 0
 #endif
+#ifndef HBR_READER_UART
+#define HBR_READER_UART 0
+#endif
 #ifndef HBR_BUZZER_PASSIVE
 #define HBR_BUZZER_PASSIVE 0
 #endif

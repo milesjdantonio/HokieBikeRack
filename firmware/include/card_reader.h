@@ -1,5 +1,5 @@
 #pragma once
-// PN532 NFC card reader over I2C. Owner: Person A
+// PN532 NFC card reader, over I2C (default) or UART (HBR_READER_UART 1). Owner: Person A
 // Reads cards only. Deciding whether a card is allowed is NOT done here;
 // that belongs in access_policy.
 //

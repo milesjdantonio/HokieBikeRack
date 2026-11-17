@@ -22,16 +22,34 @@ Laptop USB ──► Uno 5V pin ──► rails ──► PN532, MPU-6050, buzze
   the Uno's GND (shared ground: required). Never connect the supply's + to the Uno's 5V
   or VIN, or to the rails.
 
-## I2C bus (PN532 + MPU-6050 share it)
-| Uno | PN532 (I2C mode) | MPU-6050 (GY-521) |
-|---|---|---|
-| 5V | VCC | VCC |
-| GND | GND | GND (its own Uno GND pin) |
-| A4 | SDA | SDA |
-| A5 | SCL | SCL |
-| 2 | IRQ (optional) | — |
-| 3 | RSTO / RST (optional) | — |
-| — | | INT, AD0, XDA, XCL: not connected |
+## PN532 NFC reader: UART (our build)
+Set `HBR_READER_UART 1` in `config.h` and the reader's switches to **both OFF** (HSU/UART).
+
+| Uno | PN532 header (front label / back label) |
+|---|---|
+| 5V | VCC |
+| GND | GND |
+| 2 | SDA / **TXD** (reader sends) |
+| 3 | SCL / **RXD** (reader receives) |
+
+- The startup log should say `[nfc] PN532 firmware 1.6 (UART)`. "Not answering"? Swap the
+  wires on pins 2 and 3, and check the switches.
+- **Why not I2C:** on the bench our reader answered over I2C (version, setup) but held the
+  clock line low for good the moment it switched its antenna on to look for a card, which
+  also knocked the MPU-6050 off the bus. Over UART the same board reads cards reliably.
+- The firmware uses SoftwareSerial on D2/D3 and switches the reader from 115200 to 38400 baud
+  at startup (SoftwareSerial drops bits at 115200).
+- I2C mode is still in the firmware (`HBR_READER_UART 0`, switches 1 ON 2 OFF, SDA → A4,
+  SCL → A5) for a reader that behaves.
+
+## I2C bus (MPU-6050)
+| Uno | MPU-6050 (GY-521) |
+|---|---|
+| 5V | VCC |
+| GND | GND (its own Uno GND pin) |
+| A4 | SDA |
+| A5 | SCL |
+| — | INT, AD0, XDA, XCL: not connected |
 
 - On the Uno R3, SDA/SCL also appear on the two unlabeled pins next to AREF.
   They're the same wires as A4/A5: use either, not both for different things.
@@ -49,7 +67,7 @@ Laptop USB ──► Uno 5V pin ──► rails ──► PN532, MPU-6050, buzze
 - **Solder the header pins** on both modules. Loose pins pushed through the holes held the
   bus down on the bench (`i2c-scan` slow, nothing found; before the I2C timeout fix the Uno
   froze at boot). Each module's power LED must be steady before you look at SDA/SCL.
-- Verify with the serial command **`i2c-scan`** → expect `0x24` and `0x68`. A healthy scan
+- Verify with the serial command **`i2c-scan`** → expect `0x68` (and `0x24` only if the reader is in I2C mode). A healthy scan
   takes well under a second; ~3 s means something is holding SDA or SCL low.
 
 ## LEDs
@@ -97,8 +115,8 @@ Pin 7 ──── 1 kΩ ──── Base (B)
 ## Full pin table
 | Uno pin | Use |
 |---|---|
-| 2 | PN532 IRQ (optional) |
-| 3 | PN532 reset (optional) |
+| 2 | PN532 TXD (UART mode; IRQ in I2C mode, optional) |
+| 3 | PN532 RXD (UART mode; reset in I2C mode, optional) |
 | 5 | Green LED |
 | 6 | Red LED |
 | 7 | Buzzer transistor base (via 1 kΩ) |

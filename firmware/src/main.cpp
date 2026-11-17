@@ -295,7 +295,11 @@ void scanI2c() {
     }
   }
   Serial.print(found);
+#if HBR_READER_UART
+  Serial.println(F(" device(s). Expect 0x68 (the reader is on UART, not I2C). None? Check SDA=A4, SCL=A5."));
+#else
   Serial.println(F(" device(s). None? Check SDA=A4, SCL=A5, power, GND, and the PN532 I2C switches."));
+#endif
 }
 
 void printAccel() {

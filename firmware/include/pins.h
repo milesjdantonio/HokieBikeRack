@@ -23,6 +23,12 @@ constexpr uint32_t I2C_CLOCK_HZ = 100000;
 constexpr uint8_t PN532_IRQ_PIN = 2;
 constexpr uint8_t PN532_RESET_PIN = 3;
 
+// PN532 over UART instead (HBR_READER_UART 1 in config.h; reader switches both OFF).
+// Same two pins, different job: SoftwareSerial receives on D2, sends on D3.
+//   reader TXD (front label SDA) -> D2,  reader RXD (front label SCL) -> D3
+constexpr uint8_t PN532_UART_RX_PIN = 2;
+constexpr uint8_t PN532_UART_TX_PIN = 3;
+
 // MG90S servo signal wire (orange/yellow). Servo POWER comes from the separate
 // 5 V supply, NOT from the Uno's 5V pin. Only the ground is shared.
 constexpr uint8_t SERVO_SIGNAL_PIN = 9;
