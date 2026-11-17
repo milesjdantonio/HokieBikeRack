@@ -293,7 +293,8 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
             <tr><td>LEDs (green, red)</td><td>1 each</td><td>Long leg = +.</td></tr>
             <tr><td>NPN transistor</td><td>1</td><td>2N2222, S8050 or BC547.</td></tr>
             <tr><td>Buzzer (passive)</td><td>1</td><td>Ours is <strong>passive</strong>: on plain 5V it only clicks, so the firmware plays a tone. Set <code>HBR_BUZZER_PASSIVE 1</code> in <code>config.h</code>. An active buzzer (beeps on plain 5V) works too with <code>0</code>.</td></tr>
-            <tr><td>Capacitor, 100–1000 µF</td><td>1</td><td>Stripe side = −.</td></tr>
+            <tr><td>Capacitor, 100–1000 µF</td><td>2</td><td>One by the servo, one by the MPU-6050. Stripe side = −.</td></tr>
+            <tr><td>Diode, 1N4148 or 1N4001</td><td>1</td><td>Across the buzzer. Stripe = cathode.</td></tr>
             <tr><td>3-pin male header</td><td>1</td><td>Optional: 3 jumpers work too.</td></tr>
           </tbody>
         </table>
@@ -420,6 +421,8 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
     ["buzz", "Buzzer wires are away from SDA/SCL, and HBR_BUZZER_PASSIVE matches your buzzer (ours: 1)."],
     ["leds", "Both LEDs have their 330 Ω resistor; long legs in c7 and c15."],
     ["q1", "Transistor flat face toward the gap (BC547: toward row a)."],
+    ["diode", "Diode across the buzzer in c26–c29, stripe on 29 (the buzzer's + side)."],
+    ["mpucap", "Capacitor across the bottom rails at column 17, stripe on the − rail."],
     ["i2c", "Column 4 has A4 + the MPU's SDA, column 6 has A5 + the MPU's SCL, column 5 is empty."],
     ["pins", "Sensor header pins are firm, not wobbling in their holes."],
     ["horn", "Nothing on the servo horn, and HBR_ENABLE_SERVO is 0 for the first test."]
@@ -652,7 +655,22 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       tag(848, 356, "servo", C.sv, "start") },
 
     // step 11, added later and kept last so the wire-list numbers stay put: servo power from the Uno
-    { s: 10, h: ["i29", "B+29"], svg: path(poly([[781, 368], [794, 380], [794, 420], [781, 432]]), C.v5) + end("i29", C.v5) + end("B+29", C.v5) }
+    { s: 10, h: ["i29", "B+29"], svg: path(poly([[781, 368], [794, 380], [794, 420], [781, 432]]), C.v5) + end("i29", C.v5) + end("B+29", C.v5) },
+
+    // step 7: flyback diode across the buzzer (stripe = cathode, on the + side)
+    { s: 6, h: ["c26", "c29"], svg:
+      '<path d="M715 214 H781" stroke="var(--metal)" stroke-width="2.4"/>' + legDot("c26") + legDot("c29") +
+      '<rect x="733" y="207" width="30" height="14" rx="3" fill="#2a2f2e"/>' +
+      '<rect x="755" y="207" width="5" height="14" fill="#d6dde9"/>' +
+      '<text class="bl" x="748" y="203" text-anchor="middle" style="fill:var(--ink)">diode</text>' },
+
+    // step 10: capacitor across the bottom rails by the MPU-6050
+    { s: 9, h: ["B+17", "B-17"], svg:
+      '<path d="M517 432 V454" stroke="var(--metal)" stroke-width="2.2"/>' + legDot("B+17") + legDot("B-17") +
+      '<circle cx="533" cy="443" r="10" fill="#2b4a8a" stroke="var(--sym)" stroke-width="1"/>' +
+      '<path d="M533 453 A10 10 0 0 1 525 448 L541 448 A10 10 0 0 1 533 453 Z" fill="#d6dde9"/>' +
+      '<path d="M523 443 H517" stroke="var(--metal)" stroke-width="2"/>' +
+      '<text class="bl" x="546" y="447" style="fill:var(--ink)">100 µF</text>' }
   ];
 
   PARTS.forEach(function (p) {
@@ -706,8 +724,9 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       callout("<strong>BC547?</strong> Its legs are the other way round (C-B-E). Turn it so the flat face points toward row a instead, and E still lands in 21.", true) },
 
     { t: "Buzzer", body:
-      need(["passive buzzer", "2 jumpers"]) +
-      list([["Short wire (transistor C to buzzer)", "a23 → a26"], ["Buzzer <b>− leg</b>", "e26"], ["Buzzer <b>+ leg</b> (longer, or marked +)", "e29"], ["Wire", "a29 → top + rail"]]) +
+      need(["passive buzzer", "1N4148 or 1N4001 diode", "2 jumpers"]) +
+      list([["Short wire (transistor C to buzzer)", "a23 → a26"], ["Buzzer <b>− leg</b>", "e26"], ["Buzzer <b>+ leg</b> (longer, or marked +)", "e29"], ["Wire", "a29 → top + rail"], ["Diode, <b>stripe toward the buzzer's +</b>", "c26 (plain end) + c29 (stripe)"]]) +
+      callout("<strong>The diode is required, not optional.</strong> Every time the buzzer switches off it kicks a voltage spike back into the 5 V line. On our bench that knocked the MPU-6050 off the bus after every beep, leaving the tamper sensor blind for about 10 s. The diode soaks up the spike. Stripe on 29 (the + side); backwards, it shorts the buzzer and it stays silent.", true) +
       "<p>Pin 7 switches the transistor on and off about 2,700 times a second, which connects the buzzer's − to ground in pulses, and it beeps.</p>" +
       callout("<strong>Passive buzzer:</strong> set <code>HBR_BUZZER_PASSIVE 1</code> in <code>config.h</code>, or it stays silent. Test: on plain 5V and GND a passive buzzer only clicks once; an active one beeps.", true) +
       callout("Route the buzzer wires away from the SDA/SCL wires (columns 4 and 6). The tone is noisy and can knock the sensors off the bus.") +
@@ -728,7 +747,9 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
 
     { t: "MPU-6050 tamper sensor", body:
       need(["MPU-6050 (pins attached)", "4 female–male jumpers"]) +
-      list([["MPU <b>VCC</b>", "bottom + rail"], ["MPU <b>GND</b>", "a spare Uno GND pin (its own wire)"], ["MPU <b>SDA</b>", "h4"], ["MPU <b>SCL</b>", "h6"]]) +
+      need(["100–1000 µF capacitor"]) +
+      list([["MPU <b>VCC</b>", "bottom + rail"], ["MPU <b>GND</b>", "a spare Uno GND pin (its own wire)"], ["MPU <b>SDA</b>", "h4"], ["MPU <b>SCL</b>", "h6"], ["Capacitor <b>+ leg</b> (longer)", "bottom + rail, column 17"], ["Capacitor <b>− leg</b> (stripe side)", "bottom − rail, column 17"]]) +
+      "<p>The capacitor sits right next to where the MPU takes its power, and smooths out dips and spikes on the rail.</p>" +
       "<p>The Uno has three GND pins. Give the MPU its own one, so it doesn't share the ground rail with the LEDs and buzzer. On our build the sensor dropped off the bus every time the buzzer beeped until it had its own ground.</p>" +
       "<p>Leave XDA, XCL, AD0 and INT empty.</p>" +
       callout("Quick check: column 4 (f–j) holds A4 + the MPU's SDA, column 6 (f–j) holds A5 + the MPU's SCL.") },
@@ -829,10 +850,11 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
       "MPU-6050: VCC → bottom + rail, GND → its own Uno GND pin, SDA → h4, SCL → h6",
       "3-pin header in g28, g29, g30", "Capacitor: − (stripe) h28, + h29", "i28 → bottom − rail (servo ground link)",
       "Uno ~9 → f30 (servo signal)", null, "Servo plug: brown g28, red g29, orange g30",
-      "i29 → bottom + rail (servo power from the Uno's 5V)"];
+      "i29 → bottom + rail (servo power from the Uno's 5V)",
+      "Diode across the buzzer: c26 → c29, stripe on 29", "100 µF capacitor across the bottom rails at column 17 (by the MPU)"];
     var SW = [null, C.v5, C.gnd, C.v5, C.gnd, C.g, "var(--res)", C.g, C.gnd, C.r, "var(--res)", "#e0303a", C.gnd,
       C.bz, "var(--res)", "var(--chip)", C.gnd, C.bz, "var(--buzzer)", C.v5, C.sda, C.scl, "var(--pn)", "var(--gy)",
-      "#1a1d1c", "#2b4a8a", C.gnd, C.sv, C.ext, C.sv, C.v5];
+      "#1a1d1c", "#2b4a8a", C.gnd, C.sv, C.ext, C.sv, C.v5, "#2a2f2e", "#2b4a8a"];
 
     function hp(id) { var p = P(id); return [p[0] + DX, p[1]]; }
     function dot(x, y, c) { return '<circle cx="' + x + '" cy="' + y + '" r="4.4" fill="' + c + '" stroke="var(--surface)" stroke-width="1.5"/>'; }

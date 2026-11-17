@@ -61,6 +61,8 @@ Set `HBR_READER_UART 1` in `config.h` and the reader's switches to **both OFF** 
 - IRQ and RST are optional: the firmware reads the card over I2C either way.
 - AD0 unconnected = address `0x68`. If AD0 is tied high, it becomes `0x69`
   (then change `kAddress` in `tamper_sensor.cpp`).
+- Put a **100–1000 µF capacitor across the bottom rails right by the MPU-6050** (column 17,
+  stripe on the − rail). It smooths the dips and spikes the buzzer and servo put on the rail.
 - Give the MPU-6050 its **own wire to a Uno GND pin** (the Uno has three), not the ground
   rail the LEDs and buzzer use. On the bench it dropped off the bus every time the buzzer
   sounded while it shared that ground. Keep SDA/SCL away from the buzzer wires.
@@ -94,7 +96,10 @@ Pin 7 ──── 1 kΩ ──── Base (B)
 ```
 - Transistor leg order depends on the part (flat face toward you, legs down):
   **2N2222 (TO-92): E-B-C**, **S8050: E-B-C**, **BC547: C-B-E**. Check your datasheet!
-- Optional: a diode (1N4148) across the buzzer, stripe toward +, to absorb voltage spikes.
+- **Required: a diode (1N4148 or 1N4001) across the buzzer, stripe toward +.** Each time the
+  buzzer switches off it kicks a spike into the 5 V line. On the bench that knocked the
+  MPU-6050 off I2C after every beep (tamper sensor blind ~10 s), even with its own GND wire.
+  Breadboard: plain end in `c26`, stripe in `c29`.
 - The buzzer's longer leg / "+" marking is positive.
 - **Active** buzzer (beeps on plain 5 V): pin HIGH → transistor on → beep.
   Keep `HBR_BUZZER_PASSIVE 0` in `config.h`.
