@@ -49,6 +49,10 @@ Laptop USB ──► Uno 5V pin ──► rails ──► PN532, MPU-6050, buzze
 - **Solder the header pins** on both modules. Loose pins pushed through the holes held the
   bus down on the bench (`i2c-scan` slow, nothing found; before the I2C timeout fix the Uno
   froze at boot). Each module's power LED must be steady before you look at SDA/SCL.
+- **Same half of the breadboard.** On the bench the A4 wire was in `f4` while the sensor SDA
+  wires were in `d4`/`e4`: same column, but across the middle gap, so not connected. The
+  accelerometer never answered and the reader held the bus down. Every SDA wire goes in
+  column 4 rows f–j (with A4), every SCL wire in column 6 rows f–j (with A5).
 - Verify with the serial command **`i2c-scan`** → expect `0x24` and `0x68`. A healthy scan
   takes well under a second; ~3 s means something is holding SDA or SCL low.
 
