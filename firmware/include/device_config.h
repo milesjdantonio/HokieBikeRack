@@ -35,6 +35,12 @@
 #ifndef HBR_ENABLE_SERIAL_SIM
 #define HBR_ENABLE_SERIAL_SIM 0
 #endif
+#ifndef HBR_BUZZER_PASSIVE
+#define HBR_BUZZER_PASSIVE 0
+#endif
+#ifndef HBR_BUZZER_TONE_HZ
+#define HBR_BUZZER_TONE_HZ 2700
+#endif
 #ifndef HBR_ENABLE_WATCHDOG
 #define HBR_ENABLE_WATCHDOG 1
 #endif

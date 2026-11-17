@@ -27,6 +27,11 @@
 // (handy without a card or while testing). Set 0 for a real deployment.
 #define HBR_ENABLE_SERIAL_SIM 1
 
+// 1 = the buzzer is PASSIVE (needs a tone; one click on plain 5V).
+// 0 = ACTIVE buzzer (beeps by itself on plain 5V). Tone pitch in Hz below.
+#define HBR_BUZZER_PASSIVE 0
+#define HBR_BUZZER_TONE_HZ 2700
+
 // 1 = restart the Uno automatically if the code ever freezes for 4 s
 // (the lock then starts up LOCKED). Leave on. Only turn it off if your board
 // is a clone with an old bootloader that gets stuck restarting over and over.

@@ -1,0 +1,920 @@
+<meta charset="utf-8">
+<title>HokieBikeRack Wiring</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: workbench page. Schematic canvas on the left, a subsystem notebook on the right, reference tables below. */
+:root {
+  --bg: #eef3f2;
+  --surface: #ffffff;
+  --surface-2: #f5f8f7;
+  --ink: #13201e;
+  --muted: #586866;
+  --line: #d3dddb;
+  --accent: #861f41;          /* Hokie maroon: selection + UI */
+  --accent-ink: #ffffff;
+  --warn: #c2410c;
+  --warn-bg: #fff3e8;
+
+  --board: #0f7882;           /* Uno teal */
+  --board-ink: #e6fbfa;
+  --header: #1d2422;
+  --pin: #c9cfcd;
+  --hole: #39413f;
+  --metal: #b9c2c0;
+  --jack: #2a2f2e;
+  --chip: #1f2524;
+  --pn: #a8262f;              /* Elechouse red */
+  --gy: #1f4d9e;              /* GY-521 blue */
+  --servo: #2f3a46;
+  --horn: #e9edf0;
+  --supply: #5a6361;
+  --res: #d8c091;
+  --buzzer: #222827;
+  --sym: #13201e;
+  --bb: #f4f1e9; --bb-edge: #d8d1c0; --bb-hole: #555a57; --bb-gap: #e3ddcf; --rail-red: #d0312d; --rail-blue: #2f6fd6;
+
+  --w-5v: #d92d2d;
+  --w-ext: #e8710e;
+  --w-gnd: #27302e;
+  --w-sda: #1f6fd1;
+  --w-scl: #b88a00;
+  --w-opt: #6f7e8d;
+  --w-ledg: #1d9150;
+  --w-ledr: #9f1f4b;
+  --w-buzz: #7448c7;
+  --w-servo: #048ea0;
+  --w-usb: #8b9694;
+
+  --f-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0c1413; --surface: #131e1c; --surface-2: #182523; --ink: #e2ebe9; --muted: #93a5a2; --line: #283836;
+    --accent: #e0809e; --accent-ink: #1a0910; --warn: #fb923c; --warn-bg: #2a1a0e;
+    --board: #0c5f67; --board-ink: #d7f5f3; --header: #0b0f0e; --pin: #8f9997; --hole: #222927; --metal: #7d8886; --jack: #050707; --chip: #0a0d0d;
+    --pn: #8c1f27; --gy: #1d3f80; --servo: #263039; --horn: #c9d0d4; --supply: #3d4644; --res: #b49d71; --buzzer: #050707; --sym: #e2ebe9;
+    --w-5v: #ff6464; --w-ext: #ff9a45; --w-gnd: #c3cfcc; --w-sda: #5ea4ff; --w-scl: #f2c94c; --w-opt: #9aa9b8;
+    --w-ledg: #4fd88c; --w-ledr: #ff6f9e; --w-buzz: #b493ff; --w-servo: #3fd2e3; --w-usb: #7c8987;
+    --bb: #262a28; --bb-edge: #3a3f3c; --bb-hole: #0b0d0c; --bb-gap: #1d201f; --rail-red: #ff6464; --rail-blue: #5ea4ff;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0c1413; --surface: #131e1c; --surface-2: #182523; --ink: #e2ebe9; --muted: #93a5a2; --line: #283836;
+  --accent: #e0809e; --accent-ink: #1a0910; --warn: #fb923c; --warn-bg: #2a1a0e;
+  --board: #0c5f67; --board-ink: #d7f5f3; --header: #0b0f0e; --pin: #8f9997; --hole: #222927; --metal: #7d8886; --jack: #050707; --chip: #0a0d0d;
+  --pn: #8c1f27; --gy: #1d3f80; --servo: #263039; --horn: #c9d0d4; --supply: #3d4644; --res: #b49d71; --buzzer: #050707; --sym: #e2ebe9;
+  --w-5v: #ff6464; --w-ext: #ff9a45; --w-gnd: #c3cfcc; --w-sda: #5ea4ff; --w-scl: #f2c94c; --w-opt: #9aa9b8;
+  --w-ledg: #4fd88c; --w-ledr: #ff6f9e; --w-buzz: #b493ff; --w-servo: #3fd2e3; --w-usb: #7c8987;
+  --bb: #262a28; --bb-edge: #3a3f3c; --bb-hole: #0b0d0c; --bb-gap: #1d201f; --rail-red: #ff6464; --rail-blue: #5ea4ff;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { background: var(--bg); }
+body { color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.55; margin: 0; }
+table { font-size: inherit; }
+.wrap {
+  max-width: 1400px; margin: 0 auto;
+  padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 20px;
+}
+h1, h2, h3 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(26px, 3.4vw, 36px); line-height: 1.1; }
+h2 { font-size: 20px; line-height: 1.2; }
+h3 { font-size: 15px; }
+p { margin: 0; }
+code, .mono { font-family: var(--f-mono); font-size: 0.9em; }
+code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.eyebrow { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* header */
+.top { display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: end; justify-content: space-between; }
+.top .titles { display: grid; gap: 6px; min-width: 0; }
+.top .sub { color: var(--muted); max-width: 62ch; }
+.caution {
+  display: flex; align-items: stretch; border: 1px solid var(--warn); border-radius: 8px; overflow: hidden;
+  background: var(--warn-bg); max-width: 520px;
+}
+.caution .stripes {
+  flex: 0 0 18px;
+  background: repeating-linear-gradient(-45deg, var(--warn) 0 6px, transparent 6px 12px);
+}
+.caution p { padding: 10px 14px; font-size: 14px; }
+.caution strong { color: var(--warn); }
+
+/* toolbar */
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip {
+  font: 500 14px/1 var(--f-body); color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px 8px 10px;
+  display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+}
+.chip:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip .sw { width: 12px; height: 12px; border-radius: 50%; display: inline-block; box-shadow: 0 0 0 2px var(--surface); }
+.chip:focus-visible, button:focus-visible, tr[tabindex]:focus-visible, input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toolbar .hint { color: var(--muted); font-size: 13px; margin-left: auto; }
+
+/* main grid */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+@media (max-width: 1080px) { .layout { grid-template-columns: minmax(0, 1fr); } .toolbar .hint { margin-left: 0; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.diagram { position: relative; }
+.scroll { overflow-x: auto; }
+#schem { display: block; width: 100%; min-width: 760px; height: auto; user-select: none; }
+.tip {
+  position: absolute; pointer-events: none; z-index: 5; max-width: 280px;
+  background: var(--ink); color: var(--bg); border-radius: 6px; padding: 8px 10px; font-size: 13px; line-height: 1.4;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+}
+.tip b { font-family: var(--f-mono); font-weight: 600; display: block; margin-bottom: 2px; }
+.diagram-foot { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.key { display: inline-flex; align-items: center; gap: 6px; }
+.key svg { flex: none; }
+
+/* svg styles */
+#schem text { font-family: var(--f-mono); fill: var(--ink); }
+#schem .s { font-size: 10px; fill: var(--muted); }
+#schem .m { font-size: 11px; }
+#schem .b { font-size: 9px; fill: var(--board-ink); }
+#schem .inv { fill: #ffffff; }
+#schem .t { font-family: var(--f-display); font-weight: 600; font-size: 14px; }
+#schem .wire, #schem .comp, #schem .dot, #schem .pin { transition: opacity .15s; }
+#schem .halo { fill: none; stroke: var(--surface); stroke-width: 8; stroke-linecap: round; stroke-linejoin: round; }
+#schem .core { fill: none; stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+#schem .hit { fill: none; stroke: transparent; stroke-width: 16; cursor: pointer; }
+#schem .wire.hot .core { stroke-width: 4.6; }
+#schem .comp { cursor: pointer; }
+#schem .dim { opacity: 0.12; }
+#schem .pin { cursor: pointer; }
+#schem .pin .ring { fill: none; stroke-width: 2; opacity: 0; }
+#schem .pin.free .ring { opacity: 1; stroke: var(--warn); stroke-dasharray: 2 2; }
+#schem .pin.hot .ring { opacity: 1; stroke: var(--accent); stroke-dasharray: none; stroke-width: 2.5; }
+@media (prefers-reduced-motion: reduce) { #schem * { transition: none !important; } }
+
+/* side panel */
+.panel { padding: 20px; display: grid; gap: 14px; }
+.panel section { display: grid; gap: 12px; }
+.panel ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.panel li::marker { color: var(--muted); }
+.panel .lede { color: var(--muted); }
+.legend { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; font-size: 14px; }
+.legend .ln { width: 28px; height: 4px; border-radius: 2px; }
+.mini { width: 100%; border-collapse: collapse; font-size: 13px; }
+.mini th, .mini td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.mini th { font: 500 11px/1.3 var(--f-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.mini td:first-child { font-family: var(--f-mono); white-space: nowrap; }
+.callout { background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.callout.danger { background: var(--warn-bg); border-color: var(--warn); }
+.callout.danger strong { color: var(--warn); }
+
+/* widgets */
+.widget { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: var(--surface-2); }
+.widget .row { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg { font: 500 13px/1 var(--f-mono); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 6px; padding: 7px 10px; cursor: pointer; }
+.seg[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.widget svg { width: 100%; height: auto; display: block; max-width: 320px; margin: 0 auto; }
+.widget svg text { font-family: var(--f-mono); fill: var(--ink); }
+.widget .cap { font-size: 13px; color: var(--muted); text-align: center; }
+
+/* lower tables */
+.lower { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+.lower .card { padding: 20px; display: grid; gap: 14px; }
+.tbl-wrap { overflow-x: auto; }
+.pins { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.pins th, .pins td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+.pins th { font: 500 11px/1.3 var(--f-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.pins td.p { font-family: var(--f-mono); font-weight: 600; white-space: nowrap; }
+.pins tbody tr { cursor: pointer; }
+.pins tbody tr:hover, .pins tbody tr.sel { background: var(--surface-2); }
+.pins tbody tr.sel td.p { color: var(--accent); }
+.pins .w { width: 22px; height: 4px; border-radius: 2px; display: inline-block; vertical-align: middle; }
+.pins tr.free td { color: var(--muted); }
+.pins tr.free td.p { color: var(--warn); }
+.tag { font: 500 11px/1 var(--f-mono); border: 1px solid var(--line); border-radius: 4px; padding: 3px 5px; color: var(--muted); white-space: nowrap; }
+.checks { display: grid; gap: 4px; }
+.checks label { display: grid; grid-template-columns: 22px 1fr; gap: 8px; align-items: start; padding: 7px 4px; border-bottom: 1px solid var(--line); cursor: pointer; font-size: 14px; }
+.checks input { width: 16px; height: 16px; margin: 3px 0 0; accent-color: var(--accent); }
+.checks input:checked + span { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line); }
+.progress { font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.btn-text { background: none; border: 0; color: var(--accent); font: 500 13px var(--f-body); cursor: pointer; padding: 0; justify-self: start; }
+.foot { color: var(--muted); font-size: 13px; }
+
+/* breadboard build */
+.build { display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 20px; align-items: start; }
+@media (max-width: 1080px) { .build { grid-template-columns: minmax(0, 1fr); } }
+#bb { display: block; width: 100%; min-width: 640px; height: auto; user-select: none; }
+#bb text { font-family: var(--f-mono); fill: var(--ink); }
+#bb .bl { font-size: 9px; fill: var(--muted); }
+#bb .wt { fill: #ffffff; }
+#bb .bp { transition: opacity .2s; }
+#bb .bb-done { opacity: 0.22; }
+#bb .bb-future { display: none; }
+#map { display: block; width: 100%; min-width: 820px; height: auto; user-select: none; }
+#map text { font-family: var(--f-mono); fill: var(--ink); }
+#map .bl { font-size: 9px; fill: var(--muted); }
+#map .wt { fill: #ffffff; }
+#map .ub { font-size: 8.5px; fill: var(--board-ink); }
+#map .mp { cursor: pointer; transition: opacity .15s; }
+#map.focus .mp:not(.on) { opacity: 0.12; }
+@media (prefers-reduced-motion: reduce) { #map .mp { transition: none; } }
+.mapcard { position: relative; padding: 20px; display: grid; gap: 14px; }
+.wirelist { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 4px 16px; }
+.wirelist button { width: 100%; display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 7px 4px; font: 13px/1.35 var(--f-body); color: var(--ink); cursor: pointer; }
+.wirelist button:hover, .wirelist button.on { background: var(--surface-2); }
+.wirelist button.on { box-shadow: inset 3px 0 0 var(--accent); }
+.wirelist .sw { width: 22px; height: 5px; border-radius: 3px; }
+.wirelist .st { font: 500 11px var(--f-mono); color: var(--muted); }
+#bb .ring { fill: none; stroke: var(--accent); stroke-width: 2.6; animation: ringPulse 1.4s ease-in-out infinite; }
+@keyframes ringPulse { 50% { stroke-opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { #bb .ring { animation: none; } #bb .bp { transition: none; } }
+.bb-foot { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+.step-panel { padding: 20px; display: grid; gap: 14px; }
+.dots { display: flex; flex-wrap: wrap; gap: 5px; }
+.dots button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: var(--surface); font: 500 12px var(--f-mono); color: var(--muted); cursor: pointer; padding: 0; }
+.dots button.seen { background: var(--surface-2); color: var(--ink); }
+.dots button[aria-current="step"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.need { display: flex; flex-wrap: wrap; gap: 6px; }
+.need span { font: 500 12px/1.2 var(--f-mono); border: 1px solid var(--line); border-radius: 999px; padding: 5px 9px; background: var(--surface-2); }
+.do { margin: 0; padding-left: 22px; display: grid; gap: 8px; }
+.do li::marker { color: var(--accent); font-family: var(--f-mono); font-weight: 600; }
+.do .to { font-family: var(--f-mono); font-weight: 600; color: var(--accent); white-space: nowrap; }
+.step-body { display: grid; gap: 12px; }
+.step-body ul { margin: 0; padding-left: 18px; display: grid; gap: 6px; }
+.stepnav { display: flex; gap: 8px; justify-content: space-between; align-items: center; padding-top: 4px; }
+.primary { font: 600 15px/1 var(--f-body); background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 8px; padding: 12px 18px; cursor: pointer; }
+.stepnav .seg { padding: 11px 14px; font-size: 14px; }
+.primary:disabled, .stepnav .seg:disabled { opacity: 0.35; cursor: default; }
+.ref-head { display: grid; gap: 4px; padding-top: 16px; border-top: 1px solid var(--line); }
+.ref-head p { color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="titles">
+      <span class="eyebrow">HokieBikeRack · Arduino Uno R3 · no soldering</span>
+      <h1>Rack wiring, breadboard only</h1>
+      <p class="sub">Everything plugs in. Check your parts first, then follow the build one step at a time. Each step shows exactly which holes to use.</p>
+    </div>
+    <div class="caution" role="note">
+      <span class="stripes" aria-hidden="true"></span>
+      <p><strong>Wire with USB unplugged.</strong> Check every pin against your boards' silkscreen and datasheets. Pin numbers here are the labels printed on the Uno headers (<code>~9</code>, <code>7</code>, <code>A4</code>).</p>
+    </div>
+  </header>
+
+
+  <div class="lower">
+    <section class="card">
+      <span class="eyebrow">Before you start</span>
+      <h2>Parts list</h2>
+      <div class="tbl-wrap">
+        <table class="mini">
+          <thead><tr><th>Part</th><th>Qty</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Arduino Uno R3 + USB cable</td><td>1</td><td>Ready to go.</td></tr>
+            <tr><td>Half-size breadboard</td><td>1</td><td>400 holes, 30 columns. The steps use its hole names.</td></tr>
+            <tr><td>Male–male jumpers</td><td>~20</td><td>For everything on the board.</td></tr>
+            <tr><td>Female–male jumpers</td><td>~12</td><td>For the two sensors, plus spares to move LEDs and the buzzer onto the model.</td></tr>
+            <tr><td>PN532 NFC module</td><td>1</td><td><strong>Needs header pins attached.</strong> See the box on the right.</td></tr>
+            <tr><td>MPU-6050 (GY-521)</td><td>1</td><td><strong>Needs header pins attached.</strong> See the box on the right.</td></tr>
+            <tr><td>MG90S servo</td><td>1</td><td>Its plug takes male jumper ends or a 3-pin header.</td></tr>
+            <tr><td>External 5 V supply</td><td>1</td><td>For the servo only. No-solder options on the right.</td></tr>
+            <tr><td>330 Ω resistor</td><td>2</td><td>Bands: orange, orange, brown.</td></tr>
+            <tr><td>1 kΩ resistor</td><td>1</td><td>Bands: brown, black, red.</td></tr>
+            <tr><td>LEDs (green, red)</td><td>1 each</td><td>Long leg = +.</td></tr>
+            <tr><td>NPN transistor</td><td>1</td><td>2N2222, S8050 or BC547.</td></tr>
+            <tr><td>Buzzer (passive)</td><td>1</td><td>Ours is <strong>passive</strong>: on plain 5V it only clicks, so the firmware plays a tone. Set <code>HBR_BUZZER_PASSIVE 1</code> in <code>config.h</code>. An active buzzer (beeps on plain 5V) works too with <code>0</code>.</td></tr>
+            <tr><td>Capacitor, 100–1000 µF</td><td>1</td><td>Stripe side = −.</td></tr>
+            <tr><td>3-pin male header</td><td>1</td><td>Optional: 3 jumpers work too.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <span class="eyebrow">The one soldering catch</span>
+      <h2>Sensor header pins</h2>
+      <p>The PN532 and GY-521 usually ship with their pin strips loose, meant to be soldered on. Check yours: if the pins are already fixed in the board, you're fine.</p>
+      <ul class="plain">
+        <li><strong>Best:</strong> buy versions sold "pre-soldered" or "with headers soldered". Both modules are easy to find that way.</li>
+        <li><strong>Also fine:</strong> ask anyone with a soldering iron (a campus makerspace or lab). It's about 10 pins and a few minutes.</li>
+        <li><strong>Test-only stop-gap:</strong> push the loose pins through the module's holes, then push the female jumper ends onto them. Tilt the module slightly so the pins press against the holes. It's flaky: if <code>i2c-scan</code> finds a module only sometimes, this is why. Don't build the final model on it.</li>
+      </ul>
+      <h2>External 5 V supply, no solder</h2>
+      <ul class="plain">
+        <li><strong>5 V, 2 A wall adapter + a barrel-jack-to-screw-terminal adapter.</strong> Clamp a jumper into each terminal (+ and −).</li>
+        <li><strong>4×AA holder with rechargeable NiMH batteries</strong> (about 4.8 V). Twist stranded leads tight before pushing them into the board. Four fresh alkalines give about 6.4 V, which is over the MG90S's 6 V limit.</li>
+        <li>Avoid breadboard power modules that plug into the rails. In this layout the rails belong to the Uno's 5V.</li>
+      </ul>
+    </section>
+  </div>
+
+  <div class="build" id="build">
+    <div class="card">
+      <div class="scroll">
+        <svg id="bb" viewBox="0 0 910 612" role="img" aria-label="Breadboard layout for the current build step"></svg>
+      </div>
+      <div class="bb-foot">
+        <span>Pulsing rings = the holes for this step.</span>
+        <span>Faded parts = earlier steps.</span>
+        <span>Use ← → keys or the buttons to move.</span>
+      </div>
+    </div>
+    <aside class="card step-panel" aria-live="polite">
+      <div class="dots" id="stepDots" aria-label="Steps"></div>
+      <span class="eyebrow" id="stepNum"></span>
+      <h2 id="stepTitle"></h2>
+      <div class="step-body" id="stepBody"></div>
+      <div class="stepnav">
+        <button class="seg" id="stepPrev" type="button">← Back</button>
+        <button class="primary" id="stepNext" type="button">Next step →</button>
+      </div>
+    </aside>
+  </div>
+
+
+
+  <section class="card mapcard" id="mapcard">
+    <div>
+      <span class="eyebrow">Finished build</span>
+      <h2>Every wire, Uno to breadboard to parts</h2>
+    </div>
+    <p class="lede" style="color:var(--muted)">The whole circuit in one picture: the Uno on the left, every wire into the breadboard, and the parts that sit off the board. Hover a wire or part, or pick one from the list, to see just that connection.</p>
+    <div class="scroll">
+      <svg id="map" viewBox="0 0 1190 620" role="img" aria-label="Full wiring map: Arduino Uno wired to the breadboard and every part"></svg>
+    </div>
+    <ol class="wirelist" id="wirelist"></ol>
+    <div class="tip" id="maptip" hidden></div>
+  </section>
+
+  <div class="lower">
+    <section class="card">
+      <span class="eyebrow">Cheat sheet</span>
+      <h2>Uno pin → breadboard hole</h2>
+      <div class="tbl-wrap">
+        <table class="mini">
+          <thead><tr><th>Uno pin</th><th>Goes to</th><th>Step</th></tr></thead>
+          <tbody>
+            <tr><td>5V</td><td>Top + rail</td><td>2</td></tr>
+            <tr><td>GND</td><td>Top − rail</td><td>2</td></tr>
+            <tr><td>GND (another pin)</td><td>MPU-6050 GND, its own wire</td><td>10</td></tr>
+            <tr><td>~5</td><td><code>a3</code> (green LED)</td><td>4</td></tr>
+            <tr><td>~6</td><td><code>a11</code> (red LED)</td><td>5</td></tr>
+            <tr><td>7</td><td><code>a18</code> (buzzer transistor)</td><td>6</td></tr>
+            <tr><td>A4</td><td><code>f4</code> (SDA)</td><td>8</td></tr>
+            <tr><td>A5</td><td><code>j6</code> (SCL)</td><td>8</td></tr>
+            <tr><td>~9</td><td><code>f30</code> (servo signal)</td><td>12</td></tr>
+            <tr><td>0, 1, 13</td><td>Leave empty (USB serial and bootloader use them)</td><td></td></tr>
+            <tr><td>VIN, barrel jack</td><td>Leave empty</td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h2>Getting parts onto the model</h2>
+      <ul class="plain">
+        <li><strong>LEDs and buzzer:</strong> push each leg into the female end of a female–male jumper, then plug the male ends into the same holes the part used. Note which jumper is on the long leg. Wrap the leg joints in tape so they can't touch each other.</li>
+        <li><strong>Light tube:</strong> push the tube ends over the LEDs and seal with heat-shrink (a hair dryer or lighter shrinks it, no solder involved).</li>
+        <li><strong>Servo:</strong> if it sits far from the board, use a servo extension cable or three longer jumpers.</li>
+        <li><strong>Sensor wires:</strong> keep SDA/SCL as short as you can, and away from the buzzer wires. If <code>i2c-scan</code> gets unreliable after moving things, long wires are the first suspect.</li>
+        <li>Most breadboards have a sticky back for fixing the board inside the model.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="precheck">
+      <span class="eyebrow">Before you plug in USB</span>
+      <h2>Pre-power check</h2>
+      <div class="checks" id="checks"></div>
+      <span class="progress" id="progress"></span>
+      <p class="foot">After power-up, both sensor power LEDs should be on. Then run <code>i2c-scan</code> in the serial monitor. You should see <code>0x24</code> (PN532) and <code>0x68</code> (MPU-6050).</p>
+      <button class="btn-text" id="resetChecks" type="button">Clear all ticks</button>
+    </section>
+  </div>
+
+  <p class="foot">Pins match <code>firmware/include/pins.h</code>. Your current step and ticks are saved in this browser only.</p>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var CHECKS = [
+    ["usb", "USB is unplugged while you wire."],
+    ["rails", "Uno 5V is on the top + rail, GND on the top − rail, and both are linked to the bottom rails."],
+    ["ext", "The external supply's + is only in column 29. It touches no rail and not the Uno."],
+    ["gndlink", "Ground link from i28 to the bottom − rail is in."],
+    ["cap", "Capacitor stripe (−) is in h28."],
+    ["pn", "PN532 switches set to I2C: 1 ON, 2 OFF."],
+    ["mpugnd", "MPU-6050 GND has its own wire to a Uno GND pin."],
+    ["buzz", "Buzzer wires are away from SDA/SCL, and HBR_BUZZER_PASSIVE matches your buzzer (ours: 1)."],
+    ["leds", "Both LEDs have their 330 Ω resistor; long legs in c7 and c15."],
+    ["q1", "Transistor flat face toward the gap (BC547: toward row a)."],
+    ["i2c", "Column 4 has A4 + both SDAs, column 6 has A5 + both SCLs, column 5 is empty."],
+    ["pins", "Sensor header pins are firm, not wobbling in their holes."],
+    ["horn", "Nothing on the servo horn, and HBR_ENABLE_SERVO is 0 for the first test."]
+  ];
+  var KEY = "hbr-bb-checks", saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || "{}") || {}; } catch (e) { saved = {}; }
+  var el = document.getElementById("checks");
+  CHECKS.forEach(function (c) {
+    var lab = document.createElement("label");
+    lab.innerHTML = '<input type="checkbox"><span></span>';
+    lab.lastChild.textContent = c[1];
+    lab.firstChild.checked = !!saved[c[0]];
+    lab.firstChild.addEventListener("change", function (e) { saved[c[0]] = e.target.checked; persist(); });
+    el.appendChild(lab);
+  });
+  function persist() {
+    try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {}
+    var n = CHECKS.filter(function (c) { return saved[c[0]]; }).length;
+    document.getElementById("progress").textContent = n === CHECKS.length ? "All " + n + " checked. OK to plug in USB." : n + " of " + CHECKS.length + " checked";
+  }
+  document.getElementById("resetChecks").addEventListener("click", function () {
+    saved = {}; el.querySelectorAll("input").forEach(function (i) { i.checked = false; }); persist();
+  });
+  persist();
+})();
+</script>
+
+<script>
+/* ---------- breadboard build, step by step ---------- */
+(function () {
+  "use strict";
+  var svg = document.getElementById("bb");
+  if (!svg) return;
+
+  function X(n) { return 165 + (n - 1) * 22; }
+  var RY = { a: 170, b: 192, c: 214, d: 236, e: 258, f: 302, g: 324, h: 346, i: 368, j: 390, "T+": 104, "T-": 126, "B+": 432, "B-": 454 };
+  function P(id) {
+    var m = /^([TB][+-])(\d+)$/.exec(id);
+    if (m) return [X(+m[2]), RY[m[1]]];
+    return [X(+id.slice(1)), RY[id.charAt(0)]];
+  }
+  function cv(v) { return "var(--" + v + ")"; }
+  var C = { v5: cv("w-5v"), gnd: cv("w-gnd"), ext: cv("w-ext"), sda: cv("w-sda"), scl: cv("w-scl"), g: cv("w-ledg"), r: cv("w-ledr"), bz: cv("w-buzz"), sv: cv("w-servo") };
+  var BAND = { brown: "#7a4a25", black: "#161616", red: "#d0312d", orange: "#f07a12", gold: "#c9a227" };
+
+  function path(d, c, w) {
+    w = w || 4;
+    return '<path d="' + d + '" fill="none" stroke="var(--surface)" stroke-width="' + (w + 4) + '" stroke-linecap="round" stroke-linejoin="round"/>' +
+           '<path d="' + d + '" fill="none" stroke="' + c + '" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
+  function end(id, c) { var p = P(id); return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="4.4" fill="' + c + '" stroke="var(--surface)" stroke-width="1.5"/>'; }
+  function poly(pts) { return "M" + pts.map(function (p) { return p[0] + " " + p[1]; }).join(" L"); }
+  function wire(pts, id, c) { return path(poly(pts.concat([P(id)])), c) + end(id, c); }
+  function jump(a, b, c, bend) {
+    var p = P(a), q = P(b), mx = (p[0] + q[0]) / 2, my = (p[1] + q[1]) / 2;
+    var dx = q[0] - p[0], dy = q[1] - p[1], L = Math.sqrt(dx * dx + dy * dy) || 1;
+    var cx = mx + (-dy / L) * (bend || 0), cy = my + (dx / L) * (bend || 0);
+    return path("M" + p[0] + " " + p[1] + " Q" + cx + " " + cy + " " + q[0] + " " + q[1], c) + end(a, c) + end(b, c);
+  }
+  function tag(x, y, txt, c, anchor) {
+    var w = txt.length * 6.8 + 14;
+    var x0 = anchor === "end" ? x - w : anchor === "middle" ? x - w / 2 : x;
+    return '<rect x="' + x0 + '" y="' + (y - 10) + '" width="' + w + '" height="20" rx="4" fill="var(--surface)" stroke="' + c + '" stroke-width="2"/>' +
+      '<text x="' + (x0 + w / 2) + '" y="' + (y + 4) + '" text-anchor="middle" font-size="11" font-weight="600">' + txt + '</text>';
+  }
+  function note(x, y, txt) {
+    var w = txt.length * 6.3 + 14;
+    return '<rect x="' + x + '" y="' + (y - 11) + '" width="' + w + '" height="20" rx="4" fill="var(--surface)" stroke="var(--line)"/>' +
+      '<text x="' + (x + 7) + '" y="' + (y + 3) + '" font-size="10.5">' + txt + '</text>';
+  }
+  function legDot(id) { var p = P(id); return '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.2" fill="var(--metal)" stroke="var(--sym)" stroke-width="0.8"/>'; }
+
+  function res(a, b, bands, label) {
+    var p = P(a), q = P(b), y = p[1], mx = (p[0] + q[0]) / 2, bw = Math.min(q[0] - p[0] - 20, 46);
+    var s = '<path d="M' + p[0] + ' ' + y + 'H' + q[0] + '" stroke="var(--metal)" stroke-width="2.4"/>' + legDot(a) + legDot(b) +
+      '<rect x="' + (mx - bw / 2) + '" y="' + (y - 7) + '" width="' + bw + '" height="14" rx="6" fill="var(--res)"/>';
+    [0.2, 0.36, 0.52, 0.8].forEach(function (f, i) { s += '<rect x="' + (mx - bw / 2 + bw * f - 2) + '" y="' + (y - 7) + '" width="4" height="14" fill="' + BAND[bands[i]] + '"/>'; });
+    return s + '<text class="bl" x="' + mx + '" y="' + (y - 10) + '" text-anchor="middle" style="fill:var(--ink)">' + label + '</text>';
+  }
+  function led(a, b, c) {
+    var p = P(a), q = P(b), mx = (p[0] + q[0]) / 2, by = p[1] + 25;
+    return '<path d="M' + p[0] + ' ' + p[1] + 'L' + (mx - 4) + ' ' + (by - 6) + 'M' + q[0] + ' ' + q[1] + 'L' + (mx + 4) + ' ' + (by - 6) + '" stroke="var(--metal)" stroke-width="2.2"/>' +
+      '<circle cx="' + mx + '" cy="' + by + '" r="10.5" fill="' + c + '" stroke="var(--sym)" stroke-width="1.2"/>' +
+      '<circle cx="' + (mx - 3) + '" cy="' + (by - 3) + '" r="3" fill="#ffffff" fill-opacity="0.55"/>' +
+      legDot(a) + legDot(b) +
+      '<text x="' + (p[0] - 10) + '" y="' + (p[1] + 4) + '" text-anchor="middle" font-size="12" font-weight="700">+</text>';
+  }
+  function npn(e, b, c) {
+    var pe = P(e), pc = P(c), y = pe[1], x0 = pe[0] - 11, x1 = pc[0] + 11, mx = (x0 + x1) / 2;
+    return '<path d="M' + x0 + ' ' + (y + 9) + 'H' + x1 + 'Q' + x1 + ' ' + (y - 18) + ' ' + mx + ' ' + (y - 18) + 'Q' + x0 + ' ' + (y - 18) + ' ' + x0 + ' ' + (y + 9) + 'Z" fill="var(--chip)"/>' +
+      legDot(e) + legDot(b) + legDot(c) +
+      '<text class="wt" x="' + mx + '" y="' + (y - 7) + '" text-anchor="middle" font-size="7.5">NPN</text>' +
+      [[pe[0], "E"], [P(b)[0], "B"], [pc[0], "C"]].map(function (l) { return '<text x="' + l[0] + '" y="' + (y + 26) + '" text-anchor="middle" font-size="11" font-weight="700">' + l[1] + '</text>'; }).join("") +
+      '<text class="bl" x="' + (x1 + 4) + '" y="' + (y + 26) + '">flat face</text>';
+  }
+  function buzzer(m, pl) {
+    var p = P(m), q = P(pl), mx = (p[0] + q[0]) / 2, y = p[1];
+    return '<circle cx="' + mx + '" cy="' + y + '" r="37" fill="var(--buzzer)"/>' +
+      '<circle cx="' + mx + '" cy="' + y + '" r="9" fill="none" stroke="#7d8886" stroke-width="1.5"/>' +
+      legDot(m) + legDot(pl) +
+      '<text class="wt" x="' + (p[0] + 1) + '" y="' + (y - 9) + '" text-anchor="middle" font-size="13" font-weight="700">−</text>' +
+      '<text class="wt" x="' + q[0] + '" y="' + (y - 9) + '" text-anchor="middle" font-size="13" font-weight="700">+</text>' +
+      '<text class="wt" x="' + mx + '" y="' + (y + 24) + '" text-anchor="middle" font-size="8">buzzer</text>';
+  }
+
+  /* ---------- board ---------- */
+  var out = [];
+  out.push('<rect x="140" y="82" width="690" height="394" rx="10" fill="var(--bb)" stroke="var(--bb-edge)" stroke-width="1.5"/>');
+  out.push('<rect x="150" y="275" width="670" height="20" rx="3" fill="var(--bb-gap)"/>');
+  [[93, "--rail-red"], [137, "--rail-blue"], [421, "--rail-red"], [465, "--rail-blue"]].forEach(function (l) {
+    out.push('<path d="M156 ' + l[0] + 'H812" stroke="var(' + l[1] + ')" stroke-width="2"/>');
+  });
+  var holes = [];
+  for (var c = 1; c <= 30; c++) {
+    "abcdefghij".split("").concat(["T+", "T-", "B+", "B-"]).forEach(function (r) {
+      var p = P(r.length === 1 ? r + c : r + c);
+      holes.push('<rect x="' + (p[0] - 3.5) + '" y="' + (p[1] - 3.5) + '" width="7" height="7" rx="1.5" fill="var(--bb-hole)"/>');
+    });
+    out.push('<text class="bl" x="' + X(c) + '" y="155" text-anchor="middle">' + c + '</text>');
+    out.push('<text class="bl" x="' + X(c) + '" y="414" text-anchor="middle">' + c + '</text>');
+  }
+  out.push(holes.join(""));
+  "abcdefghij".split("").forEach(function (r) {
+    out.push('<text class="bl" x="151" y="' + (RY[r] + 3) + '" text-anchor="middle">' + r + '</text>');
+    out.push('<text class="bl" x="819" y="' + (RY[r] + 3) + '" text-anchor="middle">' + r + '</text>');
+  });
+  [["T+", "+", "--rail-red"], ["T-", "−", "--rail-blue"], ["B+", "+", "--rail-red"], ["B-", "−", "--rail-blue"]].forEach(function (r) {
+    out.push('<text x="151" y="' + (RY[r[0]] + 4) + '" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(' + r[2] + ')">' + r[1] + '</text>');
+    out.push('<text x="819" y="' + (RY[r[0]] + 4) + '" text-anchor="middle" font-size="13" font-weight="700" style="fill:var(' + r[2] + ')">' + r[1] + '</text>');
+  });
+
+  var BOARD = out.join("");
+
+  /* ---------- parts (s = step index) ---------- */
+  var PARTS = [
+    // 0: meet the board
+    { s: 0, only: true, h: [], svg:
+      '<rect x="198" y="159" width="22" height="110" rx="6" fill="var(--accent)" fill-opacity="0.22" stroke="var(--accent)"/>' +
+      '<rect x="198" y="291" width="22" height="110" rx="6" fill="var(--w-sda)" fill-opacity="0.22" stroke="var(--w-sda)"/>' +
+      '<rect x="156" y="96" width="656" height="16" rx="6" fill="var(--rail-red)" fill-opacity="0.16" stroke="var(--rail-red)"/>' +
+      note(232, 216, "a–e in column 3: all joined") +
+      note(232, 348, "f–j in column 3: all joined") +
+      note(420, 286, "middle gap: the halves are NOT joined") +
+      note(420, 68, "each rail: joined end to end") },
+
+    // 1: rails from the Uno
+    { s: 1, h: ["T+1"], svg: tag(112, 104, "Uno 5V", C.v5, "end") + wire([[112, 104]], "T+1", C.v5) },
+    { s: 1, h: ["T-1"], svg: tag(112, 126, "Uno GND", C.gnd, "end") + wire([[112, 126]], "T-1", C.gnd) },
+
+    // 2: link rails
+    { s: 2, h: ["T+2", "B+2"], svg: path("M187 104 C116 150 116 390 187 432", C.v5) + end("T+2", C.v5) + end("B+2", C.v5) },
+    { s: 2, h: ["T-2", "B-2"], svg: path("M187 126 C128 172 128 410 187 454", C.gnd) + end("T-2", C.gnd) + end("B-2", C.gnd) },
+
+    // 3: green LED
+    { s: 3, h: ["a3"], svg: tag(220, 44, "Uno ~5", C.g, "middle") + wire([[220, 54], [220, 160]], "a3", C.g) },
+    { s: 3, h: ["b3", "b7"], svg: res("b3", "b7", ["orange", "orange", "brown", "gold"], "330 Ω") },
+    { s: 3, h: ["c7", "c8"], svg: led("c7", "c8", C.g) },
+    { s: 3, h: ["a8", "T-8"], svg: jump("a8", "T-8", C.gnd, 0) },
+
+    // 4: red LED
+    { s: 4, h: ["a11"], svg: tag(396, 44, "Uno ~6", C.r, "middle") + wire([[396, 54], [396, 160]], "a11", C.r) },
+    { s: 4, h: ["b11", "b15"], svg: res("b11", "b15", ["orange", "orange", "brown", "gold"], "330 Ω") },
+    { s: 4, h: ["c15", "c16"], svg: led("c15", "c16", "#e0303a") },
+    { s: 4, h: ["a16", "T-16"], svg: jump("a16", "T-16", C.gnd, 0) },
+
+    // 5: transistor
+    { s: 5, h: ["a18"], svg: tag(550, 44, "Uno 7", C.bz, "middle") + wire([[550, 54], [550, 160]], "a18", C.bz) },
+    { s: 5, h: ["c18", "c22"], svg: res("c18", "c22", ["brown", "black", "red", "gold"], "1 kΩ") },
+    { s: 5, h: ["e21", "e22", "e23"], svg: npn("e21", "e22", "e23") },
+    { s: 5, h: ["a21", "T-21"], svg: jump("a21", "T-21", C.gnd, 0) },
+
+    // 6: buzzer
+    { s: 6, h: ["a23", "a26"], svg: jump("a23", "a26", C.bz, -16) },
+    { s: 6, h: ["e26", "e29"], svg: buzzer("e26", "e29") },
+    { s: 6, h: ["a29", "T+29"], svg: path(poly([[781, 170], [792, 160], [792, 114], [781, 104]]), C.v5) + end("a29", C.v5) + end("T+29", C.v5) },
+
+    // 7: I2C rows
+    { s: 7, h: ["f4"], svg: tag(112, 302, "Uno A4", C.sda, "end") + wire([[112, 313], [220, 313]], "f4", C.sda) },
+    { s: 7, h: ["j6"], svg: tag(112, 390, "Uno A5", C.scl, "end") + wire([[112, 379], [264, 379]], "j6", C.scl) },
+
+    // 8: PN532
+    { s: 8, h: ["B-1", "B+3", "g4", "i6"], svg:
+      wire([[166, 520]], "B-1", C.gnd) +
+      wire([[190, 520], [190, 506], [198, 506], [198, 442]], "B+3", C.v5) +
+      wire([[214, 520], [214, 500], [242, 500], [242, 334]], "g4", C.sda) +
+      wire([[238, 520], [238, 494], [286, 494], [286, 378]], "i6", C.scl) +
+      '<rect x="150" y="520" width="190" height="80" rx="6" fill="var(--pn)"/>' +
+      [[166, "GND"], [190, "VCC"], [214, "SDA"], [238, "SCL"], [290, "IRQ"], [316, "RSTO"]].map(function (p) {
+        return '<rect x="' + (p[0] - 4) + '" y="516" width="8" height="8" fill="var(--pin)" stroke="var(--header)"/>' +
+          '<text class="wt" x="' + p[0] + '" y="538" text-anchor="middle" font-size="7.5">' + p[1] + '</text>';
+      }).join("") +
+      '<text class="wt" x="303" y="550" text-anchor="middle" font-size="8">skip</text>' +
+      '<text class="wt" x="160" y="570" font-size="14" font-weight="700">PN532</text>' +
+      '<text class="wt" x="160" y="588" font-size="9">switches: 1 ON · 2 OFF</text>' },
+
+    // 9: MPU-6050
+    { s: 9, h: ["B+14", "h4", "h6"], svg:
+      wire([[388, 520], [388, 508], [440, 508], [440, 442]], "B+14", C.v5) +
+      path(poly([[409, 520], [409, 512], [586, 512]]), C.gnd) + tag(588, 512, "Uno GND pin", C.gnd, "start") +
+      wire([[430, 520], [430, 488], [264, 488], [264, 356]], "h6", C.scl) +
+      wire([[451, 520], [451, 481], [220, 481], [220, 356]], "h4", C.sda) +
+      '<rect x="372" y="520" width="182" height="80" rx="6" fill="var(--gy)"/>' +
+      [[388, "VCC"], [409, "GND"], [430, "SCL"], [451, "SDA"], [472, "XDA"], [493, "XCL"], [514, "AD0"], [535, "INT"]].map(function (p, i) {
+        return '<rect x="' + (p[0] - 4) + '" y="516" width="8" height="8" fill="var(--pin)" stroke="var(--header)"/>' +
+          '<text class="wt" x="' + p[0] + '" y="538" text-anchor="middle" font-size="7.5"' + (i > 3 ? ' fill-opacity="0.6"' : "") + '>' + p[1] + '</text>';
+      }).join("") +
+      '<text class="wt" x="503" y="552" text-anchor="middle" font-size="8">leave empty</text>' +
+      '<text class="wt" x="384" y="574" font-size="14" font-weight="700">MPU-6050</text>' +
+      '<text class="wt" x="384" y="590" font-size="9">GY-521</text>' },
+
+    // 10: servo header + capacitor + ground link
+    { s: 10, h: ["g28", "g29", "g30"], svg:
+      '<rect x="748" y="316" width="66" height="16" rx="2" fill="#1a1d1c"/>' + legDot("g28") + legDot("g29") + legDot("g30") },
+    { s: 10, h: ["h28", "h29"], svg:
+      '<circle cx="770" cy="346" r="14" fill="#2b4a8a" stroke="var(--sym)" stroke-width="1"/>' +
+      '<path d="M762 334.5 A14 14 0 0 0 762 357.5 Z" fill="#d6dde9"/>' +
+      '<text x="758" y="350" text-anchor="middle" font-size="11" font-weight="700" style="fill:#13201e">−</text>' +
+      '<text class="wt" x="776" y="350" text-anchor="middle" font-size="10" font-weight="700">+</text>' },
+    { s: 10, h: ["i28", "B-28"], svg: path(poly([[759, 368], [748, 378], [748, 444], [759, 454]]), C.gnd) + end("i28", C.gnd) + end("B-28", C.gnd) },
+
+    // 11: servo signal, supply, plug
+    { s: 11, h: ["f30"], svg: tag(862, 44, "Uno ~9", C.sv, "middle") + wire([[862, 54], [862, 302]], "f30", C.sv) },
+    { s: 11, h: ["j28", "j29"], svg:
+      wire([[750, 520], [750, 505], [770, 505], [770, 400]], "j28", C.gnd) +
+      wire([[792, 520], [792, 400]], "j29", C.ext) +
+      '<rect x="700" y="520" width="134" height="76" rx="6" fill="var(--supply)"/>' +
+      '<rect x="746" y="516" width="8" height="8" fill="var(--pin)" stroke="var(--header)"/><rect x="788" y="516" width="8" height="8" fill="var(--pin)" stroke="var(--header)"/>' +
+      '<text class="wt" x="750" y="540" text-anchor="middle" font-size="12" font-weight="700">−</text><text class="wt" x="792" y="540" text-anchor="middle" font-size="12" font-weight="700">+</text>' +
+      '<text class="wt" x="710" y="566" font-size="12" font-weight="700">External 5 V</text><text class="wt" x="710" y="582" font-size="9">servo only · keep OFF</text>' },
+    { s: 11, h: ["g28", "g29", "g30"], svg:
+      '<path d="M816 318 C838 318 838 352 846 352" fill="none" stroke-width="2.5" stroke="' + BAND.brown + '"/>' +
+      '<path d="M816 324 C834 324 834 356 846 356" fill="none" stroke-width="2.5" stroke="' + BAND.red + '"/>' +
+      '<path d="M816 330 C830 330 830 360 846 360" fill="none" stroke-width="2.5" stroke="' + BAND.orange + '"/>' +
+      '<rect x="745" y="311" width="72" height="26" rx="3" fill="#222726"/>' +
+      '<rect x="754" y="319" width="10" height="10" fill="' + BAND.brown + '"/><rect x="776" y="319" width="10" height="10" fill="' + BAND.red + '"/><rect x="798" y="319" width="10" height="10" fill="' + BAND.orange + '"/>' +
+      tag(848, 356, "servo", C.sv, "start") }
+  ];
+
+  PARTS.forEach(function (p) {
+    out.push('<g class="bp" data-s="' + p.s + '"' + (p.only ? ' data-only="1"' : "") + '>' + p.svg + '</g>');
+  });
+  out.push('<g id="bbRings"></g>');
+  svg.innerHTML = out.join("");
+
+  /* ---------- steps ---------- */
+  function to(t) { return '<span class="to">' + t + '</span>'; }
+  function list(rows) { return '<ol class="do">' + rows.map(function (r) { return "<li>" + r[0] + " → " + to(r[1]) + "</li>"; }).join("") + "</ol>"; }
+  function need(items) { return items.length ? '<div class="need">' + items.map(function (i) { return "<span>" + i + "</span>"; }).join("") + "</div>" : ""; }
+  function callout(t, danger) { return '<div class="callout' + (danger ? " danger" : "") + '">' + t + "</div>"; }
+
+  var STEPS = [
+    { t: "Meet the breadboard", body:
+      need(["half-size breadboard"]) +
+      "<p>Each numbered column is split into two groups of 5 holes: <b>a–e</b> and <b>f–j</b>. The 5 holes in a group are joined inside the board. Anything plugged into the same group is connected. That's the whole trick.</p>" +
+      "<ul><li>The middle gap splits the halves: <code>a3</code> and <code>f3</code> are <b>not</b> connected.</li>" +
+      "<li>Each long rail along the top and bottom is joined end to end. The red line marks <b>+</b>, the blue line marks <b>−</b>.</li>" +
+      "<li>Holes on this page are named row letter + column number, like <code>a3</code>. If your board is numbered differently, copy the position from the picture.</li></ul>" +
+      callout("On a long breadboard, check whether the red/blue lines break in the middle. If they do, the rail is split there too.") +
+      callout("<strong>Keep the Uno's USB unplugged</strong> until the last step.", true) },
+
+    { t: "Feed the top rails from the Uno", body:
+      need(["2 jumpers"]) +
+      list([["Uno <b>5V</b> pin", "top + rail (red line)"], ["Uno <b>GND</b> pin (any of the three)", "top − rail (blue line)"]]) +
+      callout("Use red for 5V and black for GND if you have them. It makes mistakes easy to spot later.") },
+
+    { t: "Link the bottom rails to the top", body:
+      need(["2 jumpers"]) +
+      list([["Top + rail", "bottom + rail"], ["Top − rail", "bottom − rail"]]) +
+      "<p>Now every + rail is the Uno's 5V and every − rail is ground.</p>" +
+      callout("<strong>The external servo supply never goes on a rail.</strong> It gets its own column in step 12.", true) },
+
+    { t: "Green LED on pin 5", body:
+      need(["330 Ω resistor (orange-orange-brown)", "green LED", "2 jumpers"]) +
+      list([["Wire from Uno pin <b>~5</b>", "a3"], ["330 Ω resistor", "b3 + b7"], ["Green LED <b>long leg (+)</b>", "c7"], ["Green LED short leg (−)", "c8"], ["Wire", "a8 → top − rail"]]) +
+      "<p>Current flows pin 5 → resistor → LED → ground.</p>" +
+      callout("Resistors work either way round. LEDs don't: long leg toward the resistor. A backwards LED won't break, it just stays dark.") },
+
+    { t: "Red LED on pin 6", body:
+      need(["330 Ω resistor (orange-orange-brown)", "red LED", "2 jumpers"]) +
+      list([["Wire from Uno pin <b>~6</b>", "a11"], ["330 Ω resistor", "b11 + b15"], ["Red LED <b>long leg (+)</b>", "c15"], ["Red LED short leg (−)", "c16"], ["Wire", "a16 → top − rail"]]) +
+      "<p>Same pattern as the green one, just further along.</p>" },
+
+    { t: "Transistor for the buzzer", body:
+      need(["NPN transistor (2N2222 / S8050 / BC547)", "1 kΩ resistor (brown-black-red)", "2 jumpers"]) +
+      list([["Wire from Uno pin <b>7</b>", "a18"], ["1 kΩ resistor", "c18 + c22"], ["Transistor, <b>flat face toward the middle gap</b>", "e21 · e22 · e23"], ["Wire (emitter to ground)", "a21 → top − rail"]]) +
+      "<p>With a 2N2222 or S8050 that puts <b>E</b> in 21, <b>B</b> in 22 and <b>C</b> in 23.</p>" +
+      callout("<strong>BC547?</strong> Its legs are the other way round (C-B-E). Turn it so the flat face points toward row a instead, and E still lands in 21.", true) },
+
+    { t: "Buzzer", body:
+      need(["passive buzzer", "2 jumpers"]) +
+      list([["Short wire (transistor C to buzzer)", "a23 → a26"], ["Buzzer <b>− leg</b>", "e26"], ["Buzzer <b>+ leg</b> (longer, or marked +)", "e29"], ["Wire", "a29 → top + rail"]]) +
+      "<p>Pin 7 switches the transistor on and off about 2,700 times a second, which connects the buzzer's − to ground in pulses, and it beeps.</p>" +
+      callout("<strong>Passive buzzer:</strong> set <code>HBR_BUZZER_PASSIVE 1</code> in <code>config.h</code>, or it stays silent. Test: on plain 5V and GND a passive buzzer only clicks once; an active one beeps.", true) +
+      callout("Route the buzzer wires away from the SDA/SCL wires (columns 4 and 6). The tone is noisy and can knock the sensors off the bus.") +
+      callout("Legs don't reach 3 holes apart? Put + in <code>e28</code> and move the + wire to <code>a28</code>.") },
+
+    { t: "SDA and SCL rows", body:
+      need(["2 jumpers"]) +
+      list([["Wire from Uno <b>A4</b>", "f4"], ["Wire from Uno <b>A5</b>", "j6"]]) +
+      "<p>Column 4 (f–j) is now <b>SDA</b> and column 6 (f–j) is <b>SCL</b>. Both sensors plug into these next. Column 5 stays empty so the two can't touch.</p>" },
+
+    { t: "PN532 NFC reader", body:
+      need(["PN532 (pins attached)", "4 female–male jumpers"]) +
+      callout("<strong>First:</strong> set the PN532's little switches to I2C: <b>1 ON, 2 OFF</b> (red Elechouse V3 board; other boards print their own table).") +
+      list([["PN532 <b>VCC</b>", "bottom + rail"], ["PN532 <b>GND</b>", "bottom − rail"], ["PN532 <b>SDA</b>", "g4"], ["PN532 <b>SCL</b>", "i6"]]) +
+      "<ul><li>Female end on the module's pin, male end in the breadboard.</li><li>Match by the names printed on the module, not by position.</li><li>Skip IRQ and RSTO. The firmware reads cards over I2C without them.</li></ul>" +
+      callout("<strong>Power check:</strong> with USB plugged in, the PN532's power LED must be on. If it's dark, the reader has no 5V: check its VCC and GND jumpers, that the bottom rails are linked (step 3), and that the Uno's 5V wire is really in the top + rail (step 2). Fix this before checking SDA/SCL or the switches.", true) },
+
+    { t: "MPU-6050 tamper sensor", body:
+      need(["MPU-6050 (pins attached)", "4 female–male jumpers"]) +
+      list([["MPU <b>VCC</b>", "bottom + rail"], ["MPU <b>GND</b>", "a spare Uno GND pin (its own wire)"], ["MPU <b>SDA</b>", "h4"], ["MPU <b>SCL</b>", "h6"]]) +
+      "<p>The Uno has three GND pins. Give the MPU its own one, so it doesn't share the ground rail with the LEDs and buzzer. On our build the sensor dropped off the bus every time the buzzer beeped until it had its own ground.</p>" +
+      "<p>Leave XDA, XCL, AD0 and INT empty.</p>" +
+      callout("Quick check: column 4 now holds A4 + both SDAs, column 6 holds A5 + both SCLs.") },
+
+    { t: "Servo header and capacitor", body:
+      need(["3-pin male header (or 3 jumpers)", "100–1000 µF capacitor", "1 jumper"]) +
+      list([["3-pin header", "g28 · g29 · g30"], ["Capacitor <b>− leg</b> (stripe side, shorter)", "h28"], ["Capacitor <b>+ leg</b> (longer)", "h29"], ["Wire (servo ground to Uno ground)", "i28 → bottom − rail"]]) +
+      "<p>From here on: column 28 = ground, 29 = servo power, 30 = servo signal.</p>" +
+      callout("<strong>A capacitor in backwards can pop.</strong> The stripe goes in 28.", true) },
+
+    { t: "Servo signal and external supply", body:
+      need(["MG90S servo", "external 5 V supply (switched OFF)", "3 jumpers"]) +
+      list([["Wire from Uno pin <b>~9</b>", "f30"], ["Supply <b>−</b> (black lead or − terminal)", "j28"], ["Supply <b>+</b> (red lead or + terminal)", "j29"], ["Servo plug: brown on 28, red on 29, orange on 30", "g28–g30"]]) +
+      callout("<strong>Column 29 is the external supply's only home.</strong> Nothing else plugs into it, and it never touches a rail or the Uno's 5V / VIN.", true) +
+      "<p>Keep the supply switched off for now.</p>" },
+
+    { t: "Check, then power up", body:
+      '<ol class="do">' +
+      '<li>Tick through the <a href="#precheck">pre-power check</a> at the bottom of this page.</li>' +
+      "<li>Plug in <b>USB only</b>. Leave the servo supply off. The PN532 and MPU-6050 power LEDs should both be on. One dark? Its VCC/GND or a rail link is missing.</li>" +
+      "<li>Open the serial monitor and run <code>i2c-scan</code>. You should see <code>0x24</code> (PN532) and <code>0x68</code> (MPU-6050). Missing one? Recheck that sensor's 4 wires, and the PN532 switches.</li>" +
+      "<li>Set <code>HBR_ENABLE_SERVO 0</code>, take everything off the horn, then switch the servo supply on. Carry on with <code>hardware-test-checklist.md</code>.</li>" +
+      "</ol>" +
+      callout("<strong>Anything gets hot?</strong> Unplug USB and the supply straight away, then recheck steps 2, 3 and 12.", true) }
+  ];
+
+  var LAST = STEPS.length - 1;
+  var dotsEl = document.getElementById("stepDots");
+  var parts = svg.querySelectorAll(".bp");
+  var rings = document.getElementById("bbRings");
+  var cur = 0, maxSeen = 0;
+  try {
+    cur = parseInt(localStorage.getItem("hbr-bb-step") || "0", 10) || 0;
+    maxSeen = parseInt(localStorage.getItem("hbr-bb-seen") || "0", 10) || 0;
+  } catch (e) {}
+  cur = Math.max(0, Math.min(LAST, cur)); maxSeen = Math.max(cur, Math.min(LAST, maxSeen));
+
+  STEPS.forEach(function (s, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = i + 1; b.title = s.t;
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + s.t);
+    b.addEventListener("click", function () { go(i); });
+    dotsEl.appendChild(b);
+  });
+  var dots = dotsEl.querySelectorAll("button");
+
+  function go(i) {
+    cur = Math.max(0, Math.min(LAST, i));
+    if (cur > maxSeen) maxSeen = cur;
+    try { localStorage.setItem("hbr-bb-step", String(cur)); localStorage.setItem("hbr-bb-seen", String(maxSeen)); } catch (e) {}
+    var s = STEPS[cur];
+    document.getElementById("stepNum").textContent = "Step " + (cur + 1) + " of " + STEPS.length;
+    document.getElementById("stepTitle").textContent = s.t;
+    document.getElementById("stepBody").innerHTML = s.body;
+    document.getElementById("stepPrev").disabled = cur === 0;
+    var next = document.getElementById("stepNext");
+    next.disabled = cur === LAST;
+    next.textContent = cur === LAST ? "All done" : "Next step →";
+    dots.forEach(function (d, i) {
+      d.classList.toggle("seen", i <= maxSeen);
+      if (i === cur) d.setAttribute("aria-current", "step"); else d.removeAttribute("aria-current");
+    });
+    var ringHoles = [];
+    parts.forEach(function (g, k) {
+      var ps = +g.dataset.s, only = g.dataset.only;
+      g.classList.remove("bb-done", "bb-future");
+      if (only) { if (cur !== ps) g.classList.add("bb-future"); return; }
+      if (cur === LAST) return;
+      if (ps < cur) g.classList.add("bb-done");
+      else if (ps > cur) g.classList.add("bb-future");
+      else ringHoles = ringHoles.concat(PARTS[k].h);
+    });
+    rings.innerHTML = ringHoles.map(function (id) { var p = P(id); return '<circle class="ring" cx="' + p[0] + '" cy="' + p[1] + '" r="8.5"/>'; }).join("");
+  }
+
+  document.getElementById("stepPrev").addEventListener("click", function () { go(cur - 1); });
+  document.getElementById("stepNext").addEventListener("click", function () { go(cur + 1); });
+  document.getElementById("build").addEventListener("keydown", function (e) {
+    if (e.target.closest && e.target.closest("input, textarea")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); go(cur + 1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); go(cur - 1); }
+  });
+  document.getElementById("build").tabIndex = -1;
+  go(cur);
+
+  /* ---------- full wiring map ---------- */
+  var map = document.getElementById("map");
+  if (map) {
+    var DX = 300;
+    var NAMES = [null,
+      "Uno 5V → top + rail", "Uno GND → top − rail", "Top + rail → bottom + rail", "Top − rail → bottom − rail",
+      "Uno ~5 → a3", "330 Ω resistor: b3 ↔ b7", "Green LED: + in c7, − in c8", "a8 → top − rail (green LED ground)",
+      "Uno ~6 → a11", "330 Ω resistor: b11 ↔ b15", "Red LED: + in c15, − in c16", "a16 → top − rail (red LED ground)",
+      "Uno 7 → a18", "1 kΩ resistor: c18 ↔ c22", "Transistor: E e21, B e22, C e23", "a21 → top − rail (emitter ground)",
+      "a23 → a26 (transistor C to buzzer −)", "Buzzer: − in e26, + in e29", "a29 → top + rail (buzzer +)",
+      "Uno A4 → f4 (SDA)", "Uno A5 → j6 (SCL)",
+      "PN532: GND → bottom − rail, VCC → bottom + rail, SDA → g4, SCL → i6",
+      "MPU-6050: VCC → bottom + rail, GND → its own Uno GND pin, SDA → h4, SCL → h6",
+      "3-pin header in g28, g29, g30", "Capacitor: − (stripe) h28, + h29", "i28 → bottom − rail (servo ground link)",
+      "Uno ~9 → f30 (servo signal)", "External 5 V: − → j28, + → j29", "Servo plug: brown g28, red g29, orange g30"];
+    var SW = [null, C.v5, C.gnd, C.v5, C.gnd, C.g, "var(--res)", C.g, C.gnd, C.r, "var(--res)", "#e0303a", C.gnd,
+      C.bz, "var(--res)", "var(--chip)", C.gnd, C.bz, "var(--buzzer)", C.v5, C.sda, C.scl, "var(--pn)", "var(--gy)",
+      "#1a1d1c", "#2b4a8a", C.gnd, C.sv, C.ext, C.sv];
+
+    function hp(id) { var p = P(id); return [p[0] + DX, p[1]]; }
+    function dot(x, y, c) { return '<circle cx="' + x + '" cy="' + y + '" r="4.4" fill="' + c + '" stroke="var(--surface)" stroke-width="1.5"/>'; }
+    function uw(pts, id, c) { var q = hp(id); return path(poly(pts.concat([q])), c) + dot(pts[0][0], pts[0][1], c) + dot(q[0], q[1], c); }
+    var LX = 68, RX = 252;
+    var UW = {
+      1: uw([[RX, 387], [310, 387], [310, 104]], "T+1", C.v5),
+      2: uw([[RX, 370], [330, 370], [330, 126]], "T-1", C.gnd),
+      5: uw([[LX, 234], [38, 234], [38, 56], [520, 56], [520, 160]], "a3", C.g),
+      9: uw([[LX, 251], [28, 251], [28, 44], [696, 44], [696, 160]], "a11", C.r),
+      13: uw([[LX, 268], [18, 268], [18, 32], [850, 32], [850, 160]], "a18", C.bz),
+      20: uw([[RX, 234], [380, 234], [380, 313], [520, 313]], "f4", C.sda),
+      21: uw([[RX, 217], [360, 217], [360, 379], [564, 379]], "j6", C.scl),
+      27: uw([[LX, 319], [8, 319], [8, 20], [1162, 20], [1162, 302]], "f30", C.sv)
+    };
+
+    // Uno, rotated: digital header on the left edge, power/analog on the right, USB at the bottom
+    var uno = ['<rect x="60" y="122" width="200" height="356" rx="12" fill="var(--board)"/>',
+      '<rect x="61" y="140" width="14" height="324" fill="var(--header)"/><rect x="245" y="208" width="14" height="256" fill="var(--header)"/>',
+      '<rect x="72" y="470" width="54" height="36" rx="3" fill="var(--metal)"/><text class="ub" x="99" y="492" text-anchor="middle" style="fill:var(--ink)">USB</text>',
+      '<rect x="194" y="470" width="50" height="36" rx="4" fill="var(--jack)"/>',
+      '<text class="bl" x="99" y="522" text-anchor="middle">to laptop</text><text class="bl" x="219" y="522" text-anchor="middle">leave empty</text>',
+      '<text x="160" y="200" text-anchor="middle" style="font-family:var(--f-display);font-weight:700;font-size:18px;fill:var(--board-ink)">UNO R3</text>',
+      '<rect x="135" y="250" width="50" height="150" rx="3" fill="var(--chip)"/>'];
+    function upin(x, y, lab, side) {
+      uno.push('<rect x="' + (x - 5) + '" y="' + (y - 5) + '" width="10" height="10" fill="var(--pin)"/><circle cx="' + x + '" cy="' + y + '" r="2.2" fill="var(--hole)"/>');
+      uno.push('<text class="ub" x="' + (side === "L" ? x + 12 : x - 12) + '" y="' + (y + 3) + '" text-anchor="' + (side === "L" ? "start" : "end") + '">' + lab + '</text>');
+    }
+    ["SCL", "SDA", "AREF", "GND", "13", "12", "~11", "~10", "~9", "8"].forEach(function (l, i) { upin(LX, 455 - i * 17, l, "L"); });
+    ["7", "~6", "~5", "4", "~3", "2", "TX 1", "RX 0"].forEach(function (l, i) { upin(LX, 268 - i * 17, l, "L"); });
+    ["NC", "IOREF", "RESET", "3.3V", "5V", "GND", "GND", "VIN"].forEach(function (l, i) { upin(RX, 455 - i * 17, l, "R"); });
+    ["A0", "A1", "A2", "A3", "A4", "A5"].forEach(function (l, i) { upin(RX, 302 - i * 17, l, "R"); });
+
+    var m = ['<g transform="translate(' + DX + ' 0)">' + BOARD];
+    PARTS.forEach(function (p, k) {
+      if (p.only || UW[k]) return;
+      m.push('<g class="mp" data-k="' + k + '">' + p.svg + '</g>');
+    });
+    m.push('</g>');
+    m.push(uno.join(""));
+    Object.keys(UW).forEach(function (k) { m.push('<g class="mp" data-k="' + k + '">' + UW[k] + '</g>'); });
+    map.innerHTML = m.join("");
+
+    var groups = map.querySelectorAll(".mp");
+    var listEl = document.getElementById("wirelist");
+    NAMES.forEach(function (n, k) {
+      if (!n) return;
+      var li = document.createElement("li");
+      li.innerHTML = '<button type="button" data-k="' + k + '"><span class="sw" style="background:' + SW[k] + '"></span><span></span><span class="st">step ' + (PARTS[k].s + 1) + '</span></button>';
+      li.querySelector("span:nth-child(2)").textContent = n;
+      listEl.appendChild(li);
+    });
+    var items = listEl.querySelectorAll("button");
+
+    var locked = null, hover = null;
+    function paint() {
+      var k = hover != null ? hover : locked;
+      map.classList.toggle("focus", k != null);
+      groups.forEach(function (g) { g.classList.toggle("on", k != null && g.dataset.k === String(k)); });
+      items.forEach(function (b) { b.classList.toggle("on", locked != null && b.dataset.k === String(locked)); });
+    }
+    items.forEach(function (b) {
+      b.addEventListener("click", function () { locked = locked === b.dataset.k ? null : b.dataset.k; paint(); });
+    });
+
+    var tip = document.getElementById("maptip"), card = document.getElementById("mapcard");
+    map.addEventListener("pointermove", function (e) {
+      var g = e.target.closest(".mp");
+      var k = g ? g.dataset.k : null;
+      if (k !== hover) { hover = k; paint(); }
+      if (!g) { tip.hidden = true; return; }
+      tip.innerHTML = "<b></b><span></span>";
+      tip.firstChild.textContent = "Step " + (PARTS[+k].s + 1);
+      tip.lastChild.textContent = NAMES[+k];
+      tip.hidden = false;
+      var r = card.getBoundingClientRect(), x = e.clientX - r.left + 14, y = e.clientY - r.top + 14;
+      if (x + tip.offsetWidth > r.width - 8) x = Math.max(8, e.clientX - r.left - tip.offsetWidth - 14);
+      tip.style.left = x + "px"; tip.style.top = y + "px";
+    });
+    map.addEventListener("pointerleave", function () { hover = null; tip.hidden = true; paint(); });
+    map.addEventListener("click", function (e) {
+      var g = e.target.closest(".mp");
+      locked = g ? (locked === g.dataset.k ? null : g.dataset.k) : null;
+      paint();
+    });
+  }
+})();
+</script>
+

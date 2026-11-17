@@ -23,7 +23,7 @@ Laptop USB ──► Uno (powers the Uno, PN532, MPU-6050, LEDs via its 5V pin)
 | Uno | PN532 (I2C mode) | MPU-6050 (GY-521) |
 |---|---|---|
 | 5V | VCC | VCC |
-| GND | GND | GND |
+| GND | GND | GND (its own Uno GND pin) |
 | A4 | SDA | SDA |
 | A5 | SCL | SCL |
 | 2 | IRQ (optional) | — |
@@ -40,7 +40,14 @@ Laptop USB ──► Uno (powers the Uno, PN532, MPU-6050, LEDs via its 5V pin)
 - IRQ and RST are optional: the firmware reads the card over I2C either way.
 - AD0 unconnected = address `0x68`. If AD0 is tied high, it becomes `0x69`
   (then change `kAddress` in `tamper_sensor.cpp`).
-- Verify with the serial command **`i2c-scan`** → expect `0x24` and `0x68`.
+- Give the MPU-6050 its **own wire to a Uno GND pin** (the Uno has three), not the ground
+  rail the LEDs and buzzer use. On the bench it dropped off the bus every time the buzzer
+  sounded while it shared that ground. Keep SDA/SCL away from the buzzer wires.
+- **Solder the header pins** on both modules. Loose pins pushed through the holes held the
+  bus down on the bench (`i2c-scan` slow, nothing found; before the I2C timeout fix the Uno
+  froze at boot). Each module's power LED must be steady before you look at SDA/SCL.
+- Verify with the serial command **`i2c-scan`** → expect `0x24` and `0x68`. A healthy scan
+  takes well under a second; ~3 s means something is holding SDA or SCL low.
 
 ## LEDs
 ```
@@ -57,7 +64,7 @@ in. At about 9 mA (330 Ω at 5 V) a 5 mm LED lights a short tube well but fades 
 length first. If it's too dim, use high-brightness LEDs; don't just lower the resistor
 below 220 Ω (an Uno pin is good for about 20 mA; 40 mA is its absolute limit).
 
-## Active buzzer through an NPN transistor
+## Buzzer through an NPN transistor
 ```
                       Buzzer +  ── 5 V
                       Buzzer −  ── Collector (C)
@@ -68,7 +75,10 @@ Pin 7 ──── 1 kΩ ──── Base (B)
   **2N2222 (TO-92): E-B-C**, **S8050: E-B-C**, **BC547: C-B-E**. Check your datasheet!
 - Optional: a diode (1N4148) across the buzzer, stripe toward +, to absorb voltage spikes.
 - The buzzer's longer leg / "+" marking is positive.
-- Pin HIGH → transistor on → beep.
+- **Active** buzzer (beeps on plain 5 V): pin HIGH → transistor on → beep.
+  Keep `HBR_BUZZER_PASSIVE 0` in `config.h`.
+- **Passive** buzzer (only clicks on plain 5 V; ours is one): set `HBR_BUZZER_PASSIVE 1`
+  and the firmware plays a tone on pin 7 (`HBR_BUZZER_TONE_HZ`, default 2700 Hz).
 
 ## MG90S servo
 | Servo wire | Goes to |

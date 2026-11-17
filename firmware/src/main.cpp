@@ -472,11 +472,12 @@ void setup() {
   // A4 = SDA, A5 = SCL on the Uno.
   Wire.begin();
   Wire.setClock(I2C_CLOCK_HZ);
-#if defined(WIRE_HAS_TIMEOUT)
   // Without this, a loose I2C wire can freeze the Uno forever inside Wire.
   // 25 ms timeout, and reset the I2C hardware when it happens.
+  // Called unconditionally: the AVR core we build with (PlatformIO atmelavr
+  // 5.x) has setWireTimeout() but never defines WIRE_HAS_TIMEOUT, so an
+  // #if on that macro silently skipped this on the real Uno.
   Wire.setWireTimeout(25000, true);
-#endif
   readerWasOk = cardReaderSetup();
   accelWasOk = tamperSensorSetup();
 
