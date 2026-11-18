@@ -295,7 +295,11 @@ void scanI2c() {
     }
   }
   Serial.print(found);
+#if HBR_READER_UART
+  Serial.println(F(" device(s). Expect 0x68 (the reader is on UART, not I2C). None? Check SDA=A4, SCL=A5."));
+#else
   Serial.println(F(" device(s). None? Check SDA=A4, SCL=A5, power, GND, and the PN532 I2C switches."));
+#endif
 }
 
 void printAccel() {
@@ -472,11 +476,12 @@ void setup() {
   // A4 = SDA, A5 = SCL on the Uno.
   Wire.begin();
   Wire.setClock(I2C_CLOCK_HZ);
-#if defined(WIRE_HAS_TIMEOUT)
   // Without this, a loose I2C wire can freeze the Uno forever inside Wire.
   // 25 ms timeout, and reset the I2C hardware when it happens.
+  // Called unconditionally: the AVR core we build with (PlatformIO atmelavr
+  // 5.x) has setWireTimeout() but never defines WIRE_HAS_TIMEOUT, so an
+  // #if on that macro silently skipped this on the real Uno.
   Wire.setWireTimeout(25000, true);
-#endif
   readerWasOk = cardReaderSetup();
   accelWasOk = tamperSensorSetup();
 

@@ -66,7 +66,8 @@ in place of `pio` (Windows blocks `pio.exe`).
 - [ ] Revoke the card on the dashboard → `sync` → tap → denied.
 
 ## 4. Servo bench test (linkage DISCONNECTED)
-- [ ] Wire servo to the **separate 5 V supply**, shared GND, capacitor across 5 V/GND.
+- [ ] Wire servo: red to the 5V rail (Uno), brown to GND, orange to pin 9, capacitor across 5 V/GND
+  next to it. (Separate 5 V supply instead if the next steps show resets.)
 - [ ] `config.h`: `HBR_ENABLE_SERVO 1`. Re-flash. Keep hands clear: it may jump at boot.
 - [ ] Boot: servo moves to LOCKED angle. Allowed tap: moves to UNLOCKED, back after 5 s.
 - [ ] Watch for resets while moving: the start-up messages appearing again = **brownout** (power problem).
