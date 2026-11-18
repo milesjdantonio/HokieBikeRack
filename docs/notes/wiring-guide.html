@@ -234,9 +234,9 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
 .wirelist button.on { box-shadow: inset 3px 0 0 var(--accent); }
 .wirelist .sw { width: 22px; height: 5px; border-radius: 3px; }
 .wirelist .st { font: 500 11px var(--f-mono); color: var(--muted); }
-#bb .ring { fill: none; stroke: var(--accent); stroke-width: 2.6; animation: ringPulse 1.4s ease-in-out infinite; }
+#bb .ring, #pbSvg .ring { fill: none; stroke: var(--accent); stroke-width: 2.6; animation: ringPulse 1.4s ease-in-out infinite; }
 @keyframes ringPulse { 50% { stroke-opacity: 0.3; } }
-@media (prefers-reduced-motion: reduce) { #bb .ring { animation: none; } #bb .bp { transition: none; } }
+@media (prefers-reduced-motion: reduce) { #bb .ring, #pbSvg .ring { animation: none; } #bb .bp { transition: none; } }
 .bb-foot { display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 10px 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
 .step-panel { padding: 20px; display: grid; gap: 14px; }
 .dots { display: flex; flex-wrap: wrap; gap: 5px; }
@@ -361,68 +361,35 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
 
   <section class="card pb" id="perfboard">
     <div>
-      <span class="eyebrow">Final build · fits a ~50 mm square</span>
-      <h2>Soldered board: 18 × 14 holes of perfboard (about 48 × 38 mm)</h2>
+      <span class="eyebrow">Final build · soldered · fits a ~50 mm square</span>
+      <h2>Soldered board, step by step: 18 × 14 holes of perfboard (about 48 × 38 mm)</h2>
     </div>
-    <p class="lede">The breadboard is for the bench. For the rack, the same tested circuit goes on a small piece of perfboard. Holes are named <b>column, row</b>: column 1 is the left edge and row 1 the top edge, seen from the parts side. The Uno connects with 9 jumpers along the top edge. The NFC reader is not on this board: it stays wired straight to the Uno (pins 2 and 3, power from the ICSP header). The firmware doesn't change.</p>
-    <div class="pb-layout">
+    <p class="lede">The breadboard is for the bench. For the rack, the same tested circuit goes on a small piece of perfboard. Holes are named <b>column,row</b> from the parts side: column 1 is the left edge, row 1 the top edge. Steps marked <b>solder side</b> show the board flipped over, mirrored the way you'll see it. The NFC reader is not on this board: it stays wired straight to the Uno. The firmware doesn't change.</p>
+    <div class="pb-layout" id="pbBuild">
       <div class="card" style="min-width:0">
-        <div class="pb-views" style="padding:12px 14px;border-bottom:1px solid var(--line)">
-          <button class="seg" type="button" id="pbTop" aria-pressed="true">Parts side (top)</button>
-          <button class="seg" type="button" id="pbBottom" aria-pressed="false">Solder side (flipped)</button>
+        <div class="pb-views" style="padding:10px 14px;border-bottom:1px solid var(--line)">
+          <span class="tag" id="pbSideTag">parts side</span>
           <span class="pb-note" id="pbNote"></span>
         </div>
         <div class="scroll">
-          <svg id="pbSvg" viewBox="0 0 640 470" role="img" aria-label="Perfboard layout, hole by hole"></svg>
+          <svg id="pbSvg" viewBox="0 0 640 500" role="img" aria-label="Perfboard layout for the current step"></svg>
+        </div>
+        <div class="bb-foot">
+          <span>Pulsing rings = the holes for this step.</span>
+          <span>Faded = earlier steps.</span>
+          <span>Dashed = on the other side of the board.</span>
         </div>
       </div>
-      <div class="pb-side">
-        <div>
-          <h3>Parts</h3>
-          <table class="mini">
-            <thead><tr><th>Part</th><th>Holes (col, row)</th></tr></thead>
-            <tbody>
-              <tr><td>R1 330 Ω (green)</td><td>3,2 → 3,6</td></tr>
-              <tr><td>R2 330 Ω (red)</td><td>5,2 → 5,6</td></tr>
-              <tr><td>R3 1 kΩ (buzzer)</td><td>7,2 → 7,6</td></tr>
-              <tr><td>Q1 2N2222</td><td>E 6,8 · B 7,8 · C 8,8, flat face toward the bottom edge</td></tr>
-              <tr><td>Buzzer</td><td>− 10,11 · + 13,11</td></tr>
-              <tr><td>Diode 1N4148/1N4001</td><td>underside, across the buzzer pins, stripe at 13,11</td></tr>
-              <tr><td>C1, C2 100–470 µF</td><td>+ 16,12 / − 16,13 and + 15,12 / − 15,13</td></tr>
-              <tr><td>Pin headers</td><td>inputs on row 1; LEDs 2–3,7 and 4–5,9; servo 17,11–13; MPU 17,2–5</td></tr>
-            </tbody>
-          </table>
+      <aside class="card step-panel" aria-live="polite">
+        <div class="dots" id="pbDots" aria-label="Soldering steps"></div>
+        <span class="eyebrow" id="pbStepNum"></span>
+        <h2 id="pbStepTitle"></h2>
+        <div class="step-body" id="pbStepBody"></div>
+        <div class="stepnav">
+          <button class="seg" id="pbPrev" type="button">← Back</button>
+          <button class="primary" id="pbNext" type="button">Next step →</button>
         </div>
-        <div>
-          <h3>Soldering order</h3>
-          <ol>
-            <li>Cut the board to 18 × 14 holes (score both sides along a row of holes, snap, file the edge). Mark the top edge and hole 1,1 with a pen.</li>
-            <li>Resistors R1–R3 first: they're lowest. Keep the cut-off legs: they make good short links underneath.</li>
-            <li>Q1, flat face toward the bottom edge: E 6,8, B 7,8, C 8,8.</li>
-            <li>All pin headers (single pins on row 1, then the LED, servo and MPU headers).</li>
-            <li>Flip the board and switch the diagram to <b>Solder side</b>. Lay the two power buses first (GND, 5V), then each signal wire. Solid-core wire; use insulated wire for the long runs.</li>
-            <li>Buzzer (+ at 13,11), then the diode on the underside across its pins, stripe on the + pin.</li>
-            <li>C1 and C2, stripe (−) toward the bottom edge. If they're tall, lay them flat.</li>
-            <li>Check for solder bridges, especially column 17 (MPU pins) right next to the 5V bus on column 18.</li>
-          </ol>
-        </div>
-        <div>
-          <h3>Hook-up</h3>
-          <table class="mini">
-            <thead><tr><th>Board pin</th><th>Goes to</th></tr></thead>
-            <tbody>
-              <tr><td>1,1 GND · 18,1 5V</td><td>Uno GND · Uno 5V</td></tr>
-              <tr><td>3,1 · 5,1 · 7,1 · 12,1</td><td>Uno ~5 · ~6 · 7 · ~9</td></tr>
-              <tr><td>14,1 · 15,1</td><td>Uno A4 (SDA) · A5 (SCL)</td></tr>
-              <tr><td>16,1 GND (MPU)</td><td>a second Uno GND pin</td></tr>
-              <tr><td>2,7 / 3,7 · 4,9 / 5,9</td><td>green LED − / + · red LED − / +</td></tr>
-              <tr><td>17,11 · 17,12 · 17,13</td><td>servo orange · red · brown</td></tr>
-              <tr><td>17,2 · 17,3 · 17,4 · 17,5</td><td>MPU VCC · GND · SCL · SDA</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p class="pb-note">Test it like the breadboard: flash, then check the startup log says <code>reader=OK accel=OK</code>, tap a card, and run the beep test. If you have a multimeter, beep out every bus and signal before powering up.</p>
-      </div>
+      </aside>
     </div>
   </section>
 
@@ -530,122 +497,301 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
 </script>
 
 <script>
-/* ---------- soldered perfboard ---------- */
+/* ---------- soldered perfboard, step by step ---------- */
 (function () {
   "use strict";
   var svg = document.getElementById("pbSvg");
   if (!svg) return;
-  var COLS = 18, ROWS = 14, P = 26, MX = 90, MY = 64;
+  var COLS = 18, ROWS = 14, P = 26, MX = 100, MY = 78;
   function cv(v) { return "var(--" + v + ")"; }
   var C = { gnd: cv("w-gnd"), v5: cv("w-5v"), g: cv("w-ledg"), r: cv("w-ledr"), bz: cv("w-buzz"), sv: cv("w-servo"), sda: cv("w-sda"), scl: cv("w-scl"), mg: cv("w-opt") };
-  var NETS = [
-    { c: C.gnd, n: "GND", w: [[[1,1],[1,14],[17,14]], [[2,7],[1,7]], [[4,9],[1,9]], [[6,8],[6,10],[1,10]], [[15,13],[15,14]], [[16,13],[16,14]], [[17,13],[17,14]]] },
-    { c: C.v5, n: "5V", w: [[[18,1],[18,13]], [[17,2],[18,2]], [[13,11],[13,12],[18,12]]] },
-    { c: C.g, n: "D5", w: [[[3,1],[3,2]], [[3,6],[3,7]]] },
-    { c: C.r, n: "D6", w: [[[5,1],[5,2]], [[5,6],[5,9]]] },
-    { c: C.bz, n: "D7", w: [[[7,1],[7,2]], [[7,6],[7,8]]] },
-    { c: C.bz, n: "buzzer −", w: [[[8,8],[8,11],[10,11]]] },
-    { c: C.sv, n: "D9", w: [[[12,1],[12,9],[17,9],[17,11]]] },
-    { c: C.mg, n: "GND (MPU)", w: [[[16,1],[16,3],[17,3]]] },
-    { c: C.scl, n: "SCL", w: [[[15,1],[15,4],[17,4]]] },
-    { c: C.sda, n: "SDA", w: [[[14,1],[14,5],[17,5]]] }
-  ];
-  var PINS = [
-    [1,1,"GND","in",C.gnd], [3,1,"~5","in",C.g], [5,1,"~6","in",C.r], [7,1,"7","in",C.bz], [12,1,"~9","in",C.sv],
-    [14,1,"A4","in",C.sda], [15,1,"A5","in",C.scl], [16,1,"GND·MPU","in",C.mg], [18,1,"5V","in",C.v5],
-    [2,7,"G−","led",C.gnd], [3,7,"G+","led",C.g], [4,9,"R−","led",C.gnd], [5,9,"R+","led",C.r],
-    [17,11,"servo orange","out",C.sv], [17,12,"servo red","out",C.v5], [17,13,"servo brown","out",C.gnd],
-    [17,2,"MPU VCC","out",C.v5], [17,3,"MPU GND","out",C.mg], [17,4,"MPU SCL","out",C.scl], [17,5,"MPU SDA","out",C.sda]
-  ];
   var BAND = { brown: "#7a4a25", black: "#161616", red: "#d0312d", orange: "#f07a12", gold: "#c9a227" };
   var mirror = false;
   function X(c) { return mirror ? MX + (COLS - c) * P : MX + (c - 1) * P; }
   function Y(r) { return MY + (r - 1) * P; }
-  function line(pts, color, w, dash, op) {
-    var d = "M" + pts.map(function (p) { return X(p[0]) + " " + Y(p[1]); }).join(" L");
-    return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="' + w + '" stroke-linecap="round" stroke-linejoin="round"' + (dash ? ' stroke-dasharray="' + dash + '"' : "") + (op ? ' stroke-opacity="' + op + '"' : "") + '/>';
+  function L() { return Math.min(X(1), X(COLS)); }
+  function R() { return Math.max(X(1), X(COLS)); }
+
+  /* ---- element painters: fn(mode) where mode = "full" | "ghost" ---- */
+  function wire(pts, color) {
+    return function (mode) {
+      var d = "M" + pts.map(function (p) { return X(p[0]) + " " + Y(p[1]); }).join(" L");
+      if (mode === "ghost") return '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="2.4" stroke-dasharray="5 4" stroke-opacity="0.55" stroke-linecap="round" stroke-linejoin="round"/>';
+      return '<path d="' + d + '" fill="none" stroke="#6b5530" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" stroke-opacity="0.35"/>' +
+        '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>' +
+        pts.map(function (p) { return '<circle cx="' + X(p[0]) + '" cy="' + Y(p[1]) + '" r="4.6" fill="#d9d9d9" stroke="' + color + '" stroke-width="1.6"/>'; }).join("");
+    };
   }
-  function resistor(c, r1, r2, bands, label, top) {
-    var x = X(c), y1 = Y(r1), y2 = Y(r2), my = (y1 + y2) / 2, h = 44;
-    if (!top) return line([[c, r1], [c, r2]], "var(--metal)", 1.5, "3 3");
-    var s = '<path d="M' + x + ' ' + y1 + 'V' + y2 + '" stroke="var(--metal)" stroke-width="2.2"/>' +
-      '<rect x="' + (x - 7) + '" y="' + (my - h / 2) + '" width="14" height="' + h + '" rx="6" fill="var(--res)"/>';
-    [0.18, 0.34, 0.5, 0.8].forEach(function (f, i) { s += '<rect x="' + (x - 7) + '" y="' + (my - h / 2 + h * f - 2) + '" width="14" height="4" fill="' + BAND[bands[i]] + '"/>'; });
-    return s + '<text x="' + (x + (mirror ? -11 : 11)) + '" y="' + (my + 4) + '" text-anchor="' + (mirror ? "end" : "start") + '" font-size="10" font-weight="600">' + label + '</text>';
+  function legs(holes) {  // what a parts-side component looks like from the solder side
+    return holes.map(function (h) { return '<circle cx="' + X(h[0]) + '" cy="' + Y(h[1]) + '" r="4.4" fill="#d9d9d9" stroke="#8a8a8a"/>'; }).join("");
   }
-  function render() {
-    var o = [];
-    var x0 = Math.min(X(1), X(COLS)) - 18, x1 = Math.max(X(1), X(COLS)) + 18;
-    o.push('<rect x="' + x0 + '" y="' + (MY - 18) + '" width="' + (x1 - x0) + '" height="' + (Y(ROWS) - MY + 36) + '" rx="6" fill="' + (mirror ? "#c9a36b" : "#d9b77e") + '" stroke="#a9874f"/>');
+  function resistor(c, r1, r2, bands, label) {
+    return function (mode) {
+      if (mode === "ghost") return legs([[c, r1], [c, r2]]);
+      var x = X(c), y1 = Y(r1), y2 = Y(r2), my = (y1 + y2) / 2, h = 46, s = '<path d="M' + x + ' ' + y1 + 'V' + y2 + '" stroke="var(--metal)" stroke-width="2.4"/>' +
+        '<rect x="' + (x - 7) + '" y="' + (my - h / 2) + '" width="14" height="' + h + '" rx="6" fill="var(--res)"/>';
+      [0.18, 0.34, 0.5, 0.8].forEach(function (f, i) { s += '<rect x="' + (x - 7) + '" y="' + (my - h / 2 + h * f - 2) + '" width="14" height="4" fill="' + BAND[bands[i]] + '"/>'; });
+      return s + legs([[c, r1], [c, r2]]) + '<text x="' + (x + 11) + '" y="' + (my + 4) + '" font-size="10" font-weight="600">' + label + '</text>';
+    };
+  }
+  function transistor(mode) {
+    if (mode === "ghost") return legs([[6, 8], [7, 8], [8, 8]]);
+    var x0 = X(6) - 11, x1 = X(8) + 11, y = Y(8);
+    return '<path d="M' + x0 + ' ' + (y + 9) + ' H' + x1 + ' Q' + x1 + ' ' + (y - 17) + ' ' + ((x0 + x1) / 2) + ' ' + (y - 17) + ' Q' + x0 + ' ' + (y - 17) + ' ' + x0 + ' ' + (y + 9) + ' Z" fill="#1f2524"/>' +
+      legs([[6, 8], [7, 8], [8, 8]]) +
+      [[6, "E"], [7, "B"], [8, "C"]].map(function (l) { return '<text x="' + X(l[0]) + '" y="' + (y + 24) + '" text-anchor="middle" font-size="11" font-weight="700">' + l[1] + '</text>'; }).join("") +
+      '<text x="' + (x1 + 4) + '" y="' + (y + 24) + '" font-size="9" style="fill:var(--muted)">flat face ↓</text>';
+  }
+  function buzzer(mode) {
+    if (mode === "ghost") return legs([[10, 11], [13, 11]]);
+    var bx = (X(10) + X(13)) / 2, by = Y(11);
+    return '<circle cx="' + bx + '" cy="' + by + '" r="' + (P * 2.3) + '" fill="#1d2120"/>' +
+      '<circle cx="' + bx + '" cy="' + by + '" r="9" fill="none" stroke="#7d8886" stroke-width="1.5"/>' + legs([[10, 11], [13, 11]]) +
+      '<text x="' + X(10) + '" y="' + (by - 10) + '" text-anchor="middle" font-size="14" font-weight="700" style="fill:#ffffff">−</text>' +
+      '<text x="' + X(13) + '" y="' + (by - 10) + '" text-anchor="middle" font-size="14" font-weight="700" style="fill:#ffffff">+</text>' +
+      '<text x="' + bx + '" y="' + (by + 30) + '" text-anchor="middle" font-size="9" style="fill:#ffffff">buzzer</text>';
+  }
+  function diode(mode) {  // soldered on the solder side
+    if (mode === "ghost") return "";
+    var x1 = X(10), x2 = X(13), y = Y(11) + 10, lo = Math.min(x1, x2), hi = Math.max(x1, x2), sx = X(13) > X(10) ? hi - 22 : lo + 17;
+    return '<path d="M' + x1 + ' ' + Y(11) + ' V' + y + ' H' + x2 + ' V' + Y(11) + '" fill="none" stroke="var(--metal)" stroke-width="2.2"/>' +
+      '<rect x="' + (lo + 16) + '" y="' + (y - 6) + '" width="' + (hi - lo - 32) + '" height="12" rx="3" fill="#2a2f2e"/>' +
+      '<rect x="' + sx + '" y="' + (y - 6) + '" width="5" height="12" fill="#d6dde9"/>' +
+      '<text x="' + ((x1 + x2) / 2) + '" y="' + (y + 22) + '" text-anchor="middle" font-size="10" font-weight="600">diode, stripe on +</text>';
+  }
+  function cap(c, label) {
+    return function (mode) {
+      if (mode === "ghost") return legs([[c, 12], [c, 13]]);
+      var cx = X(c), cy = (Y(12) + Y(13)) / 2;
+      return '<circle cx="' + cx + '" cy="' + cy + '" r="11.5" fill="#2b4a8a" stroke="var(--sym)" stroke-width="1"/>' +
+        '<path d="M' + (cx - 9.5) + ' ' + (cy + 6) + ' A11.5 11.5 0 0 0 ' + (cx + 9.5) + ' ' + (cy + 6) + ' Z" fill="#d6dde9"/>' +
+        '<text x="' + cx + '" y="' + (cy - 1) + '" text-anchor="middle" font-size="8" style="fill:#ffffff">' + label + '</text>';
+    };
+  }
+  function pins(list, labelMode) {
+    return function (mode) {
+      return list.map(function (p) {
+        var x = X(p[0]), y = Y(p[1]), s;
+        if (mode === "ghost") return '<circle cx="' + x + '" cy="' + y + '" r="4.4" fill="#d9d9d9" stroke="' + p[3] + '" stroke-width="1.6"/>';
+        s = '<rect x="' + (x - 5.5) + '" y="' + (y - 5.5) + '" width="11" height="11" fill="#1d2422" stroke="' + p[3] + '" stroke-width="2.6"/>';
+        if (labelMode === "in") {
+          s += '<text x="' + x + '" y="' + (MY - 34) + '" text-anchor="start" font-size="10" font-weight="600" transform="rotate(-50 ' + x + ' ' + (MY - 34) + ')">' + p[2] + '</text>';
+        } else if (labelMode === "out") {
+          var lx = R() + 24;
+          s += '<path d="M' + x + ' ' + y + ' H' + lx + '" stroke="' + p[3] + '" stroke-width="1" stroke-dasharray="2 2"/>' +
+            '<text x="' + (lx + 4) + '" y="' + (y + 3.5) + '" font-size="10" font-weight="600">' + p[2] + '</text>';
+        } else {
+          s += '<text x="' + x + '" y="' + (y + 19) + '" text-anchor="middle" font-size="9" font-weight="700">' + p[2] + '</text>';
+        }
+        return s;
+      }).join("");
+    };
+  }
+
+  /* ---- what gets built in which step (s), and on which side ---- */
+  var IN = [[1,1,"GND",C.gnd],[3,1,"Uno ~5",C.g],[5,1,"Uno ~6",C.r],[7,1,"Uno 7",C.bz],[12,1,"Uno ~9",C.sv],[14,1,"Uno A4",C.sda],[15,1,"Uno A5",C.scl],[16,1,"GND (MPU)",C.mg],[18,1,"5V",C.v5]];
+  var LEDP = [[2,7,"G−",C.gnd],[3,7,"G+",C.g],[4,9,"R−",C.gnd],[5,9,"R+",C.r]];
+  var OUTP = [[17,2,"MPU VCC",C.v5],[17,3,"MPU GND",C.mg],[17,4,"MPU SCL",C.scl],[17,5,"MPU SDA",C.sda],[17,11,"servo orange",C.sv],[17,12,"servo red",C.v5],[17,13,"servo brown",C.gnd]];
+  var EL = [
+    { s: 1, side: "top", h: [[3,2],[3,6]], d: resistor(3, 2, 6, ["orange","orange","brown","gold"], "R1 330 Ω") },
+    { s: 2, side: "top", h: [[5,2],[5,6]], d: resistor(5, 2, 6, ["orange","orange","brown","gold"], "R2 330 Ω") },
+    { s: 3, side: "top", h: [[7,2],[7,6]], d: resistor(7, 2, 6, ["brown","black","red","gold"], "R3 1 kΩ") },
+    { s: 4, side: "top", h: [[6,8],[7,8],[8,8]], d: transistor },
+    { s: 5, side: "top", h: IN.map(function (p) { return [p[0], p[1]]; }), d: pins(IN, "in") },
+    { s: 6, side: "top", h: LEDP.map(function (p) { return [p[0], p[1]]; }), d: pins(LEDP, "led") },
+    { s: 7, side: "top", h: OUTP.map(function (p) { return [p[0], p[1]]; }), d: pins(OUTP, "out") },
+    { s: 8, side: "bottom", h: [[1,1],[1,14],[17,14]], d: wire([[1,1],[1,14],[17,14]], C.gnd) },
+    { s: 9, side: "bottom", h: [[18,1],[18,13]], d: wire([[18,1],[18,13]], C.v5) },
+    { s: 10, side: "bottom", h: [[3,1],[3,2]], d: wire([[3,1],[3,2]], C.g) },
+    { s: 10, side: "bottom", h: [[5,1],[5,2]], d: wire([[5,1],[5,2]], C.r) },
+    { s: 10, side: "bottom", h: [[7,1],[7,2]], d: wire([[7,1],[7,2]], C.bz) },
+    { s: 11, side: "bottom", h: [[3,6],[3,7]], d: wire([[3,6],[3,7]], C.g) },
+    { s: 11, side: "bottom", h: [[2,7],[1,7]], d: wire([[2,7],[1,7]], C.gnd) },
+    { s: 11, side: "bottom", h: [[5,6],[5,9]], d: wire([[5,6],[5,9]], C.r) },
+    { s: 11, side: "bottom", h: [[4,9],[1,9]], d: wire([[4,9],[1,9]], C.gnd) },
+    { s: 12, side: "bottom", h: [[7,6],[7,8]], d: wire([[7,6],[7,8]], C.bz) },
+    { s: 12, side: "bottom", h: [[6,8],[6,10],[1,10]], d: wire([[6,8],[6,10],[1,10]], C.gnd) },
+    { s: 13, side: "top", h: [[10,11],[13,11]], d: buzzer },
+    { s: 14, side: "bottom", h: [[8,8],[8,11],[10,11]], d: wire([[8,8],[8,11],[10,11]], C.bz) },
+    { s: 14, side: "bottom", h: [[13,11],[13,12],[18,12]], d: wire([[13,11],[13,12],[18,12]], C.v5) },
+    { s: 14, side: "bottom", h: [[10,11],[13,11]], d: diode },
+    { s: 15, side: "top", h: [[16,12],[16,13]], d: cap(16, "C1") },
+    { s: 15, side: "top", h: [[15,12],[15,13]], d: cap(15, "C2") },
+    { s: 16, side: "bottom", h: [[16,13],[16,14]], d: wire([[16,13],[16,14]], C.gnd) },
+    { s: 16, side: "bottom", h: [[15,13],[15,14]], d: wire([[15,13],[15,14]], C.gnd) },
+    { s: 16, side: "bottom", h: [[17,13],[17,14]], d: wire([[17,13],[17,14]], C.gnd) },
+    { s: 16, side: "bottom", h: [[12,1],[12,9],[17,9],[17,11]], d: wire([[12,1],[12,9],[17,9],[17,11]], C.sv) },
+    { s: 17, side: "bottom", h: [[17,2],[18,2]], d: wire([[17,2],[18,2]], C.v5) },
+    { s: 17, side: "bottom", h: [[16,1],[16,3],[17,3]], d: wire([[16,1],[16,3],[17,3]], C.mg) },
+    { s: 17, side: "bottom", h: [[15,1],[15,4],[17,4]], d: wire([[15,1],[15,4],[17,4]], C.scl) },
+    { s: 17, side: "bottom", h: [[14,1],[14,5],[17,5]], d: wire([[14,1],[14,5],[17,5]], C.sda) }
+  ];
+
+  /* ---- steps ---- */
+  function to(t) { return '<span class="to">' + t + '</span>'; }
+  function list(rows) { return '<ol class="do">' + rows.map(function (r) { return "<li>" + r[0] + " → " + to(r[1]) + "</li>"; }).join("") + "</ol>"; }
+  function need(items) { return '<div class="need">' + items.map(function (i) { return "<span>" + i + "</span>"; }).join("") + "</div>"; }
+  function callout(t, danger) { return '<div class="callout' + (danger ? " danger" : "") + '">' + t + "</div>"; }
+  var WIRE = "Lay the wire flat along the holes on the solder side. Solder it at both ends and at every hole where it meets a part's leg or pin. Bare wire is fine for links of 1–3 holes; use insulated solid-core wire for anything longer.";
+  var STEPS = [
+    { side: "top", t: "Cut and mark the board", body:
+      need(["perfboard", "craft knife or hacksaw", "file or sandpaper", "pen"]) +
+      "<p>Count out <b>18 columns × 14 rows</b> of holes. Score along the next row of holes on both sides, snap it over a table edge, and file the edge smooth. That's about 48 × 38 mm.</p>" +
+      list([["Mark the top edge (the Uno's 9 jumpers plug in here)", "row 1"], ["Mark the top-left hole on the parts side", "1,1"]]) +
+      callout("Perfboard holes are <b>not</b> connected to each other. Every connection on this board is a wire or a leg you solder underneath.") +
+      callout("Solder in a ventilated space, with the iron in its stand whenever it's not in your hand. Hold the board in a clamp or helping hands.", true) },
+    { side: "top", t: "R1: green LED resistor", body:
+      need(["330 Ω resistor (orange-orange-brown)", "solder", "iron"]) +
+      list([["330 Ω resistor, lying flat", "3,2 and 3,6"]]) +
+      "<p>Bend the legs down 90°, push them through, splay them slightly underneath so it stays put, and solder both. <b>Keep the cut-off legs:</b> they make good short links later.</p>" },
+    { side: "top", t: "R2: red LED resistor", body:
+      need(["330 Ω resistor (orange-orange-brown)"]) +
+      list([["330 Ω resistor, lying flat", "5,2 and 5,6"]]) +
+      "<p>Same as R1, two columns to the right.</p>" },
+    { side: "top", t: "R3: transistor base resistor", body:
+      need(["1 kΩ resistor (brown-black-red)"]) +
+      list([["1 kΩ resistor, lying flat", "7,2 and 7,6"]]) +
+      callout("Check the colour bands: this one is <b>brown-black-red</b>. Mixing it up with a 330 Ω makes the transistor run hot.") },
+    { side: "top", t: "Q1: the transistor", body:
+      need(["2N2222 transistor"]) +
+      list([["Emitter (E)", "6,8"], ["Base (B)", "7,8"], ["Collector (C)", "8,8"]]) +
+      "<p>Hold it with the <b>flat face toward the bottom edge</b> of the board and the legs pointing down: left to right that's E, B, C on a 2N2222. Leave it standing about 3 mm above the board so the heat doesn't reach it.</p>" +
+      callout("<strong>BC547?</strong> Its legs are the other way round (C-B-E). Turn it so the flat face points toward the <b>top</b> edge instead.", true) },
+    { side: "top", t: "Input pins for the Uno", body:
+      need(["9 single male header pins"]) +
+      list([["GND", "1,1"], ["Uno ~5", "3,1"], ["Uno ~6", "5,1"], ["Uno 7", "7,1"], ["Uno ~9", "12,1"], ["Uno A4", "14,1"], ["Uno A5", "15,1"], ["GND for the MPU", "16,1"], ["5V", "18,1"]]) +
+      "<p>Snap single pins off a header strip. Push each in from the parts side, short end down, and solder. Tack one leg first, check it's straight, then finish.</p>" },
+    { side: "top", t: "LED pins", body:
+      need(["4 male header pins (two pairs)"]) +
+      list([["Green LED −", "2,7"], ["Green LED +", "3,7"], ["Red LED −", "4,9"], ["Red LED +", "5,9"]]) +
+      "<p>The LEDs themselves sit in the light tube and plug onto these with female–female leads.</p>" },
+    { side: "top", t: "Servo and MPU pins", body:
+      need(["a 3-pin and a 4-pin male header"]) +
+      list([["MPU VCC · GND · SCL · SDA", "17,2 · 17,3 · 17,4 · 17,5"], ["Servo orange · red · brown", "17,11 · 17,12 · 17,13"]]) +
+      callout("Column 17 sits right next to the 5V bus on column 18. Use small amounts of solder here so no blob joins the two.", true) },
+    { side: "bottom", t: "Solder side: the GND bus", body:
+      need(["insulated solid-core wire, about 80 mm"]) +
+      list([["Down the left edge", "1,1 → 1,14"], ["Then along the bottom edge", "1,14 → 17,14"]]) +
+      "<p><b>The board is now flipped</b>: column 1 is on the right in the picture, just as it is in your hand. " + WIRE + "</p>" +
+      callout("Strip the insulation only where the wire is soldered (at 1,1 and along the holes it joins), or use bare wire for this bus and keep it flat against the board.") },
+    { side: "bottom", t: "Solder side: the 5V bus", body:
+      need(["insulated solid-core wire, about 40 mm"]) +
+      list([["Down the right edge (left in the picture)", "18,1 → 18,13"]]) +
+      callout("Stop at row 13. Row 14 is the GND bus: if 5V and GND touch, the Uno shuts its USB off.", true) },
+    { side: "bottom", t: "Solder side: input pins to the resistors", body:
+      need(["3 resistor-leg offcuts"]) +
+      list([["Uno ~5 pin to R1", "3,1 → 3,2"], ["Uno ~6 pin to R2", "5,1 → 5,2"], ["Uno 7 pin to R3", "7,1 → 7,2"]]) +
+      "<p>Neighbouring holes: bend an offcut across, or bend the resistor's own leg over to the pin and solder both.</p>" },
+    { side: "bottom", t: "Solder side: LED links", body:
+      need(["2 offcuts", "2 short wires"]) +
+      list([["R1 to the green + pin", "3,6 → 3,7"], ["Green − pin to GND", "2,7 → 1,7"], ["R2 down to the red + pin", "5,6 → 5,9"], ["Red − pin to GND", "4,9 → 1,9"]]) },
+    { side: "bottom", t: "Solder side: transistor links", body:
+      need(["short wires"]) +
+      list([["R3 to the base", "7,6 → 7,8"], ["Emitter down, then to GND", "6,8 → 6,10 → 1,10"]]) +
+      callout("The emitter wire runs along row 10. It must not touch the red LED wire on column 5, which stops at row 9.") },
+    { side: "top", t: "The buzzer", body:
+      need(["passive buzzer"]) +
+      list([["Buzzer − leg", "10,11"], ["Buzzer + leg (longer, or marked +)", "13,11"]]) +
+      "<p>If its legs are closer than 3 holes apart, bend them gently outward. Push it down flat before soldering.</p>" },
+    { side: "bottom", t: "Solder side: buzzer wiring and the diode", body:
+      need(["1N4148 or 1N4001 diode", "2 wires"]) +
+      list([["Collector to buzzer −", "8,8 → 8,11 → 10,11"], ["Buzzer + to the 5V bus", "13,11 → 13,12 → 18,12"], ["Diode across the buzzer's legs, <b>stripe on +</b>", "10,11 and 13,11"]]) +
+      callout("<strong>The diode is required.</strong> Solder it right onto the buzzer's two legs on this side. Stripe on 13,11, the + leg. Backwards, the buzzer stays silent.", true) },
+    { side: "top", t: "Capacitors", body:
+      need(["2 × 100–470 µF capacitors"]) +
+      list([["C1 + leg (longer)", "16,12"], ["C1 − leg (stripe)", "16,13"], ["C2 + leg", "15,12"], ["C2 − leg (stripe)", "15,13"]]) +
+      "<p>Both + legs land on the 5V wire from the last step; both − legs face the bottom (GND) edge.</p>" +
+      callout("<strong>A capacitor in backwards can pop.</strong> Stripes toward the bottom edge. If they're too tall for the rack, bend them over and lay them flat before soldering.", true) },
+    { side: "bottom", t: "Solder side: capacitor grounds and the servo", body:
+      need(["offcuts", "1 longer insulated wire"]) +
+      list([["C2 − to GND", "15,13 → 15,14"], ["C1 − to GND", "16,13 → 16,14"], ["Servo brown to GND", "17,13 → 17,14"], ["Uno ~9 to servo orange", "12,1 → 12,9 → 17,9 → 17,11"]]) +
+      "<p>The servo's red pin (17,12) is already on the 5V wire from step 15.</p>" },
+    { side: "bottom", t: "Solder side: MPU-6050 wiring", body:
+      need(["short insulated wires"]) +
+      list([["MPU VCC to 5V", "17,2 → 18,2"], ["GND (MPU) pin to MPU GND", "16,1 → 16,3 → 17,3"], ["Uno A5 pin to MPU SCL", "15,1 → 15,4 → 17,4"], ["Uno A4 pin to MPU SDA", "14,1 → 14,5 → 17,5"]]) +
+      "<p>These form a staircase: each wire turns right one row lower than the one before, so none of them cross.</p>" },
+    { side: "bottom", all: true, t: "Inspect before power", body:
+      '<ol class="do">' +
+      "<li>Look at every joint with a light behind the board: shiny cones, no blobs joining neighbours.</li>" +
+      "<li>Most likely bridges: column 17 to the 5V bus (rows 2–5, 11, 13), and the input pins on row 1.</li>" +
+      "<li>With a multimeter on beep: 5V (18,1) to GND (1,1) must <b>not</b> beep. GND (1,1) should beep to 1,14, 17,14, 2,7, 4,9 and 6,8. 5V should beep to 13,11, 15,12, 16,12, 17,2, 17,12.</li>" +
+      "<li>Each signal: 3,1 beeps to 3,2; 12,1 beeps to 17,11; 14,1 to 17,5; 15,1 to 17,4; 16,1 to 17,3.</li>" +
+      "</ol>" + callout("No multimeter? Do the visual check carefully, then use the line-check and beep tests after hooking up.") },
+    { side: "top", all: true, t: "Hook up and test", body:
+      need(["9 female–male jumpers", "4 female–female leads for the LEDs"]) +
+      list([["1,1 GND · 18,1 5V", "Uno GND · Uno 5V"], ["3,1 · 5,1 · 7,1 · 12,1", "Uno ~5 · ~6 · 7 · ~9"], ["14,1 · 15,1", "Uno A4 · A5"], ["16,1", "a second Uno GND pin"], ["17,2–17,5", "MPU VCC · GND · SCL · SDA"], ["17,11–17,13", "servo orange · red · brown"], ["2,7 / 3,7 · 4,9 / 5,9", "green LED − / + · red LED − / +"]]) +
+      "<p>The NFC reader stays as it is: SDA/TXD to Uno 2, SCL/RXD to Uno 3, power from the ICSP header.</p>" +
+      callout("First power-up: USB only, nothing on the servo horn. The startup log should say <code>reader=OK accel=OK</code>. Then tap a card and run the beep test, same as on the breadboard.") }
+  ];
+
+  var LAST = STEPS.length - 1, cur = 0;
+  try { cur = Math.max(0, Math.min(LAST, parseInt(localStorage.getItem("hbr-pb-step") || "0", 10) || 0)); } catch (e) {}
+  var dotsEl = document.getElementById("pbDots");
+  STEPS.forEach(function (st, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.textContent = i + 1; b.title = st.t;
+    b.setAttribute("aria-label", "Step " + (i + 1) + ": " + st.t);
+    b.addEventListener("click", function () { go(i); });
+    dotsEl.appendChild(b);
+  });
+  var dots = dotsEl.querySelectorAll("button");
+
+  function board() {
+    var o = [], x0 = L() - 18, x1 = R() + 18;
+    o.push('<rect x="' + x0 + '" y="' + (MY - 18) + '" width="' + (x1 - x0) + '" height="' + (Y(ROWS) - MY + 36) + '" rx="6" fill="' + (mirror ? "#c8a066" : "#dcbb83") + '" stroke="#a9874f"/>');
     for (var c = 1; c <= COLS; c++) {
-      o.push('<text x="' + X(c) + '" y="' + (MY - 26) + '" text-anchor="middle" font-size="9" style="fill:var(--muted)">' + c + '</text>');
-      for (var r = 1; r <= ROWS; r++) {
-        o.push('<circle cx="' + X(c) + '" cy="' + Y(r) + '" r="4.2" fill="' + (mirror ? "#b8862f" : "#7a5a2a") + '" stroke="#5c4320" stroke-width="0.6"/>');
-      }
+      o.push('<text x="' + X(c) + '" y="' + (Y(ROWS) + 32) + '" text-anchor="middle" font-size="9" style="fill:var(--muted)">' + c + '</text>');
+      for (var r = 1; r <= ROWS; r++) o.push('<circle cx="' + X(c) + '" cy="' + Y(r) + '" r="3.6" fill="' + (mirror ? "#9c7a3c" : "#6d5126") + '"/>');
     }
-    for (var rr = 1; rr <= ROWS; rr++) {
-      o.push('<text x="' + (x0 - 8) + '" y="' + (Y(rr) + 3) + '" text-anchor="end" font-size="9" style="fill:var(--muted)">' + rr + '</text>');
-    }
-    // wires: solid on the solder side, faint dashed on the parts side
-    NETS.forEach(function (net) {
-      net.w.forEach(function (pts) { o.push(mirror ? line(pts, net.c, 5, null, 1) : line(pts, net.c, 2.5, "5 4", 0.55)); });
-    });
-    if (mirror) {
-      // diode on the underside
-      var dx1 = X(10), dx2 = X(13), dy = Y(11) + 9, sx = X(13) + (mirror ? 9 : -9);
-      o.push('<path d="M' + dx1 + ' ' + Y(11) + ' V' + dy + ' H' + dx2 + ' V' + Y(11) + '" fill="none" stroke="var(--metal)" stroke-width="2"/>');
-      o.push('<rect x="' + (Math.min(dx1, dx2) + 18) + '" y="' + (dy - 6) + '" width="' + (Math.abs(dx2 - dx1) - 36) + '" height="12" rx="3" fill="#2a2f2e"/>');
-      o.push('<rect x="' + (sx - 12) + '" y="' + (dy - 6) + '" width="5" height="12" fill="#d6dde9"/>');
-      o.push('<text x="' + ((dx1 + dx2) / 2) + '" y="' + (dy + 22) + '" text-anchor="middle" font-size="10" font-weight="600">diode, stripe on +</text>');
-    } else {
-      o.push(resistor(3, 2, 6, ["orange","orange","brown","gold"], "R1 330", true));
-      o.push(resistor(5, 2, 6, ["orange","orange","brown","gold"], "R2 330", true));
-      o.push(resistor(7, 2, 6, ["brown","black","red","gold"], "R3 1k", true));
-      // transistor, flat face toward the bottom edge
-      var qx0 = X(6) - 10, qx1 = X(8) + 10, qy = Y(8);
-      o.push('<path d="M' + qx0 + ' ' + (qy + 8) + ' H' + qx1 + ' Q' + qx1 + ' ' + (qy - 16) + ' ' + ((qx0 + qx1) / 2) + ' ' + (qy - 16) + ' Q' + qx0 + ' ' + (qy - 16) + ' ' + qx0 + ' ' + (qy + 8) + ' Z" fill="#1f2524"/>');
-      [[6,"E"],[7,"B"],[8,"C"]].forEach(function (l) { o.push('<text x="' + X(l[0]) + '" y="' + (qy + 22) + '" text-anchor="middle" font-size="10" font-weight="700">' + l[1] + '</text>'); });
-      o.push('<text x="' + ((qx0 + qx1) / 2) + '" y="' + (qy - 3) + '" text-anchor="middle" font-size="8" fill="#ffffff" style="fill:#ffffff">Q1</text>');
-      // buzzer
-      var bx = (X(10) + X(13)) / 2, by = Y(11);
-      o.push('<circle cx="' + bx + '" cy="' + by + '" r="' + (P * 2.3) + '" fill="#1d2120" fill-opacity="0.9"/>');
-      o.push('<circle cx="' + bx + '" cy="' + by + '" r="9" fill="none" stroke="#7d8886" stroke-width="1.5"/>');
-      o.push('<text x="' + X(10) + '" y="' + (by - 10) + '" text-anchor="middle" font-size="13" font-weight="700" style="fill:#ffffff">−</text>');
-      o.push('<text x="' + X(13) + '" y="' + (by - 10) + '" text-anchor="middle" font-size="13" font-weight="700" style="fill:#ffffff">+</text>');
-      o.push('<text x="' + bx + '" y="' + (by + 30) + '" text-anchor="middle" font-size="9" style="fill:#ffffff">buzzer</text>');
-      // capacitors
-      [[15,"C2"],[16,"C1"]].forEach(function (cc) {
-        var cx = X(cc[0]), cy = (Y(12) + Y(13)) / 2;
-        o.push('<circle cx="' + cx + '" cy="' + cy + '" r="11" fill="#2b4a8a" stroke="var(--sym)" stroke-width="1"/>');
-        o.push('<path d="M' + (cx - 9) + ' ' + (cy + 5) + ' A11 11 0 0 0 ' + (cx + 9) + ' ' + (cy + 5) + ' Z" fill="#d6dde9"/>');
-        o.push('<text x="' + cx + '" y="' + (cy - 1) + '" text-anchor="middle" font-size="8" style="fill:#ffffff">' + cc[1] + '</text>');
-      });
-    }
-    // pins and labels
-    PINS.forEach(function (p) {
-      var x = X(p[0]), y = Y(p[1]);
-      o.push('<rect x="' + (x - 5) + '" y="' + (y - 5) + '" width="10" height="10" fill="' + (mirror ? "#b8862f" : "#1d2422") + '" stroke="' + p[4] + '" stroke-width="2.4"/>');
-      if (p[3] === "in") {
-        o.push('<text x="' + x + '" y="' + (MY - 40 - (p[0] % 2 ? 0 : 0)) + '" text-anchor="end" font-size="10" font-weight="600" transform="rotate(-45 ' + x + ' ' + (MY - 40) + ')">' + p[2] + '</text>');
-      } else if (p[3] === "out") {
-        var right = !mirror;
-        var lx = right ? Math.max(X(1), X(COLS)) + 26 : Math.min(X(1), X(COLS)) - 26;
-        o.push('<path d="M' + x + ' ' + y + ' H' + lx + '" stroke="' + p[4] + '" stroke-width="1" stroke-dasharray="2 2"/>');
-        o.push('<text x="' + (lx + (right ? 4 : -4)) + '" y="' + (y + 3.5) + '" text-anchor="' + (right ? "start" : "end") + '" font-size="10" font-weight="600">' + p[2] + '</text>');
-      } else {
-        o.push('<text x="' + x + '" y="' + (y + 19) + '" text-anchor="middle" font-size="9" font-weight="600">' + p[2] + '</text>');
-      }
-    });
-    o.push('<text x="' + (mirror ? Math.max(X(1), X(COLS)) : Math.min(X(1), X(COLS))) + '" y="' + (Y(ROWS) + 40) + '" text-anchor="' + (mirror ? "end" : "start") + '" font-size="11" font-weight="600">' + (mirror ? "Solder side: flipped left to right. Column 1 is now on the RIGHT." : "Parts side. Dashed lines = wires on the underside.") + '</text>');
-    o.push('<text x="' + (mirror ? Math.max(X(1), X(COLS)) : Math.min(X(1), X(COLS))) + '" y="' + (Y(ROWS) + 56) + '" text-anchor="' + (mirror ? "end" : "start") + '" font-size="10" style="fill:var(--muted)">Top edge = row 1 = the 9 jumpers to the Uno.</text>');
-    svg.innerHTML = o.join("");
-    document.getElementById("pbTop").setAttribute("aria-pressed", String(!mirror));
-    document.getElementById("pbBottom").setAttribute("aria-pressed", String(mirror));
-    document.getElementById("pbNote").textContent = mirror ? "Mirrored: what you see with the board flipped over." : "As seen from above, parts facing you.";
+    for (var rr = 1; rr <= ROWS; rr++) o.push('<text x="' + (mirror ? x1 + 8 : x0 - 8) + '" y="' + (Y(rr) + 3) + '" text-anchor="' + (mirror ? "start" : "end") + '" font-size="9" style="fill:var(--muted)">' + rr + '</text>');
+    return o.join("");
   }
-  document.getElementById("pbTop").addEventListener("click", function () { mirror = false; render(); });
-  document.getElementById("pbBottom").addEventListener("click", function () { mirror = true; render(); });
-  render();
+  function go(i) {
+    cur = Math.max(0, Math.min(LAST, i));
+    try { localStorage.setItem("hbr-pb-step", String(cur)); } catch (e) {}
+    var st = STEPS[cur];
+    mirror = st.side === "bottom";
+    var o = [board()], rings = [];
+    // draw the other side first (ghosted), then this side
+    EL.forEach(function (el) { if (el.s <= cur && el.side !== st.side) o.push('<g>' + el.d("ghost") + '</g>'); });
+    EL.forEach(function (el) {
+      if (el.s > cur || el.side !== st.side) return;
+      var fade = !st.all && el.s < cur;
+      o.push('<g' + (fade ? ' opacity="0.3"' : "") + '>' + el.d("full") + '</g>');
+      if (el.s === cur) rings = rings.concat(el.h);
+    });
+    if (cur === 0) {
+      o.push('<circle class="ring" cx="' + X(1) + '" cy="' + Y(1) + '" r="10"/>');
+      o.push('<path d="M' + L() + ' ' + (MY - 34) + ' H' + R() + '" stroke="var(--accent)" stroke-width="2" marker-end="url(#pbArrow)"/>');
+      o.push('<text x="' + ((L() + R()) / 2) + '" y="' + (MY - 42) + '" text-anchor="middle" font-size="11" font-weight="600" style="fill:var(--accent)">TOP EDGE · row 1 · to the Uno</text>');
+      o.push('<text x="' + (X(1) + 14) + '" y="' + (Y(1) + 26) + '" font-size="11" font-weight="600" style="fill:var(--accent)">hole 1,1</text>');
+    }
+    rings.forEach(function (h) { o.push('<circle class="ring" cx="' + X(h[0]) + '" cy="' + Y(h[1]) + '" r="9"/>'); });
+    o.push('<text x="' + L() + '" y="' + (Y(ROWS) + 54) + '" font-size="11" font-weight="600">' + (mirror ? "SOLDER SIDE (board flipped): column 1 is on the RIGHT" : "PARTS SIDE: column 1 on the left") + '</text>');
+    svg.innerHTML = '<defs><marker id="pbArrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="var(--accent)"/></marker></defs>' + o.join("");
+    document.getElementById("pbSideTag").textContent = mirror ? "solder side · flipped" : "parts side";
+    document.getElementById("pbNote").textContent = mirror ? "Mirrored, exactly as the board looks upside-down in your hand." : "Seen from above, parts facing you.";
+    document.getElementById("pbStepNum").textContent = "Step " + (cur + 1) + " of " + STEPS.length + (mirror ? " · solder side" : " · parts side");
+    document.getElementById("pbStepTitle").textContent = st.t;
+    document.getElementById("pbStepBody").innerHTML = st.body;
+    document.getElementById("pbPrev").disabled = cur === 0;
+    var next = document.getElementById("pbNext");
+    next.disabled = cur === LAST;
+    next.textContent = cur === LAST ? "All done" : "Next step →";
+    dots.forEach(function (d, k) {
+      d.classList.toggle("seen", k <= cur);
+      if (k === cur) d.setAttribute("aria-current", "step"); else d.removeAttribute("aria-current");
+    });
+  }
+  document.getElementById("pbPrev").addEventListener("click", function () { go(cur - 1); });
+  document.getElementById("pbNext").addEventListener("click", function () { go(cur + 1); });
+  var host = document.getElementById("pbBuild");
+  host.tabIndex = -1;
+  host.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowRight") { e.preventDefault(); go(cur + 1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); go(cur - 1); }
+  });
+  go(cur);
 })();
 </script>
 
