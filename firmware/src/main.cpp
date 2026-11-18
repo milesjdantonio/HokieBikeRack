@@ -78,6 +78,15 @@ void printShortRef(const uint8_t ref[hbr::kCardRefLength]) {
   Serial.print(F("..."));
 }
 
+// " ref=<64 hex>": the backend's full credential reference, so the dashboard (over the
+// USB link) can match a tap to a registered card. It's a keyed hash, not the card's ID.
+void printFullRef(const uint8_t mac[hbr::kCardMacLength]) {
+  char hex[2 * hbr::kCardMacLength + 1];
+  hbr::toHex(mac, hbr::kCardMacLength, hex);
+  Serial.print(F(" ref="));
+  Serial.print(hex);
+}
+
 // "[event] t+12s ACCESS_GRANTED (INFO)". The caller adds details + newline.
 // These are the same event types the backend uses, so the log reads the same.
 void printEvent(const __FlashStringHelper *type, const __FlashStringHelper *severity) {
@@ -135,8 +144,10 @@ void handleCard(const CardId &card) {
   Serial.print(card.length);
   Serial.println(F("-byte card ID"));  // length only, never the ID
 
-  uint8_t ref[hbr::kCardRefLength];
-  if (!credentialRefFromCard(card, ref)) {
+  // The full 32-byte reference; its first 16 bytes are what the EEPROM list stores.
+  uint8_t mac[hbr::kCardMacLength];
+  const uint8_t *ref = mac;
+  if (!credentialMacFromCard(card, mac)) {
     Serial.println(F("[card] HBR_CARD_KEY isn't set in config.h -> denied"));
     feedbackPlay(hbr::Pattern::Denied);
     printEvent(F("ACCESS_DENIED"), F("LOW"));
@@ -156,12 +167,14 @@ void handleCard(const CardId &card) {
     printEvent(F("ACCESS_GRANTED"), F("INFO"));
     Serial.print(F(" card="));
     printShortRef(ref);
+    printFullRef(mac);
     Serial.println();
   } else {
     feedbackPlay(hbr::Pattern::Denied);
     printEvent(F("ACCESS_DENIED"), F("LOW"));
     Serial.print(F(" card="));
     printShortRef(ref);
+    printFullRef(mac);
     Serial.println(cardStore().count() ? F(" reason=NOT_LISTED")
                                        : F(" reason=NOT_LISTED (no cards enrolled yet: use `enroll`)"));
   }

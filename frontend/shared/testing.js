@@ -7,15 +7,14 @@
 // console"). The test-only ones need HBR_ENABLE_SERIAL_SIM 1 in config.h.
 import { h } from "../js/dom.js";
 import { icon } from "./icons.js";
+import { link } from "./rack-link.js";
 
-const BAUD = 115200;
 const SIM_ONLY = new Set(["tap", "shake", "buzz", "servo", "lock", "unlock", "silence", "cancel"]);
 const TAMPER_GRACE_MS = 10000; // firmware ignores shakes this long after the lock closes
 const LOG_MAX = 400;
 
 const state = {
-  port: null, reader: null, writer: null, readDone: null, writeDone: null,
-  connected: false, ready: false,
+  connected: false, ready: false,  // mirrors link.connected / link.ready
   lock: null,          // "locked" | "unlocked"
   alarm: "quiet",      // "quiet" | "warning" | "alarm"
   cards: [], cardCount: null, collecting: 0,
@@ -26,84 +25,42 @@ const state = {
 let warningTimer = 0;
 
 
-// ---------- serial link ----------
-const supported = "serial" in navigator && window.isSecureContext;
+// ---------- the USB link (shared with the dashboard's rack connection: shared/rack-link.js) ----------
+const supported = link.supported;
 
 async function connect() {
   try {
-    const port = await navigator.serial.requestPort();
-    await port.open({ baudRate: BAUD });
-    state.port = port;
-    const enc = new TextEncoderStream();
-    state.writeDone = enc.readable.pipeTo(port.writable).catch(() => {});
-    state.writer = enc.writable.getWriter();
-    const dec = new TextDecoderStream();
-    state.readDone = port.readable.pipeTo(dec.writable).catch(() => {});
-    state.reader = dec.readable.getReader();
-    Object.assign(state, { connected: true, ready: false, simOff: false, lock: null, alarm: "quiet", cards: [], cardCount: null, cardMode: null });
-    log("Connected. The rack restarts when a computer connects; waiting for it to start.", "sent");
-    render();
-    readLoop();
-    // Normally "Ready." arrives within ~3 s. If this board didn't restart, ask anyway.
-    setTimeout(() => { if (state.connected && !state.ready) markReady(); }, 6000);
+    if (await link.connect()) log("Connected. The rack restarts when a computer connects; waiting for it to start.", "sent");
   } catch (err) {
-    if (err && err.name === "NotFoundError") return; // the tester closed the port picker
     log("Couldn't connect: " + (err && err.message ? err.message : err), "bad");
-    if (state.port) disconnect();
   }
 }
 
-async function disconnect() {
-  const { reader, writer, port } = state;
-  Object.assign(state, { connected: false, ready: false, reader: null, writer: null, port: null, cardMode: null });
-  try { if (reader) await reader.cancel(); } catch (e) { /* already gone */ }
-  try { await state.readDone; } catch (e) { /* ignore */ }
-  try { if (writer) { await writer.close(); await state.writeDone; } } catch (e) { /* ignore */ }
-  try { if (port) await port.close(); } catch (e) { /* ignore */ }
-  log("Disconnected.", "sent");
-  render();
-}
-
-async function readLoop() {
-  let buffer = "";
-  try {
-    for (;;) {
-      const { value, done } = await state.reader.read();
-      if (done) break;
-      buffer += value;
-      let i;
-      while ((i = buffer.indexOf("\n")) >= 0) {
-        const line = buffer.slice(0, i).replace(/\r$/, "");
-        buffer = buffer.slice(i + 1);
-        if (line.trim()) onLine(line);
-      }
-    }
-  } catch (err) {
-    if (state.connected) { log("Lost the rack: " + (err && err.message ? err.message : err), "bad"); disconnect(); }
-  }
-}
+function disconnect() { link.disconnect(); }
 
 async function send(command) {
-  if (!state.writer) return;
-  const word = command.trim().split(/\s+/)[0];
-  if (SIM_ONLY.has(word)) state.lastSimSentAt = Date.now();
-  log("> " + command, "sent");
-  try { await state.writer.write(command + "\n"); } catch (err) { log("Couldn't send: " + err.message, "bad"); }
+  if (!link.connected) return;
+  if (SIM_ONLY.has(command.trim().split(/\s+/)[0])) state.lastSimSentAt = Date.now();
+  if (!(await link.send(command))) log("Couldn't send " + command, "bad");
 }
+
+link.onChange(() => {
+  const was = { connected: state.connected, ready: state.ready };
+  state.connected = link.connected;
+  state.ready = link.ready;
+  if (state.connected && !was.connected) Object.assign(state, { simOff: false, lock: null, alarm: "quiet", cards: [], cardCount: null, cardMode: null });
+  if (!state.connected && was.connected) { state.cardMode = null; log("Disconnected.", "sent"); }
+  if (state.ready && !was.ready) send("list");
+  render();
+});
+link.onLine((line, info) => (info.sent ? log(line, "sent") : onLine(line)));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-function markReady() {
-  state.ready = true;
-  render();
-  send("list");
-}
 
 // ---------- what the rack says ----------
 function onLine(line) {
   let kind = "";
   let m;
-  if (/^Ready\./.test(line)) markReady();
   if ((m = line.match(/^(\d+) card\(s\) enrolled:/))) {
     state.cards = []; state.cardCount = +m[1]; state.collecting = +m[1];
   } else if (state.collecting && (m = line.match(/^\s+(\d+): ([0-9a-f]+)/i))) {
@@ -261,9 +218,6 @@ function build() {
 
   document.body.append(panel, fab);
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !panel.hidden) { toggle(false); fab.focus(); } });
-  if (supported) {
-    navigator.serial.addEventListener("disconnect", (e) => { if (state.port && e.target === state.port) { log("The rack was unplugged.", "bad"); disconnect(); } });
-  }
   // Always start closed: the USB link drops on every page change anyway, and a panel that reopens
   // by itself covers the version you just switched to.
   toggle(false);

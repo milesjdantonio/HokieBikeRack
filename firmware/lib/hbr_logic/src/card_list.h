@@ -35,6 +35,10 @@ constexpr uint8_t kCardRefLength = 16;
 // first half. Returns false if the ID is empty or longer than 10 bytes.
 bool makeCardRef(const char *key, size_t keyLength, const uint8_t *cardId, uint8_t idLength,
                  uint8_t out[kCardRefLength]);
+// The same hash, all 32 bytes: the backend's full credential reference.
+constexpr uint8_t kCardMacLength = 32;
+bool makeCardMac(const char *key, size_t keyLength, const uint8_t *cardId, uint8_t idLength,
+                 uint8_t out[kCardMacLength]);
 
 class ByteStore {
  public:

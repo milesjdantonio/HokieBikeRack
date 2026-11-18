@@ -22,8 +22,18 @@ automatically; `?view=app` / `?view=desktop` force one.
   `rack` (status changed), `incident` (police status changed) and `connection`. Every page is built on it,
   so they all react to the rack the same way. Helpers: `findRack` (the short names you type), `spotsText`,
   `alarmText`, `pinRack`.
-- `shared/console.js` is admin and staff. `CAN` decides what each role sees (staff: no setup codes,
+- `shared/console.js` is admin and staff. `CAN` decides what each role sees (staff: no rack setup,
   cards, terminal commands or audit log). Every button is a real API call; most also have a terminal command.
+- **Adding a rack** (the Uno has no Wi-Fi): Add Rack (name + spot on the map), then in its panel
+  **Connect by USB** with the rack plugged into this computer. The first connect makes the rack's lock module
+  and its token (kept in this browser's localStorage); nothing to copy, nothing to flash. While the tab is open,
+  `shared/rack-bridge.js` forwards every `[event]` line the rack prints to `/api/v1/devices/{id}/events` and
+  sends a heartbeat every 30 s, so the rack shows Online, with live taps and alarms. Close the tab or unplug
+  and it's Offline after 3 min (it still runs on its own card list). Registering a waiting card while the
+  rack is connected also sends `add <reference>` to it. Events caused by Testing panel commands are marked
+  simulated.
+- `shared/rack-link.js` is the one Web Serial connection to the rack, shared by the Testing panel
+  (`shared/testing.js`) and the rack connection, since only one program can hold the port.
 - `shared/map.js` is the campus map (MapLibre + OpenFreeMap + Esri imagery, as in TerraSim): Rive pins,
   `setInset()` so a rack centres beside the side panel, `startMove()`, `placeMap()` for Add Rack, kept
   inside the VT area.
