@@ -29,8 +29,9 @@ constexpr uint8_t PN532_RESET_PIN = 3;
 constexpr uint8_t PN532_UART_RX_PIN = 2;
 constexpr uint8_t PN532_UART_TX_PIN = 3;
 
-// MG90S servo signal wire (orange/yellow). Servo POWER comes from the separate
-// 5 V supply, NOT from the Uno's 5V pin. Only the ground is shared.
+// MG90S servo signal wire (orange/yellow). Servo power comes from the Uno's 5V
+// (on the perfboard: 5V bus, with C1/C2 next to the servo pins). If the Uno
+// restarts when the servo moves, use a separate 5 V supply with a shared GND.
 constexpr uint8_t SERVO_SIGNAL_PIN = 9;
 
 // LEDs: pin -> 220-330 ohm resistor -> LED long leg; LED short leg -> GND.

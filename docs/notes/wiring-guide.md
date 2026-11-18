@@ -27,10 +27,17 @@ Set `HBR_READER_UART 1` in `config.h` and the reader's switches to **both OFF** 
 
 | Uno | PN532 header (front label / back label) |
 |---|---|
-| 5V | VCC |
-| GND | GND |
+| 5V (perfboard build: ICSP pin 2) | VCC |
+| GND (perfboard build: ICSP pin 6) | GND |
 | 2 | SDA / **TXD** (reader sends) |
 | 3 | SCL / **RXD** (reader receives) |
+
+- **Perfboard build:** the board's jumpers take the Uno's 5V pin, so power the reader from the
+  **ICSP header** instead (the 2×3 pins at the Uno's right edge, by the big chip). Pin 1 is
+  marked with a dot or "1"; with the header the right way up, the pinout is
+  `1 MISO · 2 5V · 3 SCK · 4 MOSI · 5 RESET · 6 GND`. Use **only pins 2 and 6**: the
+  others are the chip's programming lines, and 5 (RESET) to GND holds the Uno in reset.
+  Female jumper leads push straight onto the pins.
 
 - The startup log should say `[nfc] PN532 firmware 1.6 (UART)`. "Not answering"? Swap the
   wires on pins 2 and 3, and check the switches.

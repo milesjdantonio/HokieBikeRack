@@ -720,7 +720,7 @@ code { background: var(--surface-2); border: 1px solid var(--line); border-radiu
     { side: "top", all: true, t: "Hook up and test", body:
       need(["9 female–male jumpers", "4 female–female leads for the LEDs"]) +
       list([["1,1 GND · 18,1 5V", "Uno GND · Uno 5V"], ["3,1 · 5,1 · 7,1 · 12,1", "Uno ~5 · ~6 · 7 · ~9"], ["14,1 · 15,1", "Uno A4 · A5"], ["16,1", "a second Uno GND pin"], ["17,2–17,5", "MPU VCC · GND · SCL · SDA"], ["17,11–17,13", "servo orange · red · brown"], ["2,7 / 3,7 · 4,9 / 5,9", "green LED − / + · red LED − / +"]]) +
-      "<p>The NFC reader stays as it is: SDA/TXD to Uno 2, SCL/RXD to Uno 3, power from the ICSP header.</p>" +
+      "<p>The NFC reader stays as it is: SDA/TXD to Uno 2, SCL/RXD to Uno 3, power from the ICSP header (the 2×3 pins by the big chip): VCC to <b>pin 2 (5V)</b>, GND to <b>pin 6</b>. Pin 1 has a dot or a \"1\" next to it. Leave the other four alone: pin 5 is RESET.</p>" +
       callout("First power-up: USB only, nothing on the servo horn. The startup log should say <code>reader=OK accel=OK</code>. Then tap a card and run the beep test, same as on the breadboard.") }
   ];
 
