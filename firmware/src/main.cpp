@@ -511,37 +511,46 @@ void expireCardMode() {
 }
 
 #if HBR_ENABLE_CARD_BUTTONS
-// One shield button (pin -> button -> GND, internal pull-up). Debounced: the
-// pin must read the same for 30 ms before a press counts.
-struct CardButton {
-  uint8_t pin;
-  CardMode mode;
-  bool pressed;
-  bool lastRaw;
-  uint32_t changedMs;
-};
-CardButton cardButtons[] = {{ADD_CARD_BUTTON_PIN, CardMode::Enroll, false, false, 0},
-                            {REMOVE_CARD_BUTTON_PIN, CardMode::Unenroll, false, false, 0}};
+// The card button (pin -> button -> GND, internal pull-up). Short press = add
+// a card: the cue comes when you let go. Hold 2 s = remove one: the cue comes
+// while you're still holding it, so you can tell the two apart without a laptop.
+// Debounced: the pin must read the same for 30 ms before it counts.
+constexpr uint32_t kButtonDebounceMs = 30;
+constexpr uint32_t kButtonHoldMs = 2000;
+bool buttonDown = false;       // debounced state
+bool buttonRaw = false;        // last raw reading
+bool buttonHoldUsed = false;   // this press already became a "remove"
+uint32_t buttonChangedMs = 0;  // when the raw reading last changed
+uint32_t buttonDownMs = 0;     // when the debounced press started
 
-void cardButtonsSetup() {
-  for (CardButton &b : cardButtons) pinMode(b.pin, INPUT_PULLUP);
+void cardButtonPressed(CardMode mode) {
+  Serial.println(mode == CardMode::Enroll ? F("[button] short press: ADD a card")
+                                          : F("[button] held 2 s: REMOVE a card"));
+  startCardMode(mode);
+  feedbackPlay(hbr::Pattern::Boot);  // both LEDs flash + beep: "tap the card now"
 }
+
+void cardButtonsSetup() { pinMode(CARD_BUTTON_PIN, INPUT_PULLUP); }
 
 void handleCardButtons() {
   uint32_t now = millis();
-  for (CardButton &b : cardButtons) {
-    bool raw = digitalRead(b.pin) == LOW;  // LOW = pressed
-    if (raw != b.lastRaw) {
-      b.lastRaw = raw;
-      b.changedMs = now;
+  bool raw = digitalRead(CARD_BUTTON_PIN) == LOW;  // LOW = pressed
+  if (raw != buttonRaw) {
+    buttonRaw = raw;
+    buttonChangedMs = now;
+  }
+  if (raw != buttonDown && now - buttonChangedMs >= kButtonDebounceMs) {
+    buttonDown = raw;
+    if (raw) {
+      buttonDownMs = now;
+      buttonHoldUsed = false;
+    } else if (!buttonHoldUsed) {
+      cardButtonPressed(CardMode::Enroll);  // let go before 2 s
     }
-    if (raw == b.pressed || now - b.changedMs < 30) continue;
-    b.pressed = raw;
-    if (!raw) continue;  // only act on the press, not the release
-    Serial.print(b.mode == CardMode::Enroll ? F("[button] ADD") : F("[button] REMOVE"));
-    Serial.println(F(" pressed"));
-    startCardMode(b.mode);
-    feedbackPlay(hbr::Pattern::Boot);  // amber flash + beep: "tap the card now"
+  }
+  if (buttonDown && !buttonHoldUsed && now - buttonDownMs >= kButtonHoldMs) {
+    buttonHoldUsed = true;
+    cardButtonPressed(CardMode::Unenroll);
   }
 }
 #endif

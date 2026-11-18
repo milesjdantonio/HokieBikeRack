@@ -28,9 +28,9 @@
 // 1 = servo mounted UPSIDE DOWN: it turns the other way, so every angle is
 // sent as 180 - angle. Keep the angles above as they are; `servo <deg>` is
 // flipped too, so calibration numbers mean the same plate position.
-// 1 = the shield's two buttons add/remove cards: press A0 (add) or A1 (remove),
-// then tap the card within 15 s. Anyone who can reach them can add a card,
-// so keep them inside the post.
+// 1 = the card button on A0 adds/removes cards: short press = add, hold 2 s =
+// remove, then tap the card within 15 s. Anyone who can reach it can add a
+// card, so keep it inside the post.
 #define HBR_ENABLE_CARD_BUTTONS 0
 
 #define HBR_SERVO_REVERSED 0
