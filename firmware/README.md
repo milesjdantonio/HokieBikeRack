@@ -42,7 +42,9 @@ Without `config.h` it still builds and runs, denying every card.
 
 ## Serial console
 `status`, `enroll`, `unenroll`, `list`, `add <reference>`, `remove <n>`, `wipe-cards`,
-`i2c-scan`, `accel`, `reboot`, and (with `HBR_ENABLE_SERIAL_SIM 1`) `tap <hex-id>`, `shake`.
+`i2c-scan`, `accel`, `reboot`, and (with `HBR_ENABLE_SERIAL_SIM 1`) `tap <hex-id>`, `shake`,
+`buzz <hz>`, `servo <deg>`, `lock`, `unlock`, `silence`, `cancel`.
+The front end's **Testing** button (bottom right) sends these from the browser over USB.
 What each does: [firmware.md → Serial console](../docs/notes/firmware.md#serial-console-115200-baud).
 
 ## What the lights mean

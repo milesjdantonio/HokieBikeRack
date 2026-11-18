@@ -41,3 +41,9 @@ constexpr uint8_t LED_RED_PIN = 6;
 // Active buzzer, switched by an NPN transistor:
 // pin -> 1 k resistor -> transistor base. HIGH = buzzer on.
 constexpr uint8_t BUZZER_PIN = 7;
+
+// The two push buttons on the proto shield (HBR_ENABLE_CARD_BUTTONS 1 in config.h).
+// Each one: pin -> button -> GND. The internal pull-up holds the pin HIGH;
+// pressed = LOW. No resistor needed. A0/A1 work as plain digital pins here.
+constexpr uint8_t ADD_CARD_BUTTON_PIN = 14;     // A0 on the Uno: press, then tap a card to ADD it
+constexpr uint8_t REMOVE_CARD_BUTTON_PIN = 15;  // A1 on the Uno: press, then tap a card to REMOVE it

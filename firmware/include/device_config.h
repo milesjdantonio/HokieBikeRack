@@ -27,10 +27,16 @@
 #define HBR_ENABLE_SERVO 0
 #endif
 #ifndef HBR_SERVO_LOCKED_DEG
-#define HBR_SERVO_LOCKED_DEG 0
+#define HBR_SERVO_LOCKED_DEG 60    // plate pushed down, held against the spring
+#endif
+#ifndef HBR_ENABLE_CARD_BUTTONS
+#define HBR_ENABLE_CARD_BUTTONS 0  // shield buttons on A0/A1 start enroll/unenroll
+#endif
+#ifndef HBR_SERVO_REVERSED
+#define HBR_SERVO_REVERSED 0  // 1 = servo upside down: sends 180 - angle
 #endif
 #ifndef HBR_SERVO_UNLOCKED_DEG
-#define HBR_SERVO_UNLOCKED_DEG 90
+#define HBR_SERVO_UNLOCKED_DEG 10  // plate up (spring), horn resting on the ledge
 #endif
 #ifndef HBR_ENABLE_SERIAL_SIM
 #define HBR_ENABLE_SERIAL_SIM 0

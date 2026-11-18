@@ -28,3 +28,7 @@ bool lockIsCommandedUnlocked();
 bool lockRecentlyUnlocked(uint32_t graceMs);
 
 bool lockServoEnabled();
+
+// Bench calibration: move the servo straight to `degrees` (0-180), bypassing
+// the lock logic. False if out of range. The next lock/unlock moves it normally.
+bool lockTestAngle(int degrees);

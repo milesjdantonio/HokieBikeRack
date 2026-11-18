@@ -372,13 +372,38 @@ void simulateTap(const char *hex) {
   if (card.length) handleCard(card);
   else Serial.println(F("usage: tap 04a1b2c3d4"));
 }
+
+// Buzzer test: `buzz 2700` plays that pitch for 1 s, `buzz 0` holds pin 7 HIGH
+// for 1 s (what an ACTIVE buzzer wants). Use it to find the loudest
+// HBR_BUZZER_TONE_HZ, or to tell an active buzzer from a passive one.
+void testBuzzer(const char *number) {
+  char *end = nullptr;
+  long hz = strtol(number, &end, 10);
+  if (end == number || hz < 0 || hz > 20000 || (hz > 0 && hz < 31)) {
+    Serial.println(F("usage: buzz <hz>  (31-20000, or 0 = plain HIGH)"));
+    return;
+  }
+  Serial.print(F("ok: buzzer "));
+  if (hz) {
+    Serial.print(hz);
+    Serial.println(F(" Hz for 1 s"));
+    tone(BUZZER_PIN, static_cast<unsigned int>(hz));
+  } else {
+    Serial.println(F("plain HIGH for 1 s"));
+    digitalWrite(BUZZER_PIN, HIGH);
+  }
+  delay(1000);
+  noTone(BUZZER_PIN);
+  digitalWrite(BUZZER_PIN, LOW);
+}
 #endif
 
 void printHelp() {
   Serial.println(F("commands: status, enroll, unenroll, list, add <reference>, remove <n>,"));
   Serial.print(F("          wipe-cards, i2c-scan, accel, reboot"));
 #if HBR_ENABLE_SERIAL_SIM
-  Serial.print(F(", tap <hex-id>, shake"));
+  Serial.println(F(", tap <hex-id>, shake,"));
+  Serial.print(F("          buzz <hz>, servo <deg>, lock, unlock, silence, cancel"));
 #endif
   Serial.println();
 }
@@ -427,6 +452,31 @@ void runCommand(const char *line) {
     simShakeActive = true;
     simShakeUntilMs = millis() + 400;
     Serial.println(F("ok: simulating a 0.4 s shake"));
+  } else if ((arg = after(line, PSTR("buzz ")))) {
+    testBuzzer(arg);
+  } else if ((arg = after(line, PSTR("servo ")))) {
+    // Calibration: `servo 10`, `servo 60`... to find HBR_SERVO_*_DEG.
+    char *end = nullptr;
+    long deg = strtol(arg, &end, 10);
+    if (end == arg || !lockTestAngle(static_cast<int>(deg))) {
+      Serial.println(F("usage: servo <deg>  (0-180)"));
+    }
+  } else if (is(line, PSTR("lock"))) {
+    lockRequestLock();
+  } else if (is(line, PSTR("unlock"))) {
+    // Same as an allowed card, without the card: unlock, green, one beep.
+    lockRequestUnlock();
+    feedbackPlay(hbr::Pattern::Granted, HBR_UNLOCK_DURATION_MS);
+    Serial.println(F("ok: unlocked by test command"));
+  } else if (is(line, PSTR("silence"))) {
+    // What an allowed card does to a running siren.
+    tamper.silence();
+    alarmWasOn = false;
+    feedbackStop();
+    Serial.println(F("ok: alarm silenced"));
+  } else if (is(line, PSTR("cancel"))) {
+    cardMode = CardMode::Check;
+    Serial.println(F("ok: back to normal (no card added or removed)"));
 #endif
   } else if (line[0]) {
     printHelp();
@@ -459,6 +509,42 @@ void expireCardMode() {
   cardMode = CardMode::Check;
   Serial.println(F("[cards] no card tapped in time; back to normal"));
 }
+
+#if HBR_ENABLE_CARD_BUTTONS
+// One shield button (pin -> button -> GND, internal pull-up). Debounced: the
+// pin must read the same for 30 ms before a press counts.
+struct CardButton {
+  uint8_t pin;
+  CardMode mode;
+  bool pressed;
+  bool lastRaw;
+  uint32_t changedMs;
+};
+CardButton cardButtons[] = {{ADD_CARD_BUTTON_PIN, CardMode::Enroll, false, false, 0},
+                            {REMOVE_CARD_BUTTON_PIN, CardMode::Unenroll, false, false, 0}};
+
+void cardButtonsSetup() {
+  for (CardButton &b : cardButtons) pinMode(b.pin, INPUT_PULLUP);
+}
+
+void handleCardButtons() {
+  uint32_t now = millis();
+  for (CardButton &b : cardButtons) {
+    bool raw = digitalRead(b.pin) == LOW;  // LOW = pressed
+    if (raw != b.lastRaw) {
+      b.lastRaw = raw;
+      b.changedMs = now;
+    }
+    if (raw == b.pressed || now - b.changedMs < 30) continue;
+    b.pressed = raw;
+    if (!raw) continue;  // only act on the press, not the release
+    Serial.print(b.mode == CardMode::Enroll ? F("[button] ADD") : F("[button] REMOVE"));
+    Serial.println(F(" pressed"));
+    startCardMode(b.mode);
+    feedbackPlay(hbr::Pattern::Boot);  // amber flash + beep: "tap the card now"
+  }
+}
+#endif
 }  // namespace
 
 void setup() {
@@ -472,6 +558,9 @@ void setup() {
   lockSetup();
 
   cardStoreSetup();
+#if HBR_ENABLE_CARD_BUTTONS
+  cardButtonsSetup();
+#endif
 
   // A4 = SDA, A5 = SCL on the Uno.
   Wire.begin();
@@ -505,6 +594,9 @@ void setup() {
 void loop() {
   wdt_reset();  // "still alive" (harmless if the watchdog is off)
   handleSerial();
+#if HBR_ENABLE_CARD_BUTTONS
+  handleCardButtons();
+#endif
   expireCardMode();
 
   // Card tapped -> look it up in the EEPROM list -> unlock or deny.
