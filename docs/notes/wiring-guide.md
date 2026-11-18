@@ -128,13 +128,16 @@ Pin 7 ──── 1 kΩ ──── Base (B)
 One tactile push button adds and removes cards without a laptop. Set `HBR_ENABLE_CARD_BUTTONS 1`
 in `config.h`. **Short press = add, hold 2 s = remove**, then tap the card within 15 s.
 
-- Part: a 4-leg tactile button, 6 × 6 mm, normally open. The shield's own buttons don't work:
+- Part: any small 4-leg push button, normally open (ours is a small square one). The shield's own buttons don't work:
   one is RESET, the other isn't connected to anything a wire can plug into.
 - Proto shield build: push it into the empty bottom-left corner of the mini breadboard (easy to
-  reach), legs in `f2 · i2 · f4 · i4`. Wire **A0 socket → `j2`** and **`d1 → g4`** (`d1` is the last
-  free hole in the top ground column; all three GND sockets are taken). The legs' far-apart pair
-  runs up and down a column (f to i). Turned 90°, the button counts as held down all the time:
-  the startup log then says `card button reads PRESSED at start-up` and the rack ignores it.
+  reach), legs in `f2 · h2 · f4 · h4`. Wire **A0 socket → `j2`** and **`d1 → g4`** (`d1` is the last
+  free hole in the top ground column; all three GND sockets are taken).
+- Its 4 legs are two joined pairs; pressing connects one pair to the other. Each pair goes in one
+  column (2 and 4). Find the pairs with a multimeter on beep: the legs that beep without pressing
+  are a pair. A square button fits either way round; turned wrong, it counts as held down all the
+  time, the startup log says `card button reads PRESSED at start-up`, and the rack ignores it.
+  Turn it 90°.
 - Perfboard build: wire it straight between A0 and the Uno's third GND pin.
 - No resistor: the firmware turns on the Uno's internal pull-up, so A0 reads HIGH until the
   button joins it to GND.
