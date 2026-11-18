@@ -12,7 +12,6 @@ const BAUD = 115200;
 const SIM_ONLY = new Set(["tap", "shake", "buzz", "servo", "lock", "unlock", "silence", "cancel"]);
 const TAMPER_GRACE_MS = 10000; // firmware ignores shakes this long after the lock closes
 const LOG_MAX = 400;
-const OPEN_KEY = "hbr-testing-open";
 
 const state = {
   port: null, reader: null, writer: null, readDone: null, writeDone: null,
@@ -26,61 +25,6 @@ const state = {
 };
 let warningTimer = 0;
 
-// ---------- styles (tokens from tokens.css / theme.css) ----------
-const css = `
-.hbt-fab { position: fixed; z-index: 1000; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: 999px; padding: 10px 16px 10px 12px;
-  background: var(--panel-3); color: var(--ink); font: 500 14px/1 var(--text); cursor: pointer; box-shadow: var(--float-shadow); }
-.hbt-fab svg { width: 18px; height: 18px; }
-.hbt-fab:hover { background: var(--panel-2); transform: translateY(-1px); }
-.hbt-fab:active { transform: translateY(1px); }
-.hbt-fab[aria-expanded="true"] { background: var(--accent); color: var(--accent-ink); }
-.hbt-fab:focus-visible, .hbt-panel button:focus-visible, .hbt-panel input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-@media (max-width: 760px) { .hbt-fab { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); } }
-.hbt-panel { position: fixed; z-index: 1000; right: 16px; bottom: calc(68px + env(safe-area-inset-bottom, 0px));
-  width: min(400px, calc(100vw - 32px)); max-height: calc(100vh - 100px); overflow: auto; overscroll-behavior: contain;
-  display: grid; gap: 2px; border-radius: var(--radius, 16px); background: var(--panel); color: var(--ink);
-  font: 400 14px/1.45 var(--text); box-shadow: var(--float-shadow); }
-@media (max-width: 760px) { .hbt-panel { bottom: calc(136px + env(safe-area-inset-bottom, 0px)); max-height: calc(100vh - 160px); } }
-.hbt-panel[hidden] { display: none; }
-.hbt-sec { display: grid; gap: 10px; padding: 14px 16px; background: var(--panel); }
-.hbt-sec + .hbt-sec { background: var(--panel-2); }
-.hbt-head { display: flex; align-items: center; gap: 10px; }
-.hbt-panel h2, .hbt-panel h3, .hbt-panel p { margin: 0; }
-.hbt-title { font-family: var(--display); font-weight: 300; font-size: 1.5rem; line-height: 1.1; flex: 1; }
-.hbt-close { border: 0; background: transparent; color: var(--muted); border-radius: 999px; width: 32px; height: 32px; display: grid; place-items: center; cursor: pointer; }
-.hbt-close:hover { background: var(--panel-2); color: var(--ink); }
-.hbt-close svg { width: 18px; height: 18px; }
-.hbt-h { font-size: 0.95rem; font-weight: 500; }
-.hbt-note { color: var(--muted); font-size: 13px; }
-.hbt-warn { color: var(--warning); font-size: 13px; }
-.hbt-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.hbt-btn { border: 0; border-radius: 999px; padding: 8px 14px; background: var(--panel-3); color: var(--ink); font: 500 13px/1 var(--text); cursor: pointer; }
-.hbt-btn:hover:not(:disabled) { background: #2a333e; }
-.hbt-btn:active:not(:disabled) { transform: translateY(1px); }
-.hbt-btn:disabled { opacity: 0.4; cursor: default; }
-.hbt-primary { background: var(--accent); color: var(--accent-ink); }
-.hbt-primary:hover:not(:disabled) { background: var(--accent-hover, #f08837); }
-.hbt-danger { color: var(--negative); }
-.hbt-confirm { background: var(--negative); color: #1a0606; }
-.hbt-num { width: 76px; border: 0; border-radius: 10px; padding: 7px 10px; background: var(--panel-3); color: var(--ink); font: 400 13px var(--text); font-variant-numeric: tabular-nums; }
-.hbt-state { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; border-radius: 10px; overflow: hidden; }
-.hbt-state > div { background: var(--panel-3); padding: 8px 10px; display: grid; gap: 2px; }
-.hbt-state span { color: var(--muted); font-size: 12px; }
-.hbt-state b { font-weight: 500; font-variant-numeric: tabular-nums; }
-.hbt-ok { color: var(--positive); } .hbt-amber { color: var(--warning); } .hbt-bad { color: var(--negative); }
-.hbt-cards { display: grid; gap: 2px; border-radius: 10px; overflow: hidden; }
-.hbt-card { display: flex; align-items: center; gap: 10px; padding: 7px 8px 7px 12px; background: var(--panel-3); }
-.hbt-card code { flex: 1; font: 400 13px ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--ink); }
-.hbt-wait { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 10px; background: var(--panel-3); }
-.hbt-wait b { flex: 1; font-weight: 500; }
-.hbt-log { margin: 0; height: 180px; overflow: auto; padding: 10px 12px; border-radius: 10px; background: #05070a; color: var(--muted);
-  font: 400 12px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; word-break: break-word; }
-.hbt-log .sent { color: var(--ink); } .hbt-log .good { color: var(--positive); } .hbt-log .warn { color: var(--warning); } .hbt-log .bad { color: var(--negative); }
-.hbt-send { display: flex; gap: 8px; }
-.hbt-send input { flex: 1; min-width: 0; border: 0; border-radius: 10px; padding: 8px 10px; background: var(--panel-3); color: var(--ink); font: 400 13px ui-monospace, Consolas, monospace; }
-@media (prefers-reduced-motion: reduce) { .hbt-fab, .hbt-btn { transition: none; transform: none !important; } }
-`;
 
 // ---------- serial link ----------
 const supported = "serial" in navigator && window.isSecureContext;
@@ -251,7 +195,8 @@ function numberField(value, min, max, label) {
 }
 
 function build() {
-  document.head.append(h("style", {}, css));
+  // Same-origin stylesheet next to this file (an inline <style> would be blocked by the CSP).
+  document.head.append(h("link", { rel: "stylesheet", href: new URL("./testing.css", import.meta.url).href }));
 
   fab = h("button", { type: "button", class: "hbt-fab", "aria-expanded": "false", "aria-controls": "hbt-panel", onClick: () => toggle() },
     icon("test"), "Testing");
@@ -319,9 +264,9 @@ function build() {
   if (supported) {
     navigator.serial.addEventListener("disconnect", (e) => { if (state.port && e.target === state.port) { log("The rack was unplugged.", "bad"); disconnect(); } });
   }
-  let open = false;
-  try { open = localStorage.getItem(OPEN_KEY) === "1"; } catch (e) { /* private mode */ }
-  toggle(open);
+  // Always start closed: the USB link drops on every page change anyway, and a panel that reopens
+  // by itself covers the version you just switched to.
+  toggle(false);
   render();
 }
 
@@ -335,7 +280,6 @@ function toggle(force) {
   const open = force === undefined ? panel.hidden : force;
   panel.hidden = !open;
   fab.setAttribute("aria-expanded", String(open));
-  try { localStorage.setItem(OPEN_KEY, open ? "1" : "0"); } catch (e) { /* private mode */ }
 }
 
 function render() {
