@@ -117,6 +117,33 @@ Pin 7 ──── 1 kΩ ──── Base (B)
 - First test with **nothing attached to the horn**, and `HBR_ENABLE_SERVO 0`.
   Then set `1` and re-flash (see hardware-test-checklist.md).
 
+## Final build: soldered perfboard (18 × 14 holes, ~48 × 38 mm)
+The half-size breadboard (~83 × 55 mm) doesn't fit in the rack. The same circuit goes on a piece
+of perfboard. Holes are (column, row) from the parts side: column 1 = left edge, row 1 = top edge.
+The interactive guide has the hole-by-hole picture, including a mirrored solder-side view.
+
+| Part | Holes |
+|---|---|
+| R1 330 Ω (green) | 3,2 → 3,6 |
+| R2 330 Ω (red) | 5,2 → 5,6 |
+| R3 1 kΩ (buzzer) | 7,2 → 7,6 |
+| Q1 2N2222 | E 6,8 · B 7,8 · C 8,8 (flat face toward the bottom edge) |
+| Buzzer | − 10,11 · + 13,11 |
+| Diode | underside, across the buzzer pins, stripe at 13,11 |
+| C1 / C2 100–470 µF | + 16,12 − 16,13 / + 15,12 − 15,13 |
+
+Underside wires (none cross):
+- GND: column 1 rows 1–14, then row 14 to column 17; plus 2,7→1,7 · 4,9→1,9 · 6,8→6,10→1,10 ·
+  15,13→15,14 · 16,13→16,14 · 17,13→17,14
+- 5V: column 18 rows 1–13; plus 17,2→18,2 · 13,11→13,12→18,12
+- D5: 3,1→3,2 and 3,6→3,7 · D6: 5,1→5,2 and 5,6→5,9 · D7: 7,1→7,2 and 7,6→7,8
+- Buzzer −: 8,8→8,11→10,11 · D9: 12,1→12,9→17,9→17,11
+- MPU: GND 16,1→16,3→17,3 · SCL 15,1→15,4→17,4 · SDA 14,1→14,5→17,5
+
+Pins: inputs on row 1 (1 GND, 3 ~5, 5 ~6, 7 D7, 12 ~9, 14 A4, 15 A5, 16 second GND for the MPU,
+18 5V); green LED − 2,7 / + 3,7; red LED − 4,9 / + 5,9; servo orange 17,11, red 17,12, brown 17,13;
+MPU VCC 17,2, GND 17,3, SCL 17,4, SDA 17,5. The NFC reader stays wired straight to the Uno.
+
 ## Full pin table
 | Uno pin | Use |
 |---|---|
