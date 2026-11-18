@@ -124,6 +124,27 @@ Pin 7 ──── 1 kΩ ──── Base (B)
 - First test with **nothing attached to the horn**, and `HBR_ENABLE_SERVO 0`.
   Then set `1` and re-flash (see hardware-test-checklist.md).
 
+## Card buttons (add / remove)
+The shield's two push buttons add and remove cards without a laptop. Set
+`HBR_ENABLE_CARD_BUTTONS 1` in `config.h`.
+
+| Button | One side | Other side |
+|---|---|---|
+| ADD | A0 | GND |
+| REMOVE | A1 | GND |
+
+- No resistors: the firmware turns on the Uno's internal pull-ups, so a pin reads HIGH until
+  its button joins it to GND.
+- Proto shield build: all three GND sockets are taken, so link `f15 → f12` (column 15 is the
+  servo's ground) and use `g12` (REMOVE) and `h12` (ADD) as the ground side. Perfboard build:
+  wire the buttons straight to A0/A1 and the Uno's third GND pin.
+- Check the shield first: some join one side of a button to GND or 5V already. Beeps to GND?
+  Skip that ground wire. Beeps to 5V? Don't use it on A0/A1 as it is.
+- Use: press ADD (both LEDs flash, one beep), then tap the card within 15 s. Green + beep =
+  added. REMOVE is the same and ends red with two beeps.
+- Anyone who can reach the buttons can add a card: keep them inside the post, or set
+  `HBR_ENABLE_CARD_BUTTONS 0` on the finished rack.
+
 ## Final build: soldered perfboard (18 × 14 holes, ~48 × 38 mm)
 The half-size breadboard (~83 × 55 mm) doesn't fit in the rack. The same circuit goes on a piece
 of perfboard. Holes are (column, row) from the parts side: column 1 = left edge, row 1 = top edge.
@@ -160,6 +181,8 @@ MPU VCC 17,2, GND 17,3, SCL 17,4, SDA 17,5. The NFC reader stays wired straight 
 | 6 | Red LED |
 | 7 | Buzzer transistor base (via 1 kΩ) |
 | 9 | Servo signal |
+| A0 | ADD card button (to GND) |
+| A1 | REMOVE card button (to GND) |
 | A4 | I2C SDA |
 | A5 | I2C SCL |
 
