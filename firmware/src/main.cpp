@@ -530,7 +530,18 @@ void cardButtonPressed(CardMode mode) {
   feedbackPlay(hbr::Pattern::Boot);  // both LEDs flash + beep: "tap the card now"
 }
 
-void cardButtonsSetup() { pinMode(CARD_BUTTON_PIN, INPUT_PULLUP); }
+void cardButtonsSetup() {
+  pinMode(CARD_BUTTON_PIN, INPUT_PULLUP);
+  delay(5);  // let the pull-up settle
+  if (digitalRead(CARD_BUTTON_PIN) == LOW) {
+    // Pressed already at power-up: usually a 4-leg button turned 90 degrees on
+    // the breadboard (its joined legs short the column). Ignore it until it's
+    // let go, so it can't start "remove" on its own.
+    buttonDown = buttonRaw = buttonHoldUsed = true;
+    Serial.println(F("[button] card button reads PRESSED at start-up: ignored until let go."));
+    Serial.println(F("         Not touching it? Turn it 90 degrees on the breadboard."));
+  }
+}
 
 void handleCardButtons() {
   uint32_t now = millis();

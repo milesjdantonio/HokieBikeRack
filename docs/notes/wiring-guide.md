@@ -130,10 +130,11 @@ in `config.h`. **Short press = add, hold 2 s = remove**, then tap the card withi
 
 - Part: a 4-leg tactile button, 6 × 6 mm, normally open. The shield's own buttons don't work:
   one is RESET, the other isn't connected to anything a wire can plug into.
-- Proto shield build: push it into the mini breadboard across the middle gap, legs in
-  `e12 · e14 · f12 · f14`. Wire **A0 socket → `j12`** and **`f15 → d14`** (column 15 is the servo's
-  ground; all three GND sockets are taken). The two wires land on diagonally opposite legs,
-  which always switch however the button is turned.
+- Proto shield build: push it into the empty bottom-left corner of the mini breadboard (easy to
+  reach), legs in `f2 · i2 · f4 · i4`. Wire **A0 socket → `j2`** and **`d1 → g4`** (`d1` is the last
+  free hole in the top ground column; all three GND sockets are taken). The legs' far-apart pair
+  runs up and down a column (f to i). Turned 90°, the button counts as held down all the time:
+  the startup log then says `card button reads PRESSED at start-up` and the rack ignores it.
 - Perfboard build: wire it straight between A0 and the Uno's third GND pin.
 - No resistor: the firmware turns on the Uno's internal pull-up, so A0 reads HIGH until the
   button joins it to GND.
