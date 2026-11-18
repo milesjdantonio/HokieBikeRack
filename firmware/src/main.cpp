@@ -510,61 +510,6 @@ void expireCardMode() {
   Serial.println(F("[cards] no card tapped in time; back to normal"));
 }
 
-#if HBR_ENABLE_CARD_BUTTONS
-// The card button (pin -> button -> GND, internal pull-up). Short press = add
-// a card: the cue comes when you let go. Hold 2 s = remove one: the cue comes
-// while you're still holding it, so you can tell the two apart without a laptop.
-// Debounced: the pin must read the same for 30 ms before it counts.
-constexpr uint32_t kButtonDebounceMs = 30;
-constexpr uint32_t kButtonHoldMs = 2000;
-bool buttonDown = false;       // debounced state
-bool buttonRaw = false;        // last raw reading
-bool buttonHoldUsed = false;   // this press already became a "remove"
-uint32_t buttonChangedMs = 0;  // when the raw reading last changed
-uint32_t buttonDownMs = 0;     // when the debounced press started
-
-void cardButtonPressed(CardMode mode) {
-  Serial.println(mode == CardMode::Enroll ? F("[button] short press: ADD a card")
-                                          : F("[button] held 2 s: REMOVE a card"));
-  startCardMode(mode);
-  feedbackPlay(hbr::Pattern::Boot);  // both LEDs flash + beep: "tap the card now"
-}
-
-void cardButtonsSetup() {
-  pinMode(CARD_BUTTON_PIN, INPUT_PULLUP);
-  delay(5);  // let the pull-up settle
-  if (digitalRead(CARD_BUTTON_PIN) == LOW) {
-    // Pressed already at power-up: usually a 4-leg button turned 90 degrees on
-    // the breadboard (its joined legs short the column). Ignore it until it's
-    // let go, so it can't start "remove" on its own.
-    buttonDown = buttonRaw = buttonHoldUsed = true;
-    Serial.println(F("[button] card button reads PRESSED at start-up: ignored until let go."));
-    Serial.println(F("         Not touching it? Turn it 90 degrees on the breadboard."));
-  }
-}
-
-void handleCardButtons() {
-  uint32_t now = millis();
-  bool raw = digitalRead(CARD_BUTTON_PIN) == LOW;  // LOW = pressed
-  if (raw != buttonRaw) {
-    buttonRaw = raw;
-    buttonChangedMs = now;
-  }
-  if (raw != buttonDown && now - buttonChangedMs >= kButtonDebounceMs) {
-    buttonDown = raw;
-    if (raw) {
-      buttonDownMs = now;
-      buttonHoldUsed = false;
-    } else if (!buttonHoldUsed) {
-      cardButtonPressed(CardMode::Enroll);  // let go before 2 s
-    }
-  }
-  if (buttonDown && !buttonHoldUsed && now - buttonDownMs >= kButtonHoldMs) {
-    buttonHoldUsed = true;
-    cardButtonPressed(CardMode::Unenroll);
-  }
-}
-#endif
 }  // namespace
 
 void setup() {
@@ -578,9 +523,6 @@ void setup() {
   lockSetup();
 
   cardStoreSetup();
-#if HBR_ENABLE_CARD_BUTTONS
-  cardButtonsSetup();
-#endif
 
   // A4 = SDA, A5 = SCL on the Uno.
   Wire.begin();
@@ -614,9 +556,6 @@ void setup() {
 void loop() {
   wdt_reset();  // "still alive" (harmless if the watchdog is off)
   handleSerial();
-#if HBR_ENABLE_CARD_BUTTONS
-  handleCardButtons();
-#endif
   expireCardMode();
 
   // Card tapped -> look it up in the EEPROM list -> unlock or deny.

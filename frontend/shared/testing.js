@@ -378,7 +378,7 @@ function renderCards() {
       h("button", { type: "button", class: "hbt-btn", disabled: !on, onClick: () => send("list") }, "Refresh")));
   }
   if (!on) {
-    kids.push(h("p", { class: "hbt-note" }, "Connect the rack to see its cards. On the rack itself, the card button does the same: short press to add, hold 2 s to remove."));
+    kids.push(h("p", { class: "hbt-note" }, "Connect the rack to see its cards."));
   } else if (!state.cards.length) {
     kids.push(h("p", { class: "hbt-note" }, state.cardCount === 0 ? "No cards yet. Every tap is denied until one is added." : "Loading the list"));
   } else {

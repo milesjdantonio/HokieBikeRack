@@ -29,9 +29,6 @@
 #ifndef HBR_SERVO_LOCKED_DEG
 #define HBR_SERVO_LOCKED_DEG 60    // plate pushed down, held against the spring
 #endif
-#ifndef HBR_ENABLE_CARD_BUTTONS
-#define HBR_ENABLE_CARD_BUTTONS 0  // card button on A0: short press = add, hold 2 s = remove
-#endif
 #ifndef HBR_SERVO_REVERSED
 #define HBR_SERVO_REVERSED 0  // 1 = servo upside down: sends 180 - angle
 #endif
