@@ -116,6 +116,17 @@ void test_recently_unlocked_grace_window() {
   TEST_ASSERT_FALSE(lock.recentlyUnlocked(15000, 10000));
 }
 
+void test_grace_counts_from_an_early_lock() {
+  // A rider unlocks, then taps again after 3 s to lock. The grace window is
+  // 10 s from THEN, not from the end of the 120 s unlock time.
+  LockController lock(120000);
+  lock.unlock(0);
+  lock.lock(3000);
+  TEST_ASSERT_TRUE(lock.recentlyUnlocked(12000, 10000));
+  TEST_ASSERT_FALSE(lock.recentlyUnlocked(13000, 10000));
+  TEST_ASSERT_FALSE(lock.update(130000));  // already locked: the timer doesn't fire later
+}
+
 // ---- Helpers ----
 
 void test_hex() {
@@ -160,6 +171,7 @@ int main() {
   RUN_TEST(test_second_tap_restarts_timer);
   RUN_TEST(test_lock_works_across_millis_wrap);
   RUN_TEST(test_recently_unlocked_grace_window);
+  RUN_TEST(test_grace_counts_from_an_early_lock);
   RUN_TEST(test_hex);
   RUN_TEST(test_from_hex);
   RUN_TEST(test_debouncer_ignores_held_card);

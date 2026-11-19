@@ -58,7 +58,7 @@ void lockSetup() {
 #else
   Serial.println(F("[lock] SIMULATED lock ready (no servo output). Set HBR_ENABLE_SERVO 1 to drive it."));
 #endif
-  controller.lock();
+  controller.lock(millis());
   moveTo(false);
 }
 
@@ -69,7 +69,7 @@ void lockRequestUnlock() {
 }
 
 void lockRequestLock() {
-  controller.lock();
+  controller.lock(millis());
   moveTo(false);
 }
 
