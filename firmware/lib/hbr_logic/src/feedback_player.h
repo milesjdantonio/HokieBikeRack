@@ -25,6 +25,7 @@ enum class Pattern : uint8_t {
   None = 0,
   Boot,           // red+green flash and a beep at power-on
   Granted,        // green on while unlocked + one short beep
+  UnlockReminder, // still unlocked: red flash every 1 s + a beep every 2 s, until stop()
   Denied,         // red + two beeps
   TamperWarning,  // red blinks + 3 quick chirps
   TamperAlarm,    // flashing red + siren until stop() (the tamper detector decides when)
@@ -47,7 +48,7 @@ constexpr uint8_t kMaxSteps = 8;
 class FeedbackPlayer {
  public:
   // holdMs: for Granted, how long green stays on (= unlock time).
-  // For TamperAlarm, total siren length, or kUntilStopped.
+  // For TamperAlarm / UnlockReminder, how long to loop, or kUntilStopped.
   void play(Pattern pattern, uint32_t nowMs, uint32_t holdMs = 0);
   void stop();  // e.g. an allowed card silences the alarm
 

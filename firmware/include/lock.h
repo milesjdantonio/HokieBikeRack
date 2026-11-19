@@ -17,7 +17,8 @@ void lockRequestUnlock();
 void lockRequestLock();
 
 // Call every loop(). Re-locks once the unlock time has run out.
-void lockUpdate();
+// Returns true on the call where the timer ran out and it re-locked.
+bool lockUpdate();
 
 // What the lock was last told to do. This is NOT proof the lock actually
 // moved: the servo has no position feedback.

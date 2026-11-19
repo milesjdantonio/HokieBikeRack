@@ -17,7 +17,7 @@ Hokie Passport). Questions marked "check during the bench test" get answered the
 | Pins (Uno R3): SDA A4, SCL A5, servo 9, green 5, red 6, buzzer 7, PN532 IRQ 2 / reset 3 | `firmware/include/pins.h` | OK for your exact board? (Keeps 0/1 for USB serial and 13 free.) |
 | Servo angles: locked 60° (plate pushed down), unlocked 10° (spring lifts the plate) | `config.h` `HBR_SERVO_*_DEG` | Find the real ones with `servo <deg>`: unlocked = plate fully up, horn just touching the ledge; locked = plate far enough down to hold the bike, no buzzing. The servo holds against the spring the whole time it's locked, and a power cut lets the plate up (fail-open). |
 | Unlock time 5 s | `device_config.h` `HBR_UNLOCK_DURATION_MS` | Long enough to pull a bike/lock free? |
-| Tamper threshold 0.35 g, 3 samples | `lib/hbr_logic/src/tamper_detector.h` | Too sensitive / not enough once mounted? Use `accel` to measure. |
+| Tamper threshold 0.30 g, 3 samples | `include/device_config.h` (`HBR_TAMPER_THRESHOLD_G`) | Too sensitive / not enough once mounted? Use `accel` to measure. |
 | Escalation window 30 s, cooldown 3 s | same file | Feels right? |
 | Grace period after unlock 10 s | `HBR_TAMPER_GRACE_MS` | Long enough to remove a bike? |
 | Card type | — | What do the kit cards report? (4-byte = MIFARE Classic, 7-byte = NTAG/Ultralight usually.) Log shows `[card] read a N-byte card ID`. |

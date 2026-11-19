@@ -53,3 +53,5 @@ void feedbackStopSiren() {
 void feedbackSetReady(bool ready) { player.setReady(ready); }
 
 void feedbackUpdate() { writePins(player.update(millis())); }
+
+hbr::Pattern feedbackCurrent() { return player.current(); }

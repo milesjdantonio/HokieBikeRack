@@ -73,8 +73,10 @@ void lockRequestLock() {
   moveTo(false);
 }
 
-void lockUpdate() {
-  if (controller.update(millis())) moveTo(false);  // timer ran out
+bool lockUpdate() {
+  if (!controller.update(millis())) return false;
+  moveTo(false);  // timer ran out
+  return true;
 }
 
 bool lockIsCommandedUnlocked() { return controller.isUnlocked(); }

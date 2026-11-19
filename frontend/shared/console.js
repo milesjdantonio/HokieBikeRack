@@ -87,6 +87,7 @@ function eventLine(e, opts = {}) {
     case "ACCESS_DENIED": return log("deny", [rack, ` ${who} refused: ${(DENY_REASONS[d.reason] || d.reason || "not allowed here").toLowerCase()}`], o);
     case "TAMPER_WARNING": return log("warn", [rack, ` shake detected, jolt ${d.deviationG ?? "?"} g, warning chirp`], o);
     case "TAMPER_ALARM": return log("alarm", [rack, ` TAMPER ALARM, jolt ${d.deviationG ?? "?"} g, siren on`], o);
+    case "RELOCKED": return log("ok", [rack, d.reason === "TIMEOUT" ? " locked again by itself after 2 min" : d.reason === "CARD" ? ` ${who} locked it again` : " locked again"], o);
     case "DEVICE_BOOT": return log("info", [rack, ` lock module started${d.resetReason ? ` (${String(d.resetReason).toLowerCase()})` : ""}`], o);
     case "SENSOR_FAULT": return log("warn", [rack, ` sensor problem: ${String(d.sensor || d.component || "sensor").toLowerCase()} ${String(d.state || "").toLowerCase()}`], o);
     default: return log("info", [rack, ` ${e.eventType.toLowerCase().replaceAll("_", " ")}`], o);

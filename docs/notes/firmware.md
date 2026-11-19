@@ -111,7 +111,7 @@ pin numbers (2 and 3) even if unwired. On the Uno, a fake pin number like
   Follows slowly when calm, *very* slowly (0.002) while shaking so a shake can't
   "teach itself" as normal.
 - Deviation = length of the vector `(reading - baseline)` in g.
-- 3 consecutive samples over 0.35 g = jolt (filters one-sample noise spikes).
+- 3 consecutive samples over 0.30 g (`HBR_TAMPER_THRESHOLD_G`) = jolt (filters one-sample noise spikes).
 - Warning → (another jolt within 30 s) → Alarm. 3 s cooldown so one
   shake = one event, not fifty.
 - The siren runs at least 10 s (`HBR_TAMPER_ALARM_MS`) and stops only once the post has

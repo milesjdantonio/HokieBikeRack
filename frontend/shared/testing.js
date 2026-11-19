@@ -185,7 +185,7 @@ function build() {
     h("div", { class: "hbt-sec" },
       h("h3", { class: "hbt-h" }, "Lock"),
       h("div", { class: "hbt-row" },
-        btn("Unlock 5 s", () => send("unlock"), "", true),
+        btn("Unlock", () => send("unlock"), "", true),
         btn("Lock Now", () => send("lock"), "", true)),
       h("div", { class: "hbt-row" },
         servoDeg,

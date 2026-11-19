@@ -46,6 +46,7 @@ hbr::TamperDetector tamper([] {
   hbr::TamperConfig c;
   c.alarmMinMs = HBR_TAMPER_ALARM_MS;
   c.alarmQuietMs = HBR_TAMPER_ALARM_QUIET_MS;
+  c.thresholdG = HBR_TAMPER_THRESHOLD_G;
   return c;
 }());
 hbr::CardDebouncer debouncer(2000);
@@ -53,6 +54,12 @@ uint32_t lastTamperSampleMs = 0;
 bool readerWasOk = true;
 bool accelWasOk = true;
 bool alarmWasOn = false;
+// Who opened the lock: only that card locks it again. (A test `unlock` has no owner,
+// so then any allowed card locks it.)
+uint8_t openedBy[hbr::kCardRefLength];
+bool openedByCard = false;
+uint32_t unlockedAtMs = 0;
+bool reminderLogged = false;
 bool simShakeActive = false;  // serial `shake` command
 uint32_t simShakeUntilMs = 0;
 
@@ -138,6 +145,50 @@ void unenrollCard(const uint8_t ref[hbr::kCardRefLength]) {
   feedbackPlay(hbr::Pattern::Denied);  // red = this card no longer opens the rack
 }
 
+// Unlock. It stays open until the same card taps again, or HBR_UNLOCK_DURATION_MS runs out.
+// ref = the card that opened it, or nullptr (test command).
+void openLock(const uint8_t *ref) {
+  lockRequestUnlock();
+  openedByCard = ref != nullptr;
+  if (ref) memcpy(openedBy, ref, hbr::kCardRefLength);
+  unlockedAtMs = millis();
+  reminderLogged = false;
+  // An allowed card also silences a tamper alarm (the owner is back).
+  tamper.silence();
+  alarmWasOn = false;
+  feedbackStop();
+  feedbackPlay(hbr::Pattern::Granted, HBR_UNLOCK_REMINDER_MS);  // green, then the reminder
+}
+
+// Lock again: the rider tapped (CARD), the time ran out (TIMEOUT) or a test command.
+// Callers only call it while it's open (TIMEOUT: lockUpdate() has just closed it).
+void relock(const __FlashStringHelper *reason, const uint8_t *mac) {
+  if (lockIsCommandedUnlocked()) lockRequestLock();  // TIMEOUT: the timer already closed it
+  openedByCard = false;
+  feedbackStop();
+  feedbackPlay(hbr::Pattern::Granted, 300);  // short green + beep: "locked"
+  printEvent(F("RELOCKED"), F("INFO"));
+  Serial.print(F(" reason="));
+  Serial.print(reason);
+  if (mac) printFullRef(mac);
+  Serial.println();
+}
+
+// While it's open: after HBR_UNLOCK_REMINDER_MS, keep the reminder going (it also comes back
+// after something else, like a denied card, interrupted it).
+void unlockReminder() {
+  if (!lockIsCommandedUnlocked()) return;
+  if (millis() - unlockedAtMs < HBR_UNLOCK_REMINDER_MS) return;
+  if (feedbackCurrent() != hbr::Pattern::None) return;
+  if (!reminderLogged) {
+    Serial.print(F("[lock] still open: red flash + beep until the same card taps again (auto re-lock at "));
+    Serial.print(HBR_UNLOCK_DURATION_MS / 1000);
+    Serial.println(F(" s)"));
+    reminderLogged = true;
+  }
+  feedbackPlay(hbr::Pattern::UnlockReminder, hbr::kUntilStopped);
+}
+
 void handleCard(const CardId &card) {
   if (!debouncer.shouldProcess(card.bytes, card.length, millis())) return;  // still on the reader
   Serial.print(F("[card] read a "));
@@ -157,13 +208,20 @@ void handleCard(const CardId &card) {
   if (cardMode == CardMode::Enroll) return enrollCard(ref);
   if (cardMode == CardMode::Unenroll) return unenrollCard(ref);
 
-  if (cardStore().contains(ref)) {
-    lockRequestUnlock();
-    // An allowed card also silences a tamper alarm (the owner is back).
-    tamper.silence();
-    alarmWasOn = false;
-    feedbackStop();
-    feedbackPlay(hbr::Pattern::Granted, HBR_UNLOCK_DURATION_MS);
+  if (cardStore().contains(ref) && lockIsCommandedUnlocked()) {
+    if (!openedByCard || memcmp(openedBy, ref, hbr::kCardRefLength) == 0) {
+      relock(F("CARD"), mac);  // the rider's second tap: lock it again
+      return;
+    }
+    // Someone else's card while it's open for another rider.
+    feedbackPlay(hbr::Pattern::Denied);
+    printEvent(F("ACCESS_DENIED"), F("LOW"));
+    Serial.print(F(" card="));
+    printShortRef(ref);
+    printFullRef(mac);
+    Serial.println(F(" reason=IN_USE"));
+  } else if (cardStore().contains(ref)) {
+    openLock(ref);
     printEvent(F("ACCESS_GRANTED"), F("INFO"));
     Serial.print(F(" card="));
     printShortRef(ref);
@@ -475,11 +533,11 @@ void runCommand(const char *line) {
       Serial.println(F("usage: servo <deg>  (0-180)"));
     }
   } else if (is(line, PSTR("lock"))) {
-    lockRequestLock();
+    if (lockIsCommandedUnlocked()) relock(F("COMMAND"), nullptr);
+    else lockRequestLock();  // e.g. after `servo <deg>`: back to the LOCKED angle
   } else if (is(line, PSTR("unlock"))) {
-    // Same as an allowed card, without the card: unlock, green, one beep.
-    lockRequestUnlock();
-    feedbackPlay(hbr::Pattern::Granted, HBR_UNLOCK_DURATION_MS);
+    // Same as an allowed card, without the card. Any allowed card (or `lock`) locks it again.
+    openLock(nullptr);
     Serial.println(F("ok: unlocked by test command"));
   } else if (is(line, PSTR("silence"))) {
     // What an allowed card does to a running siren.
@@ -586,7 +644,8 @@ void loop() {
   }
   alarmWasOn = alarmOn;
 
-  lockUpdate();
+  if (lockUpdate()) relock(F("TIMEOUT"), nullptr);
+  unlockReminder();
   reportSensorChanges();
 
   feedbackSetReady(rackReady());

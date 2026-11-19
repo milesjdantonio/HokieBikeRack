@@ -22,7 +22,7 @@
 |---|---|---|
 | 1 | Admin types `enroll` in the serial monitor and taps the rider's card. Its reference (HMAC, first 16 bytes) is saved in EEPROM. | `main.cpp`, `card_list.cpp` |
 | 2 | Rider taps. The loop reads the ID over I2C without waiting, debounces it, and turns it into the reference. | `card_reader.cpp`, `credential_ref.cpp` |
-| 3 | Reference in the EEPROM list → unlock 5 s, green + beep. Not listed → red + two beeps. | `card_store.cpp`, `lock.cpp` |
+| 3 | Reference in the EEPROM list → unlock, green + beep; the same card again locks it (or after 120 s).  Not listed → red + two beeps. | `card_store.cpp`, `lock.cpp` |
 | 4 | Every event is printed as `[event] t+12s ACCESS_GRANTED (INFO) card=cb9df64f5164...`. | `main.cpp` |
 | 5 | Shaking works exactly like Journey 2 below. | `tamper_detector.cpp` |
 | 6 | To take access away: `unenroll` + tap, or `list` + `remove <n>`. | `main.cpp` |
@@ -77,7 +77,7 @@ Three rules shape everything:
 
 1. Every 20 ms the loop reads the MPU-6050 (x, y, z in g).
 2. `TamperDetector` keeps a slowly-moving **baseline** (normal reading, roughly gravity).
-3. Distance from baseline above **0.35 g** for **3 samples in a row** = a jolt.
+3. Distance from baseline above **0.30 g** for **3 samples in a row** = a jolt.
 4. First jolt → **WARNING**: red blinks + 3 quick chirps, `TAMPER_WARNING` (MEDIUM) event.
 5. Another jolt within **30 s** (after a 3 s cooldown) → **ALARM**: flashing red + siren for **at least 10 s, until the rack has been still for 5 s**, `TAMPER_ALARM` (HIGH) event.
 6. Dashboard: rack turns **WARNING** (amber) until an admin clicks *Acknowledge*.

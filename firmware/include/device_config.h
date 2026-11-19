@@ -52,7 +52,10 @@
 #endif
 
 // Behaviour timings (not secrets, so they live here instead of config.h).
-constexpr uint32_t HBR_UNLOCK_DURATION_MS = 5000;     // momentary unlock length
+// A card unlocks; the SAME card locks it again. If the rider doesn't, it re-locks by itself.
+constexpr uint32_t HBR_UNLOCK_DURATION_MS = 120000;   // auto re-lock this long after unlocking
+constexpr uint32_t HBR_UNLOCK_REMINDER_MS = 10000;    // then: red flash every 1 s + beep every 2 s
+constexpr float HBR_TAMPER_THRESHOLD_G = 0.30f;      // a jolt this big (in g) counts as tampering
 constexpr uint32_t HBR_TAMPER_GRACE_MS = 10000;       // ignore jolts this long after re-lock
 constexpr uint32_t HBR_TAMPER_SAMPLE_MS = 20;         // 50 accelerometer samples per second
 constexpr uint32_t HBR_TAMPER_ALARM_MS = 10000;       // the siren runs at least this long...
