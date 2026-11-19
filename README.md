@@ -36,6 +36,12 @@ python tools/device_simulator.py demo
 4. In the serial monitor, type `enroll` and tap a card to allow it
 5. Follow [docs/notes/hardware-test-checklist.md](docs/notes/hardware-test-checklist.md)
 
+## Hosting online (Render)
+
+The website as a free static site and the backend as a free web service, from
+[render.yaml](render.yaml). The pages show "Starting the Server" while a sleeping backend wakes.
+Steps: [docs/notes/hosting-render.md](docs/notes/hosting-render.md).
+
 ## Stack
 | Part | Tech |
 |---|---|

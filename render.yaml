@@ -1,0 +1,71 @@
+# Render Blueprint: Render dashboard > New > Blueprint > pick this repo. It creates three things:
+#   hokiebikerack       the website (frontend/), a static site: loads instantly, never sleeps
+#   hokiebikerack-api   the backend (backend/Dockerfile): sleeps after 15 min idle on the free plan,
+#                       ~1 min to wake; the pages show "Starting the Server" meanwhile (js/backend.js)
+#   hokiebikerack-db    PostgreSQL (the free one is deleted after 30 days unless upgraded)
+# Step by step: docs/notes/hosting-render.md
+
+databases:
+  - name: hokiebikerack-db
+    plan: free
+    databaseName: hokiebikerack
+    user: hokiebikerack
+
+services:
+  - type: web
+    name: hokiebikerack-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health
+    buildFilter:
+      paths: ["backend/**"]
+    envVars:
+      - key: DB_HOST
+        fromDatabase: { name: hokiebikerack-db, property: host }
+      - key: DB_PORT
+        fromDatabase: { name: hokiebikerack-db, property: port }
+      - key: DB_NAME
+        fromDatabase: { name: hokiebikerack-db, property: database }
+      - key: DB_USERNAME
+        fromDatabase: { name: hokiebikerack-db, property: user }
+      - key: DB_PASSWORD
+        fromDatabase: { name: hokiebikerack-db, property: password }
+      # The website's address, e.g. https://hokiebikerack.onrender.com (Render asks for it).
+      - key: HBR_ALLOWED_ORIGINS
+        sync: false
+      # false = no sign-in, anyone with the link acts as admin (the demo). See the hosting notes.
+      - key: HBR_LOGIN_REQUIRED
+        value: "false"
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: VIEWER_PASSWORD
+        generateValue: true
+
+  - type: web
+    name: hokiebikerack
+    runtime: static
+    # Writes the API's address into the site (frontend/js/backend-url.js). Nothing else to build.
+    buildCommand: printf 'export default "%s";\n' "$HBR_BACKEND_URL" > frontend/js/backend-url.js
+    staticPublishPath: ./frontend
+    buildFilter:
+      paths: ["frontend/**"]
+    envVars:
+      # The API's address, e.g. https://hokiebikerack-api.onrender.com (Render asks for it).
+      - key: HBR_BACKEND_URL
+        sync: false
+    headers:
+      # Same rules the backend sends when it serves the site itself (SecurityConfig), plus the API.
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; connect-src 'self' https://*.onrender.com https://tiles.openfreemap.org https://server.arcgisonline.com https://photon.komoot.io; img-src 'self' data: blob: https://tiles.openfreemap.org https://server.arcgisonline.com; object-src 'none'; frame-ancestors 'self'"
+      - path: /*
+        name: X-Frame-Options
+        value: SAMEORIGIN
+      - path: /*
+        name: Referrer-Policy
+        value: no-referrer
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff

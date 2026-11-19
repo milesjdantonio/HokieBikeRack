@@ -5,6 +5,8 @@
 // for a local demo; a real deployment would use proper login sessions/tokens
 // over HTTPS. See docs/notes/frontend.md.
 
+import { apiUrl, backendReady } from "./backend.js";
+
 const AUTH_KEY = "hbr.auth";
 let onUnauthorized = () => {};
 
@@ -45,7 +47,8 @@ export function setUnauthorizedHandler(fn) {
  * @param {string} path  path after /api/v1
  */
 export async function api(path, { method = "GET", body, query } = {}) {
-  const url = new URL(`/api/v1${path}`, window.location.origin);
+  await backendReady();   // "Starting the Server" while a sleeping backend wakes (backend.js)
+  const url = new URL(apiUrl(path));
   for (const [k, v] of Object.entries(query || {})) {
     if (v !== undefined && v !== null && v !== "") url.searchParams.set(k, v);
   }

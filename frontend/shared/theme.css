@@ -512,3 +512,16 @@ body.view-app .rider-warning { top: 60px; }
 .kv dt { color: var(--faint); font-size: 13px; }
 .kv dd { margin: 0; overflow-wrap: anywhere; }
 body.view-app .rider-warning { position: sticky; top: 56px; left: auto; transform: none; width: auto; margin: 0 12px 10px; }
+
+/* ---------- waking the server (js/backend.js) ---------- */
+.server-status { margin: -12px 0 0; min-height: 1.4em; color: var(--muted); font-size: 0.95rem; }
+.server-status[data-state="ready"] { color: var(--positive); }
+.wake { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 16px; background: var(--ground); }
+.wake-card { width: min(460px, 100%); display: grid; gap: 14px; }
+.wake-title { font-family: var(--display); font-weight: 300; font-size: clamp(1.8rem, 5vw, 2.4rem); line-height: 1.1; margin: 0; color: var(--ink); }
+.wake-lead, .wake-help { margin: 0; color: var(--muted); line-height: 1.5; }
+.wake-help { color: var(--warning); }
+.wake-bar { height: 6px; border-radius: 3px; background: var(--panel-3); overflow: hidden; }
+.wake-fill { height: 100%; background: var(--accent); transform: scaleX(0); transform-origin: left; transition: transform 0.5s linear; }
+.wake-time { margin: 0; color: var(--faint); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+@media (prefers-reduced-motion: reduce) { .wake-fill { transition: none; } }

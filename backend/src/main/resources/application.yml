@@ -5,7 +5,8 @@ spring:
     name: hokiebikerack-api
   datasource:
     # Used when NOT running the "embedded" profile.
-    url: ${DB_URL:jdbc:postgresql://localhost:5432/hokiebikerack}
+    # Either the whole DB_URL, or its parts (Render passes host/port/name separately).
+    url: ${DB_URL:jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hokiebikerack}}
     username: ${DB_USERNAME:hokiebikerack}
     password: ${DB_PASSWORD:change-me-locally}
   flyway:
@@ -21,7 +22,7 @@ spring:
       static-locations: file:${HBR_FRONTEND_DIR:../frontend}/
 
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${SERVER_PORT:${PORT:8080}}   # Render sets PORT
   error:
     include-message: always   # our error messages never contain secrets
     include-stacktrace: never
@@ -41,6 +42,9 @@ hbr:
     admin-password: ${ADMIN_PASSWORD:}     # empty = a random one is generated and logged
     viewer-username: ${VIEWER_USERNAME:viewer}
     viewer-password: ${VIEWER_PASSWORD:}
+  # Other websites whose pages may call the API, comma-separated, e.g. the Render static site
+  # "https://hokiebikerack.onrender.com". Empty = only pages served by this server.
+  allowed-origins: ${HBR_ALLOWED_ORIGINS:}
   embedded-db:
     # Kept OUTSIDE the repo on purpose: OneDrive syncing live database files
     # can corrupt them.

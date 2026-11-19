@@ -6,6 +6,7 @@
 //
 // The lock module's token never leaves this browser: it's kept in localStorage, per lock module.
 import { link } from "./rack-link.js";
+import { apiUrl } from "../js/backend.js";
 
 const HEARTBEAT_MS = 30000;
 const TOKEN_KEY = (deviceId) => `hbr-usb-token:${deviceId}`;
@@ -86,7 +87,7 @@ function parseDetails(type, rest) {
 }
 
 async function post(path, body) {
-  const res = await fetch(`/api/v1/devices/${bound.deviceId}${path}`, {
+  const res = await fetch(apiUrl(`/devices/${bound.deviceId}${path}`), {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${bound.token}` },
     body: JSON.stringify(body),

@@ -6,11 +6,15 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Arrays;
+import java.util.List;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
@@ -23,6 +27,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.security.web.authentication.AnonymousAuthenticationFilter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Who may call what. Three separate "filter chains", checked in order:
@@ -31,6 +38,10 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
  *  2. /api/**             -> people, with HTTP Basic login. GET = ADMIN or VIEWER,
  *                            anything that changes data = ADMIN only.
  *  3. everything else     -> the static dashboard files; public (they contain no data).
+ *
+ * CORS: when the website is hosted somewhere else (Render: a static site plus this API), its
+ * address goes in HBR_ALLOWED_ORIGINS so its pages may call /api/**. Empty (the default, and
+ * running locally) = only pages served by this server itself.
  *
  * Why CSRF protection is off: CSRF attacks abuse cookies the browser sends
  * automatically. We use no cookies or sessions; every request must carry an
@@ -61,6 +72,7 @@ public class SecurityConfig {
   SecurityFilterChain deviceChain(HttpSecurity http, DeviceAuthService deviceAuth) throws Exception {
     return http
         .securityMatcher("/api/v1/devices/**")
+        .cors(Customizer.withDefaults())   // the USB bridge page posts a plugged-in rack's events
         .csrf(c -> c.disable())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .addFilterBefore(new DeviceTokenFilter(deviceAuth), AnonymousAuthenticationFilter.class)
@@ -81,6 +93,7 @@ public class SecurityConfig {
     }
     return http
         .securityMatcher("/api/**")
+        .cors(Customizer.withDefaults())
         .csrf(c -> c.disable())
         .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .httpBasic(b -> b.authenticationEntryPoint(JSON_401))
@@ -119,6 +132,23 @@ public class SecurityConfig {
             .frameOptions(fo -> fo.sameOrigin())
             .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER)))
         .build();
+  }
+
+  /** Which other websites may call the API (HBR_ALLOWED_ORIGINS, comma-separated). */
+  @Bean
+  CorsConfigurationSource corsConfigurationSource(@Value("${hbr.allowed-origins:}") String origins) {
+    List<String> list = Arrays.stream(origins.split(",")).map(String::trim)
+        .map(o -> o.replaceAll("/+$", "")).filter(o -> !o.isEmpty()).toList();
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    if (list.isEmpty()) return source;
+    CorsConfiguration c = new CorsConfiguration();
+    c.setAllowedOrigins(list);
+    c.setAllowedMethods(List.of("GET", "POST", "PATCH", "DELETE", "OPTIONS"));
+    c.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept", "X-Rider-Code"));
+    c.setMaxAge(3600L);
+    source.registerCorsConfiguration("/api/**", c);
+    log.info("API open to these websites too: {}", list);
+    return source;
   }
 
   /** bcrypt: a deliberately slow password hash, so stolen hashes are hard to crack. */

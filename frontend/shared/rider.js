@@ -9,6 +9,7 @@ import { riveIcon } from "../js/rive.js";
 import { rackMap } from "./map.js";
 import { icon } from "./icons.js";
 import { createLive, isAlarm } from "./live.js";
+import { apiUrl, backendReady } from "../js/backend.js";
 
 const params = new URLSearchParams(location.search);
 const APP = params.get("view") === "app" || (params.get("view") !== "desktop" && matchMedia("(max-width: 760px)").matches);
@@ -34,7 +35,8 @@ async function riderApi(path, { method = "GET", body } = {}) {
   if (myCode) headers["X-Rider-Code"] = myCode;
   if (body) headers["Content-Type"] = "application/json";
   let res;
-  try { res = await fetch(`/api/v1${path}`, { method, headers, body: body ? JSON.stringify(body) : undefined }); }
+  await backendReady();
+  try { res = await fetch(apiUrl(path), { method, headers, body: body ? JSON.stringify(body) : undefined }); }
   catch { throw new Error("Can't reach HokieBikeRack right now."); }
   const data = await res.json().catch(() => null);
   if (!res.ok) {
