@@ -535,7 +535,8 @@ function renderDetail(body, r, data, { focus } = {}) {
         const res = await act(() => api(`/racks/${r.id}/reset-spots`, { method: "POST" }), "Spots reset");
         if (res) log("ok", [{ b: slug(r.name) }, " spots reset: all open"]);
       }, "btn-quiet"),
-      btn(r.latitude != null ? "Move on Map" : "Place on Map", () => (APP ? openPlaceSheet({ rack: r }) : startMove(r)))))];
+      btn(r.latitude != null ? "Move on Map" : "Place on Map", () => (APP ? openPlaceSheet({ rack: r }) : startMove(r))))),
+    deleteBlock(r)];
   })() : [];
 
   const titleEl = h("h1", { class: "panel-title" }, r.name);
@@ -634,6 +635,18 @@ async function renameRack(r, name) {
   const res = await act(() => api(`/racks/${r.id}`, { method: "PATCH", body: { name } }), `Renamed to ${name}`);
   if (res) log("ok", [{ b: slug(r.name) }, " renamed to ", { b: slug(name) }]);
   return res;
+}
+
+/** Delete Rack, asking in the panel first (same as `delete <rack> confirm` in the terminal). */
+function deleteBlock(r) {
+  const box = h("div", { class: "panel-actions" });
+  const ask = () => fill(box,
+    h("p", { class: "hint" }, `Delete ${r.name} for good? Its lock module, events and incidents go too. Cards stay. This can't be undone.`),
+    btn("Delete Rack", async (e) => { e.currentTarget.disabled = true; if (!(await deleteRack(r))) idle(); }, "btn-danger"),
+    btn("Cancel", () => idle(), "btn-quiet"));
+  const idle = () => fill(box, btn("Delete Rack", ask, "btn-quiet"));
+  idle();
+  return box;
 }
 
 async function deleteRack(r) {
