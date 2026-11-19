@@ -7,6 +7,7 @@
 //   ]);
 // A pose is a list of [frame, value, ease?] or a single value (held). Missing = hold `base`.
 
+/** Builds each named animation from its poses: tracks[name][property] = keyframes. */
 export function posed(ab, anims, tracks) {
   const out = {};
   for (const [name, opts] of Object.entries(anims)) {

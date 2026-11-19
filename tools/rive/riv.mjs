@@ -33,6 +33,7 @@ function lookup(cls, prop) {
   throw new Error(`Rive: ${cls} has no property "${prop}"`);
 }
 
+/** The .riv type number of a Rive object class (throws for an unknown one). */
 function typeKeyOf(cls) {
   const c = CLASSES[cls];
   if (!c || c.typeKey == null) throw new Error(`Rive: unknown object type ${cls}`);
@@ -423,4 +424,5 @@ export class RivFile {
   }
 }
 
+/** Seconds -> animation frames. */
 export const sec = (s, fps = 60) => Math.round(s * fps);

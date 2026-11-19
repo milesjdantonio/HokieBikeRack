@@ -24,7 +24,7 @@ firmware/
      lock.cpp             Servo library (only if HBR_ENABLE_SERVO 1)
      feedback.cpp         digitalWrite to LEDs/buzzer
      main.cpp             wires it together + serial console
-  test/                   ← Unity tests: pio test -e native  (43 tests)
+  test/                   ← Unity tests: pio test -e native  (45 tests)
 ```
 **Lesson:** if logic doesn't touch hardware, you can test it in seconds on a
 laptop, including weird cases like `millis()` wrapping around after 49 days.

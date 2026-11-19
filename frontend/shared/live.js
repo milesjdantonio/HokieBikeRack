@@ -11,6 +11,7 @@
 //   live.start();  live.refresh();  // refresh right after an action, so the page updates at once
 import { api } from "../js/api.js";
 
+/** Polls the backend every `every` ms for the data in `want` and emits change / event / rack / incident. */
 export function createLive({ every = 4000, want = {} } = {}) {
   const state = { racks: [], events: [], unknown: [], incidents: [], cards: [], requests: [], ok: null, loaded: false };
   const handlers = {};
@@ -113,7 +114,9 @@ export function findRack(racks, text) {
     || null;
 }
 
+/** A tamper alarm is open at this rack. */
 export const isAlarm = (r) => r.openAlarms > 0;
+/** The rack is up: ONLINE, or WARNING (online with a sensor problem or alert). */
 export const isUp = (r) => r.status === "ONLINE" || r.status === "WARNING";
 
 /** For the map pins (pin.riv): police (an open incident) > alarm > status. The label shows open spots. */

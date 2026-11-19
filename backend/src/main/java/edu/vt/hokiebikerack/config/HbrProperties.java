@@ -19,6 +19,7 @@ public record HbrProperties(
     @DefaultValue Users users,
     @DefaultValue EmbeddedDb embeddedDb) {
 
+  /** The two website logins (hbr.users.*). An empty password = a random one, printed at start-up. */
   public record Users(
       @DefaultValue("admin") String adminUsername,
       @DefaultValue("") String adminPassword,

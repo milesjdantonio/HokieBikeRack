@@ -5,6 +5,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/** App-wide beans: turns on the hbr.* settings (HbrProperties) and provides the clock. */
 @Configuration
 @EnableConfigurationProperties(HbrProperties.class)
 public class AppConfig {

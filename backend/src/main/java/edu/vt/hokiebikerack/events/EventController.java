@@ -38,11 +38,13 @@ public class EventController {
     return events.search(filter, page, size);
   }
 
+  /** POST /api/v1/events/{id}/acknowledge: mark one event handled. */
   @PostMapping("/{eventId}/acknowledge")
   public EventView acknowledge(@PathVariable UUID eventId, Principal user) {
     return events.acknowledge(eventId, user.getName());
   }
 
+  /** POST /api/v1/events/acknowledge-rack/{rackId}: mark all of a rack's alerts handled (and resolve its incident). */
   @PostMapping("/acknowledge-rack/{rackId}")
   public RackHandled acknowledgeRack(@PathVariable UUID rackId, Principal user) {
     return events.acknowledgeAllForRack(rackId, user.getName());

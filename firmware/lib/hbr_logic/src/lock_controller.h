@@ -35,6 +35,7 @@ class LockController {
     return false;
   }
 
+  // What the lock was last told: true = unlocked.
   bool isUnlocked() const { return unlocked_; }
 
   // True while unlocked or within `graceMs` after it locked again. Used to
@@ -47,6 +48,7 @@ class LockController {
     return nowMs - lockedAtMs_ < graceMs;
   }
 
+  // How long an unlock lasts before it re-locks by itself (HBR_UNLOCK_DURATION_MS).
   uint32_t unlockMs() const { return unlockMs_; }
 
  private:

@@ -9,6 +9,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1")
 public class HealthController {
+  /** GET /api/v1/health: always "ok" while the server runs. Public; the pages ping it while the server wakes. */
   @GetMapping("/health")
   public Map<String, String> health() {
     return Map.of("status", "ok", "service", "hokiebikerack-api");

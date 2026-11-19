@@ -73,6 +73,7 @@ export const link = {
   onChange(fn) { changeFns.add(fn); return () => changeFns.delete(fn); },
 };
 
+/** Tells the listeners that connected / ready changed. */
 function changed() { for (const fn of changeFns) { try { fn(link); } catch (e) { console.error(e); } } }
 
 // `sent` lines are our own commands echoed into the log. `sim` names the test command (tap,
@@ -82,6 +83,7 @@ function emit(line, sent = false) {
   for (const fn of lineFns) { try { fn(line, info); } catch (e) { console.error(e); } }
 }
 
+/** Reads the port until it closes, splitting it into lines; notes the firmware version and "Ready.". */
 async function readLoop() {
   let buffer = "";
   try {

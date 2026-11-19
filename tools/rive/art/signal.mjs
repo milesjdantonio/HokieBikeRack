@@ -10,6 +10,7 @@ import { posed } from '../pose.mjs';
 
 const S = 32;
 const LIT = '#3fd68a', BRIGHT = '#c8ffe0', DIM = '#2a323c', GREY = '#5b6572', RED = '#ff6b6b';
+/** A colour with alpha: hex("#ff0000", 0.5) -> "#ff000080". */
 const hex = (c, a = 1) => c + Math.round(a * 255).toString(16).padStart(2, '0');
 
 export default function build() {

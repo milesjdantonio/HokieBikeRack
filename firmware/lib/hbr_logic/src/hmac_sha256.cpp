@@ -1,3 +1,5 @@
+// SHA-256 and HMAC-SHA256, written out so the Uno needs no crypto library (FIPS 180-4, RFC 2104).
+// Checked against the standard test vectors in test/test_card_list.
 #include "hmac_sha256.h"
 
 #include <string.h>

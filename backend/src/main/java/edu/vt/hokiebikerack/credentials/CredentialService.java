@@ -73,15 +73,18 @@ public class CredentialService {
         Db.instant(rs, "last_used_at"), rs.getLong("granted_count"), rs.getString("rider_name"));
   }
 
+  /** Every card, sorted by name. */
   public List<CredentialView> list() {
     return jdbc.sql(SELECT + " ORDER BY lower(c.display_label), c.created_at").query((rs, n) -> map(rs)).list();
   }
 
+  /** One card, or 404. */
   public CredentialView get(UUID id) {
     return jdbc.sql(SELECT + " WHERE c.id = :id").param("id", id).query((rs, n) -> map(rs)).optional()
         .orElseThrow(() -> ApiException.notFound("Credential"));
   }
 
+  /** Registers a card. 409 if that reference is already registered. Bumps the revision so racks re-download. */
   @Transactional
   public CredentialView create(CreateCredential req, String actor) {
     String ref = req.credentialReference().toLowerCase();
@@ -112,6 +115,7 @@ public class CredentialService {
     return get(id);
   }
 
+  /** Changes only the fields sent. A revoked card stays revoked. Bumps the revision. */
   @Transactional
   public CredentialView update(UUID id, UpdateCredential req, String actor) {
     CredentialView before = get(id);

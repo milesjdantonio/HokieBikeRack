@@ -28,6 +28,7 @@ import org.springframework.context.annotation.Profile;
 public class EmbeddedPostgresConfig {
   private static final Logger log = LoggerFactory.getLogger(EmbeddedPostgresConfig.class);
 
+  /** Starts PostgreSQL inside the app (no install needed), keeping its data in hbr.embedded-db.data-dir. */
   @Bean(destroyMethod = "close")
   public EmbeddedPostgres embeddedPostgres(HbrProperties props) throws IOException {
     HbrProperties.EmbeddedDb cfg = props.embeddedDb();

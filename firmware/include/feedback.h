@@ -6,6 +6,7 @@
 
 #include "feedback_player.h"
 
+// Call once from setup(): sets the LED and buzzer pins as outputs, all off.
 void feedbackSetup();
 // Start a pattern. holdMs = green-on time for Granted, siren time for TamperAlarm.
 void feedbackPlay(hbr::Pattern pattern, uint32_t holdMs = 0);

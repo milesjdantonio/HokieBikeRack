@@ -30,6 +30,7 @@ let myCode = localStorage.getItem(CODE_KEY);
 let me = null;          // GET /rider/me
 let meError = "";
 const warned = new Set();
+/** Calls the rider API with this device's rider code (if any). Throws an Error with the server's message. */
 async function riderApi(path, { method = "GET", body } = {}) {
   const headers = { Accept: "application/json" };
   if (myCode) headers["X-Rider-Code"] = myCode;
@@ -47,20 +48,26 @@ async function riderApi(path, { method = "GET", body } = {}) {
   }
   return data;
 }
+/** Reloads "my card" (where my bike is parked, alarms there) for the saved rider code. */
 async function refreshMe() {
   if (!myCode) { me = null; return; }
   try { me = await riderApi("/rider/me"); meError = ""; }
   catch (e) { if (e.status === 404) { meError = "That rider code doesn't match anyone. Check it, or request access."; me = null; } }
 }
+/** IDs of the racks my bike is parked at. */
 const myRackIds = () => new Set((me?.parked || []).map((p) => p.rackId));
+/** Racks with my bike that have an alarm or a police report (for the banner). */
 function myWarnings() {
   return (me?.parked || []).filter((p) => p.alarm || p.reported);
 }
 
 // ---------- words riders read ----------
 const installed = (r) => r.deviceCount > 0;
+/** Reported to the police (an incident is open). */
 const reported = (r) => Boolean(r.incidentStatus);
+/** Under a quarter of its spots are open. */
 const few = (r) => r.openSpots > 0 && r.openSpots / r.capacity < 0.25;
+/** The open-spots badge for a rack: big text, small text and colour. */
 function spots(r) {
   if (!installed(r)) return { big: "-", small: "Not open yet", cls: "muted" };
   if (reported(r)) return { big: "Closed", small: "Reported", cls: "reported" };
@@ -68,11 +75,13 @@ function spots(r) {
   if (r.openSpots === 0) return { big: "Full", small: `${r.capacity} of ${r.capacity} in use`, cls: "full" };
   return { big: String(r.openSpots), small: `of ${r.capacity} spot${r.capacity === 1 ? "" : "s"} open`, cls: few(r) ? "few" : "open" };
 }
+/** The alarm line for a rack: now, last time, or never. */
 function alarm(r) {
   if (isAlarm(r)) return { text: "Alarm now", sub: "Staff have been alerted", cls: "alarm" };
   if (r.lastAlarmAt) return { text: `Last alarm ${ago(r.lastAlarmAt)}`, sub: "Quiet now", cls: "" };
   return { text: "No alarms", sub: "Never had one", cls: "calm" };
 }
+/** One plain sentence about the rack for a rider (closed, full, alarm...). */
 function sentence(r) {
   if (!installed(r)) return "This rack isn't open yet.";
   if (reported(r)) return "This rack was reported to the police. Please use another rack for now.";
@@ -81,18 +90,22 @@ function sentence(r) {
   if (few(r)) return "Almost full. Tap your card on the reader: a green light and one beep, and it's open for 5 seconds.";
   return "Ready. Tap your card on the reader: a green light and one beep, and it's open for 5 seconds.";
 }
+/** How far the rack is from me in km (null until "Find Nearest" got my location). */
 const distKm = (r) => (here && r.latitude != null ? haversine(here.lat, here.lng, r.latitude, r.longitude) : null);
+/** Distance in km between two latitude/longitude points (great-circle). */
 function haversine(a, b, c, d) {
   const R = 6371, rad = Math.PI / 180;
   const x = Math.sin(((c - a) * rad) / 2) ** 2 + Math.cos(a * rad) * Math.cos(c * rad) * Math.sin(((d - b) * rad) / 2) ** 2;
   return 2 * R * Math.asin(Math.sqrt(x));
 }
+/** Walking time at about 80 m a minute. */
 const walk = (km) => (km < 0.05 ? "right here" : `${Math.max(1, Math.round((km * 1000) / 80))} min walk`);
 // pin.riv states: 0 green, 5 yellow, 6 red, 7 flashing red + slash, 3 grey (not open yet).
 const riderPin = (r) => ({ ...r,
   pin: !installed(r) ? 3 : reported(r) || isAlarm(r) ? 7 : r.openSpots === 0 ? 6 : few(r) ? 5 : 0,
   label: `${r.name} · ${!installed(r) ? "not open" : reported(r) ? "reported" : isAlarm(r) ? "alarm" : r.openSpots === 0 ? "full" : `${r.openSpots} open`}` });
 
+/** Racks in list order: nearest first once my location is known, otherwise by name. */
 function sorted() {
   const list = S.racks.filter((r) => r.latitude != null || installed(r));
   return list.sort((a, b) => {
@@ -112,6 +125,7 @@ function rackCard(r, onOpen) {
       h("span", { class: `rc-alarm ${al.cls}` }, al.text)),
     icon("back"));
 }
+/** A rack's detail: animation, open spots, alarms and how to park with your card. */
 function detail(body, r) {
   const sp = spots(r), al = alarm(r);
   const scene = riveIcon("rack", { size: 440, height: 200, fit: "cover", align: "BottomCenter",
@@ -136,6 +150,7 @@ function detail(body, r) {
         h("li", {}, h("b", {}, "Leave"), " Tap the same card again to unlock and take your bike. That's how open spots are counted."),
         h("li", {}, h("b", {}, "Red light, two beeps?"), " Your card isn't registered for this rack. See My Card."))));
 }
+/** The My Card page: enter a rider code, or see where your bike is. */
 function myCard() {
   const page = h("div", { class: "sheet-inner rider-page rider-me-live" }, h("h1", {}, "My Card"));
   const forget = () => { if (!confirm("Forget your rider code on this device? Keep a copy first if you want to use it again.")) return;
@@ -228,6 +243,7 @@ function myCard() {
     codeLine);
 }
 
+/** The Alerts page: racks with an alarm or a police report right now. */
 function alertsPage() {
   const reports = S.racks.filter((r) => installed(r) && reported(r));
   const alarms = S.racks.filter((r) => isAlarm(r) && !reported(r));
@@ -241,6 +257,7 @@ function alertsPage() {
       : h("div", { class: "all-clear" }, riveIcon("badge", { size: 56, inputs: { kind: 1 } }).el, h("b", {}, "All good"), h("span", {}, "Every rack is working.")));
 }
 
+/** Find Nearest: asks for my location, then opens the closest rack with open spots. */
 function findNearest() {
   if (!navigator.geolocation) { toast("Location isn't available in this browser."); return; }
   navigator.geolocation.getCurrentPosition((p) => {
@@ -252,6 +269,7 @@ function findNearest() {
 }
 
 const toasts = h("div", { class: "toasts", role: "status", "aria-live": "polite" });
+/** A short message at the bottom of the screen. */
 function toast(text) {
   const t = h("div", { class: "toast" }, text);
   toasts.append(t);
@@ -261,6 +279,7 @@ function toast(text) {
 
 // ---------- desktop ----------
 let map, listEl, pageEl, detailEl, page = "racks";
+/** Builds the browser layout: map, rack list and detail panel. */
 function buildDesktop(root) {
   listEl = h("div", { class: "rider-list" });
   detailEl = h("aside", { class: "panel rider-panel", hidden: true });
@@ -276,6 +295,7 @@ function buildDesktop(root) {
     h("section", { class: "map-area" }, mapEl, detailEl), pageEl));
   map = rackMap(mapEl, { look: { ground: "#07090c", building: "#1d242d", label: "#d6dde5" }, onSelect: (r) => openRack(r.id) });
 }
+/** Switches page in the browser layout (racks, my card, alerts). */
 function go(p) {
   page = p;
   pageEl.hidden = p === "racks";
@@ -283,6 +303,7 @@ function go(p) {
   if (p === "card") fill(pageEl, myCard());
   if (p === "alerts") fill(pageEl, alertsPage());
 }
+/** Opens a rack's detail (panel, or sheet in the app layout). */
 function openRack(id) {
   const r = S.racks.find((x) => x.id === id);
   if (!r) return;
@@ -298,6 +319,7 @@ function openRack(id) {
   if (r.latitude != null) map.select(id);
   render();
 }
+/** Closes the rack detail. */
 function closeRack() {
   openId = null;
   detailEl.hidden = true;
@@ -309,6 +331,7 @@ function closeRack() {
 
 // ---------- app ----------
 let appMain, appTabs, appTitle, appSheet, appMapEl, appMap = null, tab = "racks";
+/** Builds the phone app layout with bottom tabs. */
 function buildApp(root) {
   appTitle = h("h1", { class: "app-title" }, "Racks");
   appMain = h("main", { class: "app-main" });
@@ -318,6 +341,7 @@ function buildApp(root) {
   appSheet = h("div", { class: "app-sheet", hidden: true });
   root.append(h("header", { class: "app-head" }, h("span", { class: "brand-mark" }, riveIcon("logo", { size: 26 }).el), appTitle), appMain, appMapEl, appTabs, appSheet);
 }
+/** Switches tab in the app layout. */
 function appGo(id) {
   tab = id;
   for (const a of appTabs.querySelectorAll("a")) { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
@@ -330,6 +354,7 @@ function appGo(id) {
   }
   render();
 }
+/** Opens a full-screen sheet in the app layout; returns its body to fill. */
 function openSheet(title) {
   appSheet.hidden = false;
   const body = h("div");
@@ -340,6 +365,7 @@ function openSheet(title) {
 
 // ---------- render ----------
 let lastSig = "";
+/** Redraws what's on screen, only if the data changed (force = always). */
 function render(force = false) {
   const sig = JSON.stringify([S.racks, here, openId, APP ? tab : page, me, meError]);
   if (sig === lastSig && !force) return;
@@ -365,6 +391,7 @@ function render(force = false) {
 }
 
 const banner = h("div", { class: "rider-warning", role: "alert", hidden: true });
+/** The red banner when a rack with my bike has an alarm or was reported. */
 function renderBanner() {
   const w = myWarnings();
   banner.hidden = !w.length;

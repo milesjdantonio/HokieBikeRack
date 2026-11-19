@@ -16,7 +16,7 @@ printed to the serial monitor. The ESP32 version is the git tag `esp32-final`.
 | Accelerometer | **MPU-6050 on a GY-521 board**, I2C 0x68, ±4 g, 44 Hz low-pass. Own register driver. |
 | Actuator | MG90S servo on a **separate 5 V supply**, shared ground, 100–1000 µF capacitor. Arduino Servo library. **Disabled by default** (`HBR_ENABLE_SERVO 0`). |
 | Lights | Separate **red + green LEDs** with 220–330 Ω resistors. |
-| Sound | **Active buzzer** switched by an NPN transistor (2N2222/BC547/S8050) with a 1 kΩ base resistor. |
+| Sound | Buzzer switched by an NPN transistor (2N2222/BC547/S8050) with a 1 kΩ base resistor. The prototype's buzzer is **passive** (`HBR_BUZZER_PASSIVE 1`: the Uno plays a tone); an active one (`0`, on/off) also works. |
 | Lock behaviour | Tap to unlock, the same card taps again to lock. Reminder (green stays on, red flashes, beep) after 10 s; re-locks itself after 120 s. |
 | Card list | Enrolled at the rack (`enroll` + tap), saved in EEPROM. No network. |
 
@@ -51,10 +51,10 @@ Defined in `firmware/include/pins.h`. Keeps 0/1 (USB serial) and 13 (blinks at b
 ## Results (fill in after the bench test)
 | Item | Result |
 |---|---|
-| Uno board (genuine / clone, USB chip) | |
-| PN532 firmware version | |
-| Card UID lengths / types | |
-| MPU-6050 WHO_AM_I | |
-| Servo locked/unlocked angles | |
-| Tamper threshold chosen | |
-| Power notes (brownouts?) | |
+| Uno board (genuine / clone, USB chip) | Clone with a CH340 USB chip. Its COM port changes with the USB socket (COM3, COM5, COM6 so far). |
+| PN532 firmware version | not recorded yet (`status` prints it) |
+| Card UID lengths / types | not recorded yet. Two kit cards enrolled and working. Phones send a random ID each tap, so they can't be used. |
+| MPU-6050 WHO_AM_I | answers (0.97 g at rest, mostly on the y axis as mounted) |
+| Servo locked/unlocked angles | LOCKED 130 / UNLOCKED 65 in config.h, servo upside down (`HBR_SERVO_REVERSED 1`) = 50° / 115° on the servo |
+| Tamper threshold chosen | 0.30 g |
+| Power notes (brownouts?) | A dip on 5 V (servo, buzzer) can restart the MPU-6050 asleep; the firmware now checks every 2 s and wakes it. Over I2C the PN532 held the bus, so the reader runs over UART. A faint buzzer turned out to be loose wires. |

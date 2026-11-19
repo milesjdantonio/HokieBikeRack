@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/** Admin API: the numbers behind the Reports page (see ReportService). */
 @RestController
 @RequestMapping("/api/v1/reports")
 @Validated
@@ -18,6 +19,7 @@ public class ReportController {
     this.reports = reports;
   }
 
+  /** GET /api/v1/reports/summary?days=7 (1 to 90 days). */
   @GetMapping("/summary")
   public ReportService.Summary summary(@RequestParam(defaultValue = "7") @Min(1) @Max(90) int days) {
     return reports.summary(days);

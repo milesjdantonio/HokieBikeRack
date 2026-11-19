@@ -11,6 +11,7 @@ import { arc, posed } from '../pose.mjs';
 
 const W = 150, H = 100, CX = 75, CY = 50;
 const BLUE = '#58a6ff', BLUE_DARK = '#12304f', SHIELD = '#161b22', GREY = '#5b6572', WHITE = '#e6edf3';
+/** A colour with alpha: hex("#ff0000", 0.5) -> "#ff000080". */
 const hex = (c, a = 1) => c + Math.round(a * 255).toString(16).padStart(2, '0');
 
 export default function build() {

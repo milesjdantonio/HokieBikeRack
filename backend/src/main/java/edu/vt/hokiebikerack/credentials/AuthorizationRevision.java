@@ -16,6 +16,7 @@ public class AuthorizationRevision {
     this.jdbc = jdbc;
   }
 
+  /** The revision number right now. */
   public long current() {
     return jdbc.sql("SELECT revision FROM authorization_state WHERE id = 1").query(Long.class).single();
   }

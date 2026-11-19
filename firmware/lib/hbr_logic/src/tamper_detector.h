@@ -50,13 +50,16 @@ class TamperDetector {
   // Returns a signal only on the sample where it starts.
   TamperSignal update(float x, float y, float z, uint32_t nowMs, bool armed = true);
 
+  // True while the siren should be sounding.
   bool alarmActive(uint32_t nowMs) const;
   // How long the siren will still run if the post stays still from now on (0 = off).
   uint32_t alarmLeftMs(uint32_t nowMs) const;
   // An allowed card was tapped: stop the alarm and forget the escalation.
   void silence();
+  // Back to the start, keeping the settings (as after power-on).
   void reset();
 
+  // The size of the last jolt, in g (for the event message).
   float lastDeviationG() const { return lastDeviation_; }
   const TamperConfig &config() const { return config_; }
 

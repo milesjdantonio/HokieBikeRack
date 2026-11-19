@@ -1,3 +1,5 @@
+// Red LED, green LED and buzzer. lib/hbr_logic/src/feedback_player.h decides what should be on;
+// this file writes that to the pins. What each function does: include/feedback.h.
 #include "feedback.h"
 
 #include <Arduino.h>
@@ -10,6 +12,7 @@ hbr::FeedbackPlayer player;
 hbr::Output lastOutput;
 bool firstWrite = true;
 
+// Sets the LEDs and buzzer to `out` (a tone for a passive buzzer, on/off for an active one).
 void writePins(const hbr::Output &out) {
   // Only touch the pins when something changes.
   if (!firstWrite && out.red == lastOutput.red && out.green == lastOutput.green &&

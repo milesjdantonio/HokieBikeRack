@@ -28,6 +28,7 @@ let warningTimer = 0;
 // ---------- the USB link (shared with the dashboard's rack connection: shared/rack-link.js) ----------
 const supported = link.supported;
 
+/** Connect: asks the browser for the rack's serial port. */
 async function connect() {
   try {
     if (await link.connect()) log("Connected. The rack restarts when a computer connects; waiting for it to start.", "sent");
@@ -36,8 +37,10 @@ async function connect() {
   }
 }
 
+/** Lets go of the port (so the serial monitor or an upload can use it). */
 function disconnect() { link.disconnect(); }
 
+/** Sends one serial command to the rack; remembers test commands so their events are marked simulated. */
 async function send(command) {
   if (!link.connected) return;
   if (SIM_ONLY.has(command.trim().split(/\s+/)[0])) state.lastSimSentAt = Date.now();
@@ -98,6 +101,7 @@ function onLine(line) {
 
 // ---------- actions ----------
 let countdownTimer = 0;
+/** Ticks the "tap a card within N s" countdown while enroll/unenroll is waiting. */
 function startCountdown() {
   clearInterval(countdownTimer);
   countdownTimer = setInterval(() => {
@@ -106,6 +110,7 @@ function startCountdown() {
   }, 250);
 }
 
+/** Full Alarm: two simulated shakes in a row, waiting out the grace time after a lock first. */
 async function fullAlarm() {
   const wait = TAMPER_GRACE_MS - (Date.now() - state.lastLockedAt);
   if (state.lastLockedAt && wait > 0) {
@@ -141,16 +146,19 @@ function confirmButton(label, confirmLabel, action, extraClass = "") {
 let fab, panel, logEl, connRow, stateEl, cardsEl, busyEl, simEl;
 const live = []; // buttons that need a connected rack
 
+/** A panel button; it's disabled while the rack isn't connected (sim = needs test commands on). */
 function btn(label, onClick, cls = "", sim = false) {
   const b = h("button", { type: "button", class: "hbt-btn " + cls, onClick }, label);
   live.push({ el: b, sim });
   return b;
 }
 
+/** A small number box (servo angle, tone pitch). */
 function numberField(value, min, max, label) {
   return h("input", { type: "number", class: "hbt-num", value: String(value), min: String(min), max: String(max), "aria-label": label });
 }
 
+/** Builds the Testing button and panel (once, the first time it's opened). */
 function build() {
   // Same-origin stylesheet next to this file (an inline <style> would be blocked by the CSP).
   document.head.append(h("link", { rel: "stylesheet", href: new URL("./testing.css", import.meta.url).href }));
@@ -224,18 +232,21 @@ function build() {
   render();
 }
 
+/** A button that asks "are you sure?" in place before doing something drastic. */
 function liveConfirm(label, confirmLabel, action) {
   const b = confirmButton(label, confirmLabel, action, "hbt-danger");
   live.push({ el: b, sim: false });
   return b;
 }
 
+/** Opens or closes the panel (force = true/false to choose). */
 function toggle(force) {
   const open = force === undefined ? panel.hidden : force;
   panel.hidden = !open;
   fab.setAttribute("aria-expanded", String(open));
 }
 
+/** Updates the panel for the connection state: which buttons work, what the rack says. */
 function render() {
   if (!panel) return;
   const on = state.connected && state.ready;
@@ -259,6 +270,7 @@ function render() {
   renderCards();
 }
 
+/** The Cards section: the enrolled list, Add / Remove by tap, and the countdown. */
 function renderCards() {
   if (!cardsEl) return;
   const on = state.connected && state.ready;
@@ -294,6 +306,7 @@ function renderCards() {
   cardsEl.replaceChildren(...kids);
 }
 
+/** Adds a line to the panel's log (kind: sent, bad, ...), keeping it scrolled to the end. */
 function log(text, kind = "") {
   if (!logEl) return;
   const stick = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 8;

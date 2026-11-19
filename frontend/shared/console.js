@@ -27,6 +27,7 @@ document.body.classList.toggle("view-app", APP);
 
 const live = createLive({ want: { events: true, unknown: true, incidents: true, cards: CAN.cards, requests: CAN.configure } });
 const S = live.state;
+/** The rack with this ID from the latest data, or undefined. */
 const rackById = (id) => S.racks.find((r) => r.id === id);
 /** replaceChildren that skips null/false and flattens arrays (native replaceChildren prints "null"). */
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
@@ -49,6 +50,7 @@ async function act(fn, done) {
 
 // ---------- toasts ----------
 const toasts = h("div", { class: "toasts", role: "status", "aria-live": "polite" });
+/** A short message at the bottom of the screen for ~4 s (bad = red, for errors). */
 function toast(text, bad = false) {
   const t = h("div", { class: `toast${bad ? " bad" : ""}` }, text);
   toasts.append(t);
@@ -113,6 +115,7 @@ const HELP_LINES = [
   ["clear", "clear the terminal"],
 ];
 
+/** Runs one terminal command (see HELP_LINES), printing what happened to the terminal. */
 async function run(text) {
   const parts = text.trim().split(/\s+/);
   const [cmd] = parts;
@@ -251,10 +254,12 @@ async function ackRack(r) {
   const res = await act(() => api(`/events/acknowledge-rack/${r.id}`, { method: "POST" }));
   if (res) log("ok", [{ b: slug(r.name) }, ` ${res.acknowledged} alert(s) marked handled${res.incidentResolved ? `. ${AGENCY} incident resolved, alarm stopped` : ""}`]);
 }
+/** Marks one alert handled. */
 async function ackEvent(e, r) {
   const res = await act(() => api(`/events/${e.id}/acknowledge`, { method: "POST" }));
   if (res) log("ok", [{ b: slug(r.name) }, ` ${e.eventType.toLowerCase().replaceAll("_", " ")} marked handled`]);
 }
+/** Opens a police incident for the rack's tamper alarm. Returns the incident, or null. */
 async function alertAuthorities(r) {
   const res = await act(() => api(`/racks/${r.id}/alert-authorities`, { method: "POST", body: {} }));
   if (!res) return null;
@@ -262,6 +267,7 @@ async function alertAuthorities(r) {
   setTimeout(() => log("police", [{ b: slug(r.name) }, ` ${AGENCY} alerted by ${res.incident.alertedBy}. follow it in the police version`]), 2000);
   return res;
 }
+/** Registers a tapped-but-unknown card for this rack under `name` (and adds it to a USB rack). */
 async function registerCard(card, name, r) {
   const res = await act(() => api("/credentials", { method: "POST", body: {
     credentialReference: card.credentialReference, displayLabel: name.trim(), allRacks: false, rackIds: [r.id] } }));
@@ -279,6 +285,7 @@ async function decideRequest(q, approve) {
   if (res) log(approve ? "ok" : "off", [{ b: q.name }, approve ? " approved. they link their HokieP from the rider app with one tap" : " denied"]);
   return res;
 }
+/** The Access Request dialog: who asked, with Approve / Deny. */
 function reviewRequest(id) {
   const q = S.requests.find((x) => x.id === id);
   if (!q) return;
@@ -302,6 +309,7 @@ async function riderCode(c, body) {
   log("ok", [`rider code for `, { b: res.name }, `: ${res.code} (shown once)`]);
   showCode(body, res);
 }
+/** Shows a rider's private code once, after it's made. */
 function showCode(body, res) {
   const box = h("div", { class: "secret" },
     h("b", {}, `Rider code for ${res.name}`),
@@ -328,10 +336,12 @@ function openDialog(title, build) {
   wrap.querySelector("button")?.focus();
 }
 
+/** Confirm Online: someone checked the rack in person after it came back. */
 async function confirmOnline(r) {
   const res = await act(() => api(`/racks/${r.id}/confirm-online`, { method: "POST" }));
   if (res) log("ok", [{ b: slug(r.name) }, " confirmed online"]);
 }
+/** Turns a card off for good. */
 async function revokeCard(c) {
   const res = await act(() => api(`/credentials/${c.id}/revoke`, { method: "POST" }));
   if (res) log("off", [{ b: c.displayLabel }, " turned off for good (revoked)"]);
@@ -351,6 +361,7 @@ const GROUPS = [
   { kind: "setup", title: "Not Set Up" },
 ];
 const NEED_BADGE = { alarm: "alarm", police: "police", confirm: "ok", request: "card", card: "card", warning: "warning", offline: "offline", setup: "info" };
+/** Everything that needs someone right now (alarms, police, cards to register...), most urgent first. */
 function needsList() {
   const out = [];
   for (const r of S.racks) {
@@ -374,6 +385,7 @@ function needsList() {
   return out;
 }
 const needsRows = new Map();
+/** Draws the Needs You list into `el` (leaving out the kinds in `skip`) and its count. */
 function renderNeeds(el, countEl, skip = []) {
   const all = needsList();
   const list = all.filter((n) => !skip.includes(n.kind));
@@ -407,6 +419,7 @@ function renderNeeds(el, countEl, skip = []) {
 let openId = null;
 const detailCache = new Map();   // rackId -> { detail, alerts, incident }
 
+/** Fetches what a rack's panel shows: its lock modules, open alerts and police incident. */
 async function loadDetail(r) {
   const [detail, alerts, incident] = await Promise.all([
     api(`/racks/${r.id}`),
@@ -420,11 +433,13 @@ async function loadDetail(r) {
   return data;
 }
 
+/** Which picture the rack animation shows: alarm, idle or offline. */
 function sceneState(r) {
   if (isAlarm(r)) return SCENE.alarm;
   return isUp(r) ? SCENE.idle : SCENE.offline;
 }
 
+/** The one-line status at the top of a rack's panel (alarm, offline, back online...). */
 function stateLine(r, data) {
   if (isAlarm(r)) return h("p", { class: "state state-alarm" }, r.incidentStatus
     ? `Alarm. ${AGENCY} ${INCIDENT_WORD[r.incidentStatus].toLowerCase()}.` : "Alarm. Someone is tampering with this rack.");
@@ -444,6 +459,7 @@ function facts(r) {
       h("b", {}, isAlarm(r) ? "Active now" : r.lastAlarmAt ? `Last ${ago(r.lastAlarmAt)}` : "None yet")));
 }
 
+/** The police steps box (Alerted, On My Way, On Scene, Resolved) when an incident is open. */
 function incidentBox(r, data) {
   if (!r.incidentStatus) return null;
   const inc = data?.incident;
@@ -587,6 +603,7 @@ function connectionBlock(r, devices, d) {
     action ? h("span", { class: "item-actions" }, action) : null));
 }
 
+/** Connect by USB: opens the serial port, gets the lock module a token, and starts the bridge. */
 async function connectRack(r, dev) {
   // Ask for the port first, straight from the click: the browser only shows its picker then.
   try {
@@ -610,6 +627,7 @@ async function connectRack(r, dev) {
   toast(`${r.name} connected`);
 }
 
+/** Redraws the open rack's panel (e.g. when the USB link connects or drops). */
 function rerenderOpen() {
   const r = openId && rackById(openId);
   const target = r && (APP ? appSheet.querySelector(".app-rack") : panelBody);
@@ -631,6 +649,7 @@ function inlineRename(el, current, onSave, label = "New name") {
   el.replaceWith(form);
   input.select();
 }
+/** Renames a rack. Returns the updated rack, or null. */
 async function renameRack(r, name) {
   const res = await act(() => api(`/racks/${r.id}`, { method: "PATCH", body: { name } }), `Renamed to ${name}`);
   if (res) log("ok", [{ b: slug(r.name) }, " renamed to ", { b: slug(name) }]);
@@ -649,6 +668,7 @@ function deleteBlock(r) {
   return box;
 }
 
+/** Deletes a rack for good (asks first in the panel or with `confirm` in the terminal). */
 async function deleteRack(r) {
   const ok = await act(() => api(`/racks/${r.id}`, { method: "DELETE" }).then(() => true), `Deleted ${r.name}`);
   if (!ok) return false;
@@ -733,6 +753,7 @@ const COMMANDS = [
     ["delete <rack> confirm", `Remove a rack for good, with its lock module, events and incidents. Cards stay. Can't be undone. Without "confirm" it only explains.`, "delete old-test-rack"]] },
   { group: "Terminal", items: [["clear", "Clear the terminal. Nothing is deleted.", "clear"], ["↑ / ↓", "Bring back earlier commands.", ""]] },
 ];
+/** The Commands page: every terminal command with an example and an Insert button. */
 function commandsPage() {
   const insert = (text) => { go(APP ? "terminal" : "map"); cmdInput.value = text; cmdInput.focus(); };
   const row = ([syntax, what, example]) => h("div", { class: "cmdrow" }, h("code", {}, syntax),
@@ -744,6 +765,7 @@ function commandsPage() {
     COMMANDS.map((g) => [h("h2", {}, g.group), h("div", { class: "cmds" }, g.items.map(row))]));
 }
 
+/** The Reports page: counts for the last `days` days. */
 async function reportsPage(container, days = 7) {
   fill(container, h("div", { class: "sheet-inner" }, h("h1", {}, "Reports"), h("p", { class: "lead" }, "Loading…")));
   let rep;
@@ -781,6 +803,7 @@ const ACTION_WORDS = {
   RACK_ALERTS_ACKNOWLEDGED: "Marked a rack's alerts handled", RACK_SPOTS_RESET: "Reset a rack's spots",
   AUTHORITIES_ALERTED: `Alerted ${AGENCY}`, INCIDENT_EN_ROUTE: "Police: on the way", INCIDENT_ON_SCENE: "Police: on scene", INCIDENT_RESOLVED: "Police: resolved",
 };
+/** The Audit Log page: who changed what, 50 lines a page. */
 async function auditPage(container, page = 0) {
   fill(container, h("div", { class: "sheet-inner" }, h("h1", {}, "Audit Log"), h("p", { class: "lead" }, "Loading…")));
   let res;
@@ -823,6 +846,7 @@ let map = null;
 let panel, panelBody, panelScene, drop, dropScene, moveBar, pageSheet, needsEl, needsCount, summaryEl;
 let moving = null;
 
+/** Builds the browser layout: top bar, map, rack panel, Needs You and the terminal. */
 function buildDesktop(root) {
   summaryEl = h("span", { class: "top-summary" });
   const nav = [["map", "Map"], ["commands", "Commands", CAN.terminal], ["reports", "Reports", CAN.reports], ["audit", "Audit Log", CAN.audit]]
@@ -867,6 +891,7 @@ function buildDesktop(root) {
   });
 }
 
+/** Opens a rack's panel (the sheet in the app layout). `focus` scrolls to a part of it. */
 function openRack(id, { focus } = {}) {
   const r = rackById(id);
   if (!r) return;
@@ -886,6 +911,7 @@ function openRack(id, { focus } = {}) {
   if (r.latitude != null) map.select(id); else map.select(null, { move: false });
   renderNeeds(needsEl, needsCount);
 }
+/** Closes the rack panel. */
 function closeRack() {
   if (!panel) return;
   stopMove(false);
@@ -897,6 +923,7 @@ function closeRack() {
   renderNeeds(needsEl, needsCount);
 }
 
+/** Move on Map: drag the rack's pin or click a new spot, then Save Spot. */
 function startMove(r) {
   if (APP || !map) { openPlaceSheet({ rack: r }); return; }
   if (r.latitude == null) { openPlaceSheet({ rack: r }); return; }
@@ -909,6 +936,7 @@ function startMove(r) {
   }) };
   moveBar.hidden = false;
 }
+/** Ends Move on Map. keep = save the new spot; otherwise the pin goes back. */
 async function stopMove(keep) {
   if (!moving) return;
   const { rack: r, spot, handle } = moving;
@@ -923,6 +951,7 @@ async function stopMove(keep) {
 
 // ---------- drop panel ----------
 const dropState = { rack: null, level: null, anim: null, timer: null };
+/** Sets the animation in the drop-down notice (reuses it if it's the same one). */
 function dropAnim(name, inputs) {
   if (dropState.anim?.name !== name) {
     const a = riveIcon(name, { size: 150, height: 100, inputs });
@@ -930,6 +959,7 @@ function dropAnim(name, inputs) {
     dropState.anim = { name, a };
   } else for (const [k, v] of Object.entries(inputs)) dropState.anim.a.set(k, v);
 }
+/** The drop-down notice at the top: a shake (bump), a tamper alarm, or "Alert police?" (confirm). */
 function showDrop(r, level, extraInfo = {}) {
   if (APP || !drop) return;
   clearTimeout(dropState.timer);
@@ -980,6 +1010,7 @@ function showDrop(r, level, extraInfo = {}) {
   drop.hidden = false;
   if (fresh) { drop.style.animation = "none"; void drop.offsetWidth; drop.style.animation = ""; }
 }
+/** Slides the drop-down notice away. */
 function hideDrop() {
   if (!drop || drop.hidden) return;
   clearTimeout(dropState.timer);
@@ -989,6 +1020,7 @@ function hideDrop() {
 
 // ---------- pages ----------
 let page = "map";
+/** Switches page: map, commands, reports or audit (only the ones this role may see). */
 function go(p) {
   if (APP) { appGo(p); return; }
   page = ["commands", "reports", "audit"].includes(p) && pageAllowed(p) ? p : "map";
@@ -1002,6 +1034,7 @@ function go(p) {
   pageSheet.scrollTop = 0;
   if (location.hash !== `#${page}`) history.replaceState(null, "", `#${page}`);
 }
+/** Whether this role may open page `p`. */
 const pageAllowed = (p) => (p === "commands" ? CAN.terminal : p === "audit" ? CAN.audit : p === "reports" ? CAN.reports : true);
 
 // =====================================================================================
@@ -1011,6 +1044,7 @@ let appMain, appTabs, appTitle, appSheet, appTerm;
 let tab = "now";
 const TABS = [["now", "Now", "alerts"], ["racks", "Racks", "racks"], ["terminal", CAN.terminal ? "Terminal" : "Activity", "health"], ["more", "More", "settings"]];
 
+/** Builds the phone app layout: title, main area and the bottom tabs. */
 function buildApp(root) {
   appTitle = h("h1", { class: "app-title" });
   appMain = h("main", { class: "app-main" });
@@ -1022,6 +1056,7 @@ function buildApp(root) {
     h("span", { class: "role-tag" }, ROLE === "admin" ? "Admin" : "Staff")), appMain, appTerm, appTabs, appSheet);
 }
 
+/** Switches tab in the app layout (Commands, Reports and Audit Log open as sheets). */
 function appGo(id) {
   if (["commands", "reports", "audit"].includes(id)) {
     if (!pageAllowed(id)) return;
@@ -1043,6 +1078,7 @@ function appGo(id) {
 }
 
 let appSig = "";
+/** Redraws the current app tab, only if its data changed (force = always). */
 function renderApp(force = false) {
   if (!appMain) return;
   const sig = JSON.stringify([tab, S.racks, S.unknown, S.incidents]);
@@ -1088,6 +1124,7 @@ function appNow() {
   );
 }
 
+/** The Racks tab: one card per rack with its status. */
 function appRacks() {
   const cards = S.racks.map((r) => {
     const word = isAlarm(r) ? "Alarm" : STATUS_TEXT[r.status];
@@ -1110,6 +1147,7 @@ function appRacks() {
     cards.length ? cards : h("p", { class: "app-empty" }, "No racks yet.")));
 }
 
+/** The More tab: Commands, Reports, Audit Log and switching version. */
 function appMore() {
   const link = (label, sub, onClick) => h("button", { type: "button", class: "more-item", onClick }, h("b", {}, label), h("span", {}, sub));
   fill(appMain, h("div", { class: "more" },
@@ -1121,6 +1159,7 @@ function appMore() {
     h("p", { class: "more-note" }, S.ok === false ? "Can't reach the server right now." : `Connected · ${S.racks.length} rack${S.racks.length === 1 ? "" : "s"}`)));
 }
 
+/** Opens a full-screen sheet with a Back button; build(body) fills it. */
 function openAppSheet(title, build) {
   appSheet.hidden = false;
   const body = h("div", { class: "app-sheet-body" });
@@ -1129,12 +1168,14 @@ function openAppSheet(title, build) {
   appSheet.scrollTop = 0;
   return body;
 }
+/** Closes the app sheet. */
 function closeAppSheet() {
   appSheet.hidden = true;
   fill(appSheet, );
   openId = null;
 }
 
+/** A rack in the app layout: its animation and panel in a sheet. */
 function openAppRack(r, { focus } = {}) {
   openId = r.id;
   const scene = riveIcon("rack", { size: 440, height: 200, fit: "cover", align: "BottomCenter", inputs: { state: sceneState(r) } });
@@ -1218,6 +1259,7 @@ live.on("connection", (ok, message) => {
 });
 
 let sceneTimer = null;
+/** Plays a rack animation state (e.g. unlocking) for `ms`, then back to the rack's real state. */
 function playScene(state, ms) {
   const handle = APP ? appSheet.sceneHandle : panelScene;
   if (!handle) return;

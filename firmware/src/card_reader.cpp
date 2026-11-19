@@ -1,3 +1,7 @@
+// The PN532 card reader: asks "is a card there?" without ever blocking loop(), and notices when
+// the reader stops answering (then retries). Two versions, picked by HBR_READER_UART in config.h:
+// I2C with the Adafruit library, or UART with a small driver of our own (below).
+// What each function does: include/card_reader.h.
 #include "card_reader.h"
 
 #include <Arduino.h>
@@ -26,6 +30,7 @@ uint32_t resumeAtMs = 0;
 uint32_t lastInitAttemptMs = 0;
 uint8_t failures = 0;
 
+// Starts the reader over I2C. True if it answered with its firmware version.
 bool initReader() {
   lastInitAttemptMs = millis();
   detectionPending = false;
@@ -53,6 +58,7 @@ bool initReader() {
   return true;
 }
 
+// Counts a failed read; after kFailuresBeforeUnhealthy in a row the reader is marked not working.
 void markFailure() {
   if (++failures >= kFailuresBeforeUnhealthy && healthy) {
     healthy = false;
@@ -61,6 +67,7 @@ void markFailure() {
 }
 }  // namespace
 
+// Called once from setup(): starts the reader and says if it was found.
 bool cardReaderSetup() {
   healthy = initReader();
   if (!healthy) Serial.println(F("[nfc] PN532 not found. Check wiring and the I2C DIP switches."));
@@ -69,6 +76,7 @@ bool cardReaderSetup() {
 
 bool cardReaderHealthy() { return healthy; }
 
+// Called every loop(): true (and fills `card`) when a card was just read. Never waits for a card.
 bool cardReaderPoll(CardId &card) {
   uint32_t now = millis();
   if (!healthy) {
@@ -166,6 +174,7 @@ uint8_t frame[32];  // payload of the last data frame, starting at D5
 uint8_t frameLen = 0;
 uint8_t parseStep = 0, expectLen = 0, gotLen = 0, sum = 0, lastByte = 0xAA;
 
+// Feeds one received byte to the frame parser. Says when a whole ACK or data frame has arrived.
 Got feed(uint8_t b) {
   Got result = Got::Nothing;
   switch (parseStep) {
@@ -206,11 +215,13 @@ Got feed(uint8_t b) {
   return result;
 }
 
+// Forgets a half-received frame.
 void resetParser() {
   parseStep = 0;
   lastByte = 0xAA;
 }
 
+// Throws away any bytes waiting from the reader.
 void drainInput() {
   while (link.available()) link.read();
   resetParser();
@@ -254,6 +265,7 @@ bool command(const uint8_t *payload, uint8_t len, uint32_t replyTimeoutMs = 100)
   return waitFor(Got::Data, payload[1], replyTimeoutMs);
 }
 
+// Asks the reader for its firmware version: the simplest "are you there?".
 bool getFirmwareVersion() {
   const uint8_t cmd[] = {0xD4, kCmdGetFirmwareVersion};
   if (!command(cmd, sizeof(cmd))) return false;
@@ -302,6 +314,7 @@ bool switchToWorkingBaud() {
   return true;
 }
 
+// Finds the reader at 38400 (Uno restarted) or 115200 (fresh power-up), then sets it up to wait for cards.
 bool initReader() {
   lastInitAttemptMs = millis();
   searchPending = false;
@@ -330,6 +343,7 @@ bool startSearch() {  // "tell me when one ISO14443A card (MIFARE/NTAG) shows up
   return true;
 }
 
+// The reader stopped answering: mark it not working; cardReaderPoll() retries every kRetryInitEveryMs.
 void markUnhealthy() {
   if (healthy) Serial.println(F("[nfc] reader stopped answering; will retry"));
   healthy = false;
@@ -337,6 +351,7 @@ void markUnhealthy() {
 }
 }  // namespace
 
+// Called once from setup(): starts the reader and says if it was found.
 bool cardReaderSetup() {
   healthy = initReader();
   if (!healthy) {
@@ -348,6 +363,7 @@ bool cardReaderSetup() {
 
 bool cardReaderHealthy() { return healthy; }
 
+// Called every loop(): true (and fills `card`) when a card was just read. Never waits for a card.
 bool cardReaderPoll(CardId &card) {
   uint32_t now = millis();
   if (!healthy) {

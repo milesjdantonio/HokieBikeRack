@@ -1,3 +1,5 @@
+// The allowed-card list on top of a ByteStore (EEPROM on the Uno, an array in the tests), and
+// makeCardRef / makeCardMac. What each function does: card_list.h. Tests: test/test_card_list.
 #include "card_list.h"
 
 #include <string.h>

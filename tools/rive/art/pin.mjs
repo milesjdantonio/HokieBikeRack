@@ -21,6 +21,7 @@ const GROUND = '#0f1318', INK = '#e6edf3', ACCENT = '#e5751f', ACCENT_INK = '#1a
 const GREEN = '#3fd68a', AMBER = '#ffb547', RED = '#ff6b6b', ORANGE = '#ff9a3c', GREY = '#7d8896';
 const POLICE_RED = '#ff3b3b', POLICE_BLUE = '#2f81f7';
 const YELLOW = '#f5d142', FULL_RED = '#ff5a5a', DARK_RED = '#5c1414';
+/** A colour with alpha: hex("#ff0000", 0.5) -> "#ff000080". */
 const hex = (c, a = 1) => c + Math.round(a * 255).toString(16).padStart(2, '0');
 
 export default function build() {

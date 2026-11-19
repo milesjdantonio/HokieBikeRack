@@ -5,6 +5,7 @@
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 
+/** Makes an element: h("div", { class: "x", onClick }, ...children). Text is always text, never HTML. */
 export function h(tag, attrs = {}, ...children) {
   const el = document.createElement(tag);
   setAttrs(el, attrs);
@@ -20,6 +21,7 @@ export function s(tag, attrs = {}, ...children) {
   return el;
 }
 
+/** Sets attributes and on* listeners on an element (null / false = left out). */
 function setAttrs(el, attrs) {
   for (const [key, value] of Object.entries(attrs || {})) {
     if (value === undefined || value === null || value === false) continue;
@@ -32,6 +34,7 @@ function setAttrs(el, attrs) {
   }
 }
 
+/** Appends children, flattening arrays and skipping null / false. */
 function append(el, children) {
   for (const child of children.flat(Infinity)) {
     if (child === undefined || child === null || child === false) continue;
@@ -39,6 +42,7 @@ function append(el, children) {
   }
 }
 
+/** Removes all children. */
 export function clear(el) {
   el.replaceChildren();
   return el;
@@ -54,6 +58,7 @@ export function renderIfChanged(el, signature, build) {
 
 // ---------- time ----------
 
+/** "5m ago" style time since an ISO time. */
 export function ago(iso) {
   if (!iso) return "never";
   const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);

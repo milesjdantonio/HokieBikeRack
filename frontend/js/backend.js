@@ -25,8 +25,10 @@ export let backendState = "checking";   // checking | waking | ready
 
 /** fn(state) on checking -> waking -> ready. */
 export function onBackendState(fn) { listeners.add(fn); fn(backendState); return () => listeners.delete(fn); }
+/** Records the new state and tells the listeners. */
 function setState(s) { backendState = s; for (const fn of listeners) { try { fn(s); } catch (e) { console.error(e); } } }
 
+/** One health check. True if the backend answered OK within TRY_TIMEOUT_MS. */
 async function ping() {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), TRY_TIMEOUT_MS);
@@ -60,6 +62,7 @@ export function backendReady({ screen = true } = {}) {
   return ready;
 }
 
+/** Shows the full-screen "Starting the Server" notice, with a bar and a seconds count. */
 function showScreen() {
   if (overlay || typeof document === "undefined") return;
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
@@ -90,6 +93,7 @@ function showScreen() {
   }, 500);
 }
 
+/** Removes the notice once the backend answers. */
 function hideScreen() {
   if (!overlay) return;
   clearInterval(overlay.timer);

@@ -10,6 +10,7 @@ import { OrbitControls } from "../vendor/three/addons/OrbitControls.js";
 import { RoomEnvironment } from "../vendor/three/addons/RoomEnvironment.js";
 import { RoundedBoxGeometry } from "../vendor/three/addons/RoundedBoxGeometry.js";
 
+/** Shorthand for a 3D point. */
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
 // Sizes in metres. Parts: real dimensions from their datasheets (check yours with calipers).
@@ -755,6 +756,7 @@ export class RackScene {
 // ---------------------------------------------------------------- helpers
 function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
+/** Positions and stretches a cylinder so it runs from point a to point b (wires). */
 function placeRod(rod, a, b) {
   const d = new THREE.Vector3().subVectors(b, a);
   rod.position.copy(a).addScaledVector(d, 0.5);
@@ -762,6 +764,7 @@ function placeRod(rod, a, b) {
   rod.quaternion.setFromUnitVectors(V(0, 1, 0), d.normalize());
 }
 
+/** A square steel tube with rounded corners (the posts). */
 function squareTube(w, wall, height) {
   const outer = roundRect(new THREE.Shape(), w, w, 0.008);
   outer.holes.push(roundRect(new THREE.Path(), w - 2 * wall, w - 2 * wall, 0.004));
@@ -770,6 +773,7 @@ function squareTube(w, wall, height) {
   return g;
 }
 
+/** Draws a rounded rectangle into a shape or path, centred on 0,0. */
 function roundRect(s, w, h, r) {
   const x = -w / 2, y = -h / 2;
   s.moveTo(x + r, y); s.lineTo(x + w - r, y); s.absarc(x + w - r, y + r, r, -Math.PI / 2, 0);
@@ -779,12 +783,14 @@ function roundRect(s, w, h, r) {
   return s;
 }
 
+/** A rounded rectangle outline `t` thick (frames, bezels). */
 function roundedRectRing(w, h, r, t) {
   const s = roundRect(new THREE.Shape(), w, h, r);
   s.holes.push(roundRect(new THREE.Path(), w - 2 * t, h - 2 * t, Math.max(0.001, r - t)));
   return new THREE.ShapeGeometry(s, 8);
 }
 
+/** A texture painted with a 2D canvas: draw(ctx, w, h). */
 function canvasTexture(w, h, draw, srgb = true) {
   const c = document.createElement("canvas");
   c.width = w; c.height = h;
@@ -795,6 +801,7 @@ function canvasTexture(w, h, draw, srgb = true) {
   return t;
 }
 
+/** Every material in the scene (steel, plastic, ground, LEDs...), made once. */
 function makeMaterials() {
   const S = (o) => new THREE.MeshStandardMaterial(o);
   const ground = canvasTexture(512, 512, (g, w, h) => {

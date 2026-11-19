@@ -32,6 +32,10 @@ automatically; `?view=app` / `?view=desktop` force one.
   and it's Offline after 3 min (it still runs on its own card list). Registering a waiting card while the
   rack is connected also sends `add <reference>` to it. Events caused by Testing panel commands are marked
   simulated.
+- `js/api.js` makes every admin/staff/police API call; `shared/rider.js` has its own for the rider code.
+  Both get the address from `js/backend.js` (this server, or the Render API from `js/backend-url.js`)
+  and first wait for the backend to answer: if it doesn't within 0.8 s (asleep on Render), a full-screen
+  **Starting the Server** notice shows until it does. The front page wakes it early with a status line.
 - `shared/rack-link.js` is the one Web Serial connection to the rack, shared by the Testing panel
   (`shared/testing.js`) and the rack connection, since only one program can hold the port.
 - `shared/map.js` is the campus map (MapLibre + OpenFreeMap + Esri imagery, as in TerraSim): Rive pins,

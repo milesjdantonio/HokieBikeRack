@@ -30,6 +30,7 @@ if (!unityDir) {
   process.exit(2);
 }
 
+/** Every C/C++ file in a folder, as { name: contents }. */
 const read = (dir) => Object.fromEntries(readdirSync(dir)
   .filter((f) => /\.(c|cpp|h)$/.test(f))
   .map((f) => [f, readFileSync(join(dir, f), 'utf8')]));

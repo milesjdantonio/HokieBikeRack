@@ -8,7 +8,9 @@ import { FirmwareRunner, RESET } from "./runner.js";
 import { Timeline } from "./timeline.js";
 
 const $ = (s) => document.querySelector(s);
+/** Escapes text for use inside HTML. */
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+/** "1.5 s" (whole seconds from 10 s up). */
 const secs = (ms) => (ms / 1000).toFixed(ms < 10000 ? 1 : 0) + " s";
 // Arduino pin numbers as printed on the board: 0..13 = D0..D13, 14..19 = A0..A5.
 const pinLabel = (n) => (n >= 14 ? `A${n - 14}` : `D${n}`);
@@ -152,6 +154,7 @@ function frame(nowReal) {
   }
 }
 
+/** Runs the firmware for `ms` of its time, lifting a tapped card off at the right moment. */
 function step(ms) {
   const frameStart = runner.nowMs;
   if (tap && !tap.hold && !tap.released && runner.nowMs + ms >= tap.releaseAt) {
@@ -167,6 +170,7 @@ function step(ms) {
   if (runner.restartRequested) reboot(runner.resetReason);
 }
 
+/** Turns the firmware's output log for one frame into the servo, buzzer, timeline and readout. */
 function process(log, frameStart) {
   // the servo horn follows each pulse change at its own speed
   let t = arm.lastMs ?? frameStart;
@@ -215,6 +219,7 @@ function readFirmwareLines(text) {
   }
 }
 
+/** Restarts the firmware (reset button, watchdog, or a `reboot` command). */
 async function reboot(reason) {
   paused = true;
   buzzer.silence();
@@ -226,6 +231,7 @@ async function reboot(reason) {
   }
 }
 
+/** Updates the 3D rack for this frame: LEDs, wires, servo, I2C activity. */
 function sceneFrame(s, now) {
   for (const [key, count] of [["mpu", s.i2c.mpu], ["pn", s.i2c.pn532]]) {
     if (count !== busy[key].n) { busy[key].n = count; busy[key].at = now; }
@@ -321,6 +327,7 @@ function wireControls() {
   $("#serial-note").innerHTML = `The same console as <code>pio device monitor</code> at ${runner.config.seen.baud} baud. Every line comes from the firmware's Serial.print, and it's the rack's only event log.`;
 }
 
+/** Switches between the rack design options (a, b, c), remembered in the address. */
 function setOption(key) {
   option = key;
   for (const b of document.querySelectorAll("#option button")) b.setAttribute("aria-checked", String(b.dataset.option === key));
@@ -337,14 +344,17 @@ function setOption(key) {
   renderBuildOptions();
 }
 
+/** Marks which card is picked. */
 function syncCardPick() {
   for (const b of document.querySelectorAll("#card-pick button")) b.setAttribute("aria-checked", String(b.dataset.card === pickedCard.id));
 }
 
+/** Tap Card, or Take Card Away while one is held on the reader. */
 function syncTapButton() {
   $("#tap").textContent = tap?.hold ? "Take Card Away" : "Tap Card";
 }
 
+/** Tap Card: puts the picked card on the reader briefly (or takes away a held one). */
 function tapCard() {
   if (tap?.hold) {
     runner.card(null);
@@ -360,17 +370,20 @@ function tapCard() {
   syncTapButton();
 }
 
+/** Types a line into the firmware's serial input, and shows it in the console. */
 function sendSerial(text) {
   appendSerial("> " + text + "\n", "me");
   runner.serial(text + "\n");
   cardsDirty = true;
 }
 
+/** Outside view, or inside the lock module (the wiring). */
 function setView(inside) {
   for (const o of document.querySelectorAll("#view button")) o.setAttribute("aria-checked", String((o.dataset.view === "inside") === inside));
   scene?.setView(inside);
 }
 
+/** A part was clicked in the 3D view or the parts list: tap, select, or describe it. */
 function pickFromScene(id, fromCanvas) {
   if (fromCanvas && id === "reader") { tapCard(); return; }
   if (fromCanvas && id === "post") { selectPart("post"); return; }
@@ -388,6 +401,7 @@ function servoLatchOpen() {
   return Math.max(0, Math.min(1, (arm.angle - lockedDeg) / (openDeg - lockedDeg)));
 }
 
+/** Push Shackle In / Pull Shackle Out (only comes out while the servo holds the latch open). */
 function useShackle() {
   if (shackle.target === 1) {
     // Push it in. Works whether or not the latch is open: the ramps push the latch aside.
@@ -410,6 +424,7 @@ function useShackle() {
   syncShackleButton();
 }
 
+/** Moves the shackle toward where it's going, `ms` worth of travel. */
 function moveShackle(ms) {
   if (ms <= 0) return;
   const step = ms / SHACKLE_MS;
@@ -422,12 +437,14 @@ function moveShackle(ms) {
   if (before !== shackle.out) syncShackleButton();
 }
 
+/** The shackle button's label, and its note for a few seconds. */
 function syncShackleButton() {
   $("#shackle").textContent = shackle.target === 1 ? "Push Shackle In" : "Pull Shackle Out";
   const fresh = shackle.note && performance.now() - shackle.noteAt < 4000;
   $("#shackle-readout").textContent = fresh ? shackle.note : shackleText();
 }
 
+/** One sentence on where the shackle is and why. */
 function shackleText() {
   if (shackle.out > 0.99) {
     return servoLatchOpen() > 0.9 ? "Out. The servo is holding the latch open."
@@ -445,6 +462,7 @@ function notReady(s) {
   return "";
 }
 
+/** The live readout: lock, lights, sensors, cards, uptime, from the firmware's state. */
 function renderLive(s) {
   const rows = [];
   const seen = runner.config.seen;
@@ -499,6 +517,7 @@ function renderLive(s) {
   if (fill) fill.style.width = pct.toFixed(1) + "%";
 }
 
+/** What the last card tap did (granted, denied and why). */
 function renderCardReadout(s) {
   const el = $("#card-readout");
   if (!tap && !lastResult) return;
@@ -546,6 +565,7 @@ const OPTION_INFO = {
   },
 };
 
+/** What a part is, for the part card. */
 function partWhat(id) {
   const o = scene?.opt;
   if (id === "board") return OPTION_INFO.board[o?.board || "uno"];
@@ -555,6 +575,7 @@ function partWhat(id) {
   return PART_INFO[id]?.what;
 }
 
+/** The card about the selected part: what it is and what it's doing now. */
 function renderPartCard(id, s) {
   const card = $("#part-card");
   const info = PART_INFO[id];
@@ -574,6 +595,7 @@ function renderPartCard(id, s) {
   }
 }
 
+/** A part's display name. */
 function nameOf(id) {
   if (scene) return scene.partName(id);
   return { post: "Post", shackle: "Shackle", reader: "Reader Window", lights: "Lights", vents: "Buzzer Vents", board: "Arduino Uno R3",
@@ -581,6 +603,7 @@ function nameOf(id) {
     cap: "Capacitor", tubing: "Light Tubing", supply: "5 V Supply", usb: "USB Cable" }[id] || id;
 }
 
+/** What a part is doing right now, from the firmware's state. */
 function partNow(id, s) {
   const seen = runner.config.seen;
   switch (id) {
@@ -690,6 +713,7 @@ function renderValues() {
   renderBuildOptions();
 }
 
+/** The table comparing the three rack designs. */
 function renderBuildOptions() {
   const host = $("#build-options");
   if (!host || !sceneLib) return;
@@ -716,6 +740,7 @@ function renderBuildOptions() {
     "</tbody></table>";
 }
 
+/** Draws each light/sound pattern as a strip (from the firmware's own step lists). */
 function drawPatterns(patterns) {
   const host = $("#patterns");
   for (const [name, steps] of Object.entries(patterns)) {
@@ -777,6 +802,7 @@ function appendSerial(text, cls = "") {
   scrollSerial(atBottom);
 }
 
+/** Keeps the serial console scrolled to the newest line. */
 function scrollSerial(force) {
   const out = $("#serial-out");
   if (force) out.scrollTop = out.scrollHeight;

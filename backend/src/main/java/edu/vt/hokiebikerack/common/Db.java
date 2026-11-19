@@ -18,19 +18,23 @@ import java.util.UUID;
 public final class Db {
   private Db() {}
 
+  /** Instant -> the type the database driver wants (null stays null). */
   public static OffsetDateTime ts(Instant instant) {
     return instant == null ? null : OffsetDateTime.ofInstant(instant, ZoneOffset.UTC);
   }
 
+  /** Reads a timestamp column as an Instant (null if empty). */
   public static Instant instant(ResultSet rs, String column) throws SQLException {
     OffsetDateTime value = rs.getObject(column, OffsetDateTime.class);
     return value == null ? null : value.toInstant();
   }
 
+  /** Reads a UUID column. */
   public static UUID uuid(ResultSet rs, String column) throws SQLException {
     return rs.getObject(column, UUID.class);
   }
 
+  /** Reads a JSONB column as a JSON tree (null if empty). */
   public static JsonNode json(ObjectMapper mapper, ResultSet rs, String column) throws SQLException {
     String text = rs.getString(column);
     if (text == null) return null;
@@ -41,6 +45,7 @@ public final class Db {
     }
   }
 
+  /** Any object -> JSON text, for writing a JSONB column. */
   public static String toJson(ObjectMapper mapper, Object value) {
     try {
       return mapper.writeValueAsString(value);

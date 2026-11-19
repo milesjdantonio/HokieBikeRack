@@ -14,6 +14,7 @@ const APP = params.get("view") === "app" || (params.get("view") !== "desktop" &&
 document.body.classList.toggle("view-app", APP);
 const fill = (el, ...kids) => el.replaceChildren(...kids.flat(Infinity).filter((k) => k != null && k !== false));
 const btn = (label, onClick, cls = "", attrs = {}) => h("button", { class: `btn ${cls}`, type: "button", onClick, ...attrs }, label);
+/** "3:41 PM" from an ISO time. */
 const time = (iso) => new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 const NEXT = { ALERTED: ["EN_ROUTE", "On My Way"], EN_ROUTE: ["ON_SCENE", "On Scene"], ON_SCENE: ["RESOLVED", "Resolved"] };
 const EVENT_WORD = { TAMPER_WARNING: "Rack shaken (warning chirp)", TAMPER_ALARM: "Tamper alarm, siren on", ACCESS_GRANTED: "A registered card unlocked it",
@@ -25,6 +26,7 @@ let openIncident = null;   // id
 let showHistory = false;
 
 const toasts = h("div", { class: "toasts", role: "status", "aria-live": "polite" });
+/** A short message at the bottom of the screen (bad = red). */
 function toast(text, bad = false) {
   const t = h("div", { class: `toast${bad ? " bad" : ""}` }, text);
   toasts.append(t);
@@ -85,6 +87,7 @@ function incidentRow(i, onOpen) {
     h("span", { class: "needs-main" }, h("b", {}, i.rackName), h("span", {}, `${INCIDENT_WORD[i.status]} · reported ${ago(i.alertedAt)}`)),
     h("span", { class: `chip chip-${i.status}` }, INCIDENT_WORD[i.status]));
 }
+/** A row for a rack alarming with no incident yet (staff haven't alerted police). */
 function alarmRow(r, onOpen) {
   return h("button", { type: "button", class: "inc-row", onClick: () => onOpen(r) },
     riveIcon("badge", { size: 28, inputs: { kind: 4 } }).el,
@@ -92,6 +95,7 @@ function alarmRow(r, onOpen) {
     h("span", { class: "chip" }, "Live"));
 }
 
+/** Fills `el` with resolved incidents, newest first. */
 async function historyList(el, onOpen) {
   fill(el, h("p", { class: "empty" }, "Loading…"));
   try {
@@ -103,6 +107,7 @@ async function historyList(el, onOpen) {
 
 // ---------- desktop ----------
 let map, listEl, detailEl, summaryEl;
+/** Builds the browser layout: map, incident list and detail panel. */
 function buildDesktop(root) {
   summaryEl = h("span", { class: "top-summary" });
   listEl = h("div", { class: "pol-list" });
@@ -121,6 +126,7 @@ function buildDesktop(root) {
   } });
   map.setInset({ left: 0 });
 }
+/** Redraws the incident list (open ones, or the history). */
 function renderList() {
   if (showHistory) { historyList(listEl, openDetail); return; }
   const alarms = S.racks.filter((r) => isAlarm(r) && !r.incidentStatus);
@@ -129,6 +135,7 @@ function renderList() {
       : h("div", { class: "all-clear" }, riveIcon("police", { size: 96, height: 64, inputs: { state: 0 } }).el, h("b", {}, "No open incidents"), h("span", {}, "Reports from campus staff appear here.")),
     alarms.length ? [h("h3", { class: "needs-group" }, "Live Alarms, Not Reported"), alarms.map((r) => alarmRow(r, (rr) => map?.select(rr.id)))] : null);
 }
+/** Opens an incident: where, the rack's events, and the next-step button. */
 function openDetail(id) {
   openIncident = id;
   const i = S.incidents.find((x) => x.id === id);
@@ -145,6 +152,7 @@ function openDetail(id) {
   renderIncident(body, id);
   if (i) map.select(i.rackId);
 }
+/** Closes the incident detail. */
 function closeDetail() {
   openIncident = null;
   detailEl.hidden = true;
@@ -156,6 +164,7 @@ function closeDetail() {
 // ---------- app ----------
 let appMain, appTabs, appSheet, appTitle, appMapEl, appMap = null;
 let tab = "incidents";
+/** Builds the phone app layout with bottom tabs. */
 function buildApp(root) {
   appTitle = h("h1", { class: "app-title" }, "Incidents");
   appMain = h("main", { class: "app-main" });
@@ -166,6 +175,7 @@ function buildApp(root) {
   root.append(h("header", { class: "app-head" }, h("span", { class: "brand-mark" }, riveIcon("logo", { size: 26 }).el), appTitle, h("span", { class: "role-tag police-tag" }, "Police")),
     appMain, appMapEl, appTabs, appSheet);
 }
+/** Switches tab in the app layout. */
 function appGo(id) {
   tab = id;
   for (const a of appTabs.querySelectorAll("a")) { if (a.dataset.tab === tab) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); }
@@ -181,6 +191,7 @@ function appGo(id) {
   }
   renderApp();
 }
+/** Redraws the current app tab. */
 function renderApp() {
   if (tab === "incidents") {
     const alarms = S.racks.filter((r) => isAlarm(r) && !r.incidentStatus);
@@ -195,6 +206,7 @@ function renderApp() {
     historyList(el, (id) => openDetail(id));
   }
 }
+/** Opens a full-screen sheet in the app layout; returns its body to fill. */
 function openSheet(title) {
   appSheet.hidden = false;
   const body = h("div", { class: "app-rack" });

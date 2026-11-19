@@ -11,7 +11,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * The API the ESP32 talks to. Every call needs "Authorization: Bearer <device token>"
+ * The API a lock module talks to: the USB bridge page for the Uno (frontend/shared/rack-bridge.js),
+ * or a Wi-Fi rack (the ESP32 version, git tag esp32-final). Every call needs "Authorization: Bearer <device token>"
  * (checked by DeviceTokenFilter BEFORE we get here; the token must belong to {deviceId}).
  */
 @RestController

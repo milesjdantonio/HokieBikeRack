@@ -64,6 +64,7 @@ public class IncidentService {
         .orElseThrow(() -> ApiException.notFound("Incident"));
   }
 
+  /** One incident, its status steps, and the rack's events around the alert. */
   public IncidentDetail get(UUID id) {
     IncidentView incident = view(id);
     List<IncidentUpdate> updates = jdbc.sql("""
@@ -89,6 +90,7 @@ public class IncidentService {
     return new IncidentDetail(incident, updates, events);
   }
 
+  /** Opens an incident (ALERTED) for a rack. 409 if one is already open there. */
   @Transactional
   public IncidentDetail alert(UUID rackId, AlertAuthorities req, String actor) {
     boolean rackExists = jdbc.sql("SELECT count(*) FROM racks WHERE id = :id").param("id", rackId)
@@ -116,6 +118,7 @@ public class IncidentService {
     return get(id);
   }
 
+  /** Moves an incident forward (EN_ROUTE, ON_SCENE, RESOLVED), recording who and when. */
   @Transactional
   public IncidentDetail changeStatus(UUID id, ChangeStatus req, String actor) {
     IncidentView current = view(id);

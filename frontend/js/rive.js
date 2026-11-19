@@ -16,6 +16,7 @@ if (R) {
 
 const MACHINES = { rack: "Rack", logo: "Logo", pin: "Pin", badge: "Badge", signal: "Signal", police: "Police", shake: "Shake" };
 const live = new Set();
+/** Whether the visitor asked for less motion (animations then stop after a moment). */
 const reducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /**
@@ -31,6 +32,7 @@ function sweep() {
   }
 }
 
+/** A Rive animation by name; returns a handle { el, set(input, value), fire(trigger), destroy() }. */
 export function riveIcon(name, opts = {}) {
   const { size = 24, inputs = {}, label = "" } = opts;
   sweep();

@@ -20,9 +20,11 @@ public class AuditService {
     this.mapper = mapper;
   }
 
+  /** One audit log line. */
   public record AuditEntry(long id, String actor, String action, String targetType, String targetId,
                            JsonNode details, Instant createdAt) {}
 
+  /** One page of the audit log, with the total for paging. */
   public record AuditPage(List<AuditEntry> items, int page, int size, long total) {}
 
   /** Call inside the same transaction as the change, so both happen or neither does. */
@@ -39,6 +41,7 @@ public class AuditService {
         .update();
   }
 
+  /** One page of the audit log, newest first, with the total count for paging. */
   public AuditPage list(int page, int size) {
     List<AuditEntry> items = jdbc.sql("""
             SELECT id, actor, action, target_type, target_id, details, created_at

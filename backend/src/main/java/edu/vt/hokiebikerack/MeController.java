@@ -21,6 +21,7 @@ public class MeController {
     this.loginRequired = props.loginRequired();
   }
 
+  /** GET /api/v1/me: the signed-in user's name and roles, and whether sign-in is on at all. */
   @GetMapping("/api/v1/me")
   public Map<String, Object> me(Authentication auth) {
     List<String> roles = auth.getAuthorities().stream()

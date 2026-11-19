@@ -59,6 +59,7 @@ class CardList {
   // Returns true if that happened.
   bool begin();
 
+  // How many cards are listed, and how many fit (the EEPROM size decides).
   uint8_t count() const;
   uint8_t capacity() const;
 
@@ -66,6 +67,7 @@ class CardList {
   int find(const uint8_t ref[kCardRefLength]) const;
   bool contains(const uint8_t ref[kCardRefLength]) const { return find(ref) >= 0; }
 
+  // Adds a card. AlreadyListed / Full say why nothing was added.
   AddResult add(const uint8_t ref[kCardRefLength]);
   // Returns false if `index` is out of range. The order of the other cards
   // may change.
@@ -76,7 +78,9 @@ class CardList {
 
  private:
   static constexpr uint16_t kHeaderSize = 4;
+  // Where card number `index` starts in the store (after the 4-byte header).
   uint16_t slotAddress(uint8_t index) const { return kHeaderSize + index * kCardRefLength; }
+  // Writes the card count into the header.
   void setCount(uint8_t count);
 
   ByteStore &store_;

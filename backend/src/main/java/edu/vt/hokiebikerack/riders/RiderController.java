@@ -19,6 +19,7 @@ public class RiderController {
     this.riders = riders;
   }
 
+  /** Body of New Rider Code: an optional name for the rider. */
   public record IssueCode(@Size(max = 120) String name) {}
 
   /** The online request form (stand-in for StarRez). */
@@ -29,6 +30,7 @@ public class RiderController {
       String hokiePassportId,
       @Size(max = 500) String note) {}
 
+  /** POST /api/v1/rider/request: the online access form. Public; returns the new rider code. */
   @PostMapping("/rider/request")
   @ResponseStatus(HttpStatus.CREATED)
   public RiderService.RequestResult request(@jakarta.validation.Valid @RequestBody RequestAccess body) {
@@ -41,16 +43,19 @@ public class RiderController {
     return riders.startLink(code);
   }
 
+  /** GET /api/v1/access-requests?status=PENDING */
   @GetMapping("/access-requests")
   public java.util.List<RiderService.AccessRequest> requests(@RequestParam(required = false) String status) {
     return riders.requests(status);
   }
 
+  /** POST /api/v1/access-requests/{id}/approve */
   @PostMapping("/access-requests/{riderId}/approve")
   public RiderService.AccessRequest approve(@PathVariable UUID riderId, Principal user) {
     return riders.decide(riderId, true, user.getName());
   }
 
+  /** POST /api/v1/access-requests/{id}/deny */
   @PostMapping("/access-requests/{riderId}/deny")
   public RiderService.AccessRequest deny(@PathVariable UUID riderId, Principal user) {
     return riders.decide(riderId, false, user.getName());

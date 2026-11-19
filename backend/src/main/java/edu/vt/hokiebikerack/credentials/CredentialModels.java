@@ -7,6 +7,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+/** What the cards API sends and receives (JSON shapes). @Valid checks run on the request ones. */
 public final class CredentialModels {
   private CredentialModels() {}
 

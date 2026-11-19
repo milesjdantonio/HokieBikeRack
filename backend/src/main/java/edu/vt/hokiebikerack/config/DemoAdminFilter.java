@@ -23,6 +23,7 @@ class DemoAdminFilter extends OncePerRequestFilter {
     this.username = username;
   }
 
+  /** No login on this request: carry on as the admin. */
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {

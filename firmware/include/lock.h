@@ -28,6 +28,7 @@ bool lockIsCommandedUnlocked();
 // tamper jolts while a rider pulls their bike out.
 bool lockRecentlyUnlocked(uint32_t graceMs);
 
+// True if this build drives a real servo (HBR_ENABLE_SERVO 1), false if the lock is simulated.
 bool lockServoEnabled();
 
 // Bench calibration: move the servo straight to `degrees` (0-180), bypassing

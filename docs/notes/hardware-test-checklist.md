@@ -13,7 +13,7 @@ Type commands + Enter. On this laptop, use `~/.platformio/penv/Scripts/python.ex
 in place of `pio` (Windows blocks `pio.exe`).
 
 ## 0. Prep (laptop)
-- [ ] `cd firmware && pio test -e native` → 43 tests pass. On this laptop: `cd firmware/tools/wasm-tests && npm test` instead. (Passed 2026-11-10.)
+- [ ] `cd firmware && pio test -e native` → 45 tests pass. On this laptop: `cd firmware/tools/wasm-tests && npm test` instead. (Passed 2026-11-19.)
 - [ ] Copy `include/config.example.h` → `include/config.h`. Set `HBR_CARD_KEY`
       (`python -c "import secrets; print(secrets.token_hex(32))"`).
 - [ ] `pio run -t upload` with **only the Uno** plugged in. Monitor shows
@@ -69,7 +69,7 @@ in place of `pio` (Windows blocks `pio.exe`).
 - [ ] Wire servo: red to the 5V rail (Uno), brown to GND, orange to pin 9, capacitor across 5 V/GND
   next to it. (Separate 5 V supply instead if the next steps show resets.)
 - [ ] `config.h`: `HBR_ENABLE_SERVO 1`. Re-flash. Keep hands clear: it may jump at boot.
-- [ ] Boot: servo moves to LOCKED angle. Allowed tap: moves to UNLOCKED, back after 5 s.
+- [ ] Boot: servo moves to LOCKED angle. Allowed tap: moves to UNLOCKED. The same card again: back to LOCKED (or by itself after 120 s).
 - [ ] Watch for resets while moving: the start-up messages appearing again = **brownout** (power problem).
 - [ ] Find the real latch angles with `servo <deg>` (then `lock`), and put them in `HBR_SERVO_LOCKED_DEG`/`UNLOCKED_DEG`. Unlocked = plate up, horn just touching the ledge (no load). Locked = plate down far enough to hold the bike. Avoid straining at the ends (buzzing = pushing past its limit).
 - [ ] Unplug the 5 V supply mid-unlock: what does the latch do? (Write it down: this is the fail-safe/fail-secure behaviour of the mechanism.)

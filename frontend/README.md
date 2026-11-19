@@ -1,6 +1,8 @@
 # Frontend
 
-Plain HTML/CSS/JavaScript modules, no build step. The backend serves this folder.
+Plain HTML/CSS/JavaScript modules, no build step. The backend serves this folder (or Render hosts it
+as a static site: `js/backend-url.js` then holds the API's address; see
+[../docs/notes/hosting-render.md](../docs/notes/hosting-render.md)).
 Explained in [../docs/notes/frontend.md](../docs/notes/frontend.md); who each version is for in
 [../docs/notes/roles-plan.md](../docs/notes/roles-plan.md); design rules in [../docs/notes/design.md](../docs/notes/design.md).
 

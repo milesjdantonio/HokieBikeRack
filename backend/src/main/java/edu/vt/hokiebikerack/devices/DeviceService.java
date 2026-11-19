@@ -50,13 +50,14 @@ public class DeviceService {
       "needs_confirm OR (last_seen_at IS NOT NULL AND last_seen_at < :offlineSince)";
 
   /**
-   * What the rack downloads. Epoch numbers are for the ESP32 (no date parsing
+   * What a Wi-Fi rack downloads. Epoch numbers are for the microcontroller (no date parsing
    * needed); the ISO strings are for humans reading it.
    */
   public record Snapshot(UUID deviceId, UUID rackId, long revision, Instant issuedAt, long issuedAtEpoch,
                          Instant validUntil, long validUntilEpoch, int credentialCount,
                          List<String> credentialReferences) {}
 
+  /** Marks the device as seen now (and as needing confirmation if it had been offline). */
   public void touch(DevicePrincipal device) {
     Instant now = clock.instant();
     jdbc.sql("UPDATE devices SET needs_confirm = " + WAS_OFFLINE + ", last_seen_at = :now WHERE id = :id")
@@ -64,6 +65,7 @@ public class DeviceService {
         .param("id", device.deviceId()).update();
   }
 
+  /** The list of card references allowed at this device's rack right now, with the revision. */
   public Snapshot snapshot(DevicePrincipal device) {
     Instant now = clock.instant();
     long rev = revision.current();  // read first: if it changes during the query, the next fetch catches it
@@ -94,6 +96,7 @@ public class DeviceService {
         validUntil, validUntil.getEpochSecond(), refs.size(), refs);
   }
 
+  /** Stores the device's status report (sensors OK, queue depth...) and marks it seen. */
   public Map<String, Object> heartbeat(DevicePrincipal device, JsonNode body) {
     if (body == null || !body.isObject()) throw ApiException.badRequest("heartbeat must be a JSON object");
     String json = Db.toJson(mapper, body);

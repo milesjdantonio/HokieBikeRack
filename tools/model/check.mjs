@@ -13,19 +13,23 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const MODEL = path.join(ROOT, "frontend", "model");
+/** Imports one of the model's modules from frontend/model. */
 const load = (f) => import(pathToFileURL(path.join(MODEL, f)).href);
 const { FirmwareRunner, RESET } = await load("runner.js");
 const { Physics } = await load("physics.js");
 
 const modelConfig = fs.readFileSync(path.join(ROOT, "firmware", "model", "config.h"), "utf8");
+/** A #define's value from the model's compiled config. */
 const define = (name) => modelConfig.match(new RegExp(`#define ${name} "([^"]*)"`))[1];
 
 let failures = 0;
+/** Prints ok / FAIL for one check and counts failures. */
 function check(name, ok, detail = "") {
   console.log(`${ok ? "  ok  " : "  FAIL"} ${name}${!ok && detail ? `\n         ${detail}` : ""}`);
   if (!ok) failures++;
 }
 
+/** A newly booted firmware with its physics, for the next scenario. */
 function fresh() {
   const t = {};
   t.physics = new Physics();
@@ -52,7 +56,9 @@ const t = fresh();
 await t.runner.boot(RESET.POWER_ON);
 const cfg = t.runner.config;
 const val = Object.fromEntries(cfg.values.map((v) => [v.id, v.value]));
+/** The servo pulse width (us) the firmware should send for an angle. */
 const pulseFor = (deg) => Math.round(cfg.seen.servoMinUs + deg / 180 * (cfg.seen.servoMaxUs - cfg.seen.servoMinUs));
+/** Waits long enough that the next tap isn't ignored as the same card. */
 const debounceGap = () => t.run(val.debouncer + 500);
 
 console.log("Boot");

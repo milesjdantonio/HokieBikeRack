@@ -46,13 +46,17 @@ public class RiderService {
     this.clock = clock;
   }
 
+  /** A rider's access request as staff see it. */
   public record AccessRequest(UUID id, String name, String email, String hokiePassportId, String note, String status,
                               Instant requestedAt, Instant decidedAt, String decidedBy) {}
 
+  /** What the request form gets back: the rider's private code and PENDING. */
   public record RequestResult(String code, String status) {}
 
+  /** A newly made rider code (shown once). */
   public record RiderCode(UUID riderId, String name, String code) {}
 
+  /** One of the rider's cards. */
   public record Card(String label, boolean active) {}
 
   /** A rack where one of the rider's cards tapped in and hasn't tapped out. */
@@ -62,6 +66,7 @@ public class RiderService {
   /** status: PENDING (waiting for staff), APPROVED, DENIED. linkUntil: the HokieP link window, if open. */
   public record RiderView(String name, String status, List<Card> cards, List<Parked> parked, Instant linkUntil) {}
 
+  /** A private rider code like "K7QM-3XPA" (no look-alike letters), the rider's key to the app. */
   static String newCode() {
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < 8; i++) {
@@ -175,6 +180,7 @@ public class RiderService {
     return new RequestResult(code, "PENDING");
   }
 
+  /** Access requests, newest first; `status` filters (PENDING, APPROVED, DENIED). */
   public List<AccessRequest> requests(String status) {
     String where = status == null || status.isBlank() ? "" : " WHERE status = :status";
     var q = jdbc.sql("""
@@ -186,6 +192,7 @@ public class RiderService {
         Db.instant(rs, "decided_at"), rs.getString("decided_by"))).list();
   }
 
+  /** Approves or denies a PENDING request. 409 if it was already decided. */
   @Transactional
   public AccessRequest decide(UUID riderId, boolean approve, String actor) {
     int n = jdbc.sql("""

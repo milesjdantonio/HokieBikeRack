@@ -34,7 +34,7 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 /**
  * Who may call what. Three separate "filter chains", checked in order:
  *
- *  1. /api/v1/devices/**  -> ESP32s, with a device bearer token (DeviceTokenFilter).
+ *  1. /api/v1/devices/**  -> lock modules, with a device bearer token (DeviceTokenFilter).
  *  2. /api/**             -> people, with HTTP Basic login. GET = ADMIN or VIEWER,
  *                            anything that changes data = ADMIN only.
  *  3. everything else     -> the static dashboard files; public (they contain no data).
@@ -67,6 +67,7 @@ public class SecurityConfig {
         "{\"status\":" + status + ",\"title\":\"" + title + "\",\"detail\":\"" + detail + "\"}");
   }
 
+  /** Chain 1: lock modules. Only a valid device token for the device in the URL gets in. */
   @Bean
   @Order(1)
   SecurityFilterChain deviceChain(HttpSecurity http, DeviceAuthService deviceAuth) throws Exception {
@@ -81,6 +82,7 @@ public class SecurityConfig {
         .build();
   }
 
+  /** Chain 2: people using the dashboard. Login rules, or demo mode (everyone is admin) when login is off. */
   @Bean
   @Order(2)
   SecurityFilterChain apiChain(HttpSecurity http, HbrProperties props) throws Exception {
@@ -108,6 +110,7 @@ public class SecurityConfig {
         .build();
   }
 
+  /** Chain 3: the website's files. Public, with security headers (CSP, framing, referrer). */
   @Bean
   @Order(3)
   SecurityFilterChain staticChain(HttpSecurity http) throws Exception {

@@ -11,6 +11,7 @@ import { posed } from '../pose.mjs';
 const W = 150, H = 100;
 const STEEL = '#a3a9b3', STEEL_DARK = '#5e6570', MODULE = '#2c2431', GROUND = '#161b22';
 const AMBER = '#ffb547', RED = '#ff6b6b', ORANGE = '#ff9a3c';
+/** A colour with alpha: hex("#ff0000", 0.5) -> "#ff000080". */
 const hex = (c, a = 1) => c + Math.round(a * 255).toString(16).padStart(2, '0');
 
 export default function build() {

@@ -56,7 +56,9 @@ class FeedbackPlayer {
   // green blip = ready, red blip = not ready (no cards enrolled / reader fault).
   void setReady(bool ready) { ready_ = ready; }
 
+  // Call every loop(): which LEDs / buzzer should be on right now.
   Output update(uint32_t nowMs);
+  // The pattern playing now (None when idle).
   Pattern current() const { return current_; }
 
   // Fills `out` with the pattern's steps and returns how many there are.

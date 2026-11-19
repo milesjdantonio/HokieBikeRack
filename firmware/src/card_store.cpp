@@ -1,3 +1,5 @@
+// The allowed-card list, kept in the Uno's EEPROM so it survives power-off. The list logic is
+// lib/hbr_logic/src/card_list.h; this file only connects it to the real EEPROM.
 #include "card_store.h"
 
 #include <Arduino.h>

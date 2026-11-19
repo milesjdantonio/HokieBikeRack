@@ -1,29 +1,30 @@
 # Overview: how the whole system fits together
 
-> **2026-11-10: the rack is now an Arduino Uno R3, working offline.** The Uno
-> has no Wi-Fi, so the real rack no longer talks to the backend. "Journey 0"
-> below is how the Uno rack works today. Everything after it describes the
-> networked design (ESP32, git tag `esp32-final`), which the backend, the
-> dashboard and `tools/device_simulator.py` still implement.
+> **Since 2026-11-10 the rack is an Arduino Uno R3.** The Uno has no Wi-Fi, so it works on its
+> own, and reaches the backend only through a computer it's plugged into by USB (the Admin page's
+> Connect by USB). "Journey 0" below is how the Uno rack works today. Everything after it describes
+> the networked design (ESP32, git tag `esp32-final`), which the backend, the dashboard and
+> `tools/device_simulator.py` still implement.
 
-## Journey 0: the Uno rack (offline)
+## Journey 0: the Uno rack
 
 ```
- ┌──────────── RACK (Arduino Uno R3) ───────────┐
- │ PN532 ──I2C──┐                                │   USB serial    ┌──── LAPTOP ─────────┐
- │ MPU-6050 ─I2C┤ loop(): cards, tamper, lock,  │◀──────────────▶│ serial monitor:     │
- │ LEDs, buzzer ┤        lights                 │ (115200 baud)   │ enroll, list, logs  │
- │ MG90S servo ─┘                               │                 └─────────────────────┘
- │ EEPROM: up to 63 allowed card references     │
- └───────────────────────────────────────────────┘
+ ┌──────────── RACK (Arduino Uno R3) ───────────┐                 ┌──── LAPTOP (Chrome / Edge) ─────────┐
+ │ PN532 ─UART──┐                                │   USB serial    │ Admin page, Connect by USB:          │
+ │ MPU-6050 ─I2C┤ loop(): cards, tamper, lock,  │◀──────────────▶│  rack-link.js reads [event] lines,   │
+ │ LEDs, buzzer ┤        lights                 │ (115200 baud)   │  rack-bridge.js uploads them  ──────────▶ backend
+ │ MG90S servo ─┘                               │                 │ Testing panel: enroll, tap, shake... │   /api/v1/devices
+ │ EEPROM: up to 63 allowed card references     │                 │ (or the serial monitor)              │
+ └───────────────────────────────────────────────┘                 └──────────────────────────────────────┘
 ```
+Unplugged, the rack works exactly the same; the dashboard just shows it Offline after 3 minutes.
 
 | # | What happens | Code |
 |---|---|---|
-| 1 | Admin types `enroll` in the serial monitor and taps the rider's card. Its reference (HMAC, first 16 bytes) is saved in EEPROM. | `main.cpp`, `card_list.cpp` |
-| 2 | Rider taps. The loop reads the ID over I2C without waiting, debounces it, and turns it into the reference. | `card_reader.cpp`, `credential_ref.cpp` |
-| 3 | Reference in the EEPROM list → unlock, green + beep; the same card again locks it (or after 120 s).  Not listed → red + two beeps. | `card_store.cpp`, `lock.cpp` |
-| 4 | Every event is printed as `[event] t+12s ACCESS_GRANTED (INFO) card=cb9df64f5164...`. | `main.cpp` |
+| 1 | Admin presses Add Card in the Testing panel (or types `enroll`) and taps the rider's card. Its reference (HMAC, first 16 bytes) is saved in EEPROM. | `main.cpp`, `card_list.cpp` |
+| 2 | Rider taps. The loop reads the ID (UART on the prototype) without waiting, debounces it, and turns it into the reference. | `card_reader.cpp`, `credential_ref.cpp` |
+| 3 | Reference in the EEPROM list → unlock, green + beep. After 10 s green stays on, red flashes, a beep every 2 s. The same card again locks it (or it locks itself after 120 s). Not listed → red + two beeps. | `card_store.cpp`, `lock.cpp` |
+| 4 | Every event is printed as `[event] t+12s ACCESS_GRANTED (INFO) card=cb9df64f5164... ref=<64 hex>`. With Connect by USB on, the page uploads it and it shows on the dashboard. | `main.cpp`, `frontend/shared/rack-bridge.js` |
 | 5 | Shaking works exactly like Journey 2 below. | `tamper_detector.cpp` |
 | 6 | To take access away: `unenroll` + tap, or `list` + `remove <n>`. | `main.cpp` |
 

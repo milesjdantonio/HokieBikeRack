@@ -45,18 +45,22 @@ class ApiIntegrationTest {
 
   // ---------- helpers ----------
 
+  /** Runs the request, checks the status, and returns the JSON body (null if empty). */
   private JsonNode json(MockHttpServletRequestBuilder req, int expectedStatus) throws Exception {
     String body = mvc.perform(req).andExpect(status().is(expectedStatus))
         .andReturn().getResponse().getContentAsString(StandardCharsets.UTF_8);
     return body.isEmpty() ? null : mapper.readTree(body);
   }
 
+  /** Adds a JSON body to a request. */
   private MockHttpServletRequestBuilder jsonBody(MockHttpServletRequestBuilder req, String body) {
     return req.contentType(MediaType.APPLICATION_JSON).content(body);
   }
 
+  /** A test rack with one lock module and its token. */
   record Device(String rackId, String deviceId, String token) {}
 
+  /** Creates a rack with one lock module, as admin. */
   private Device newRackWithDevice(String name) throws Exception {
     JsonNode rack = json(jsonBody(post("/api/v1/racks"), "{\"name\":\"" + name + "\"}").with(ADMIN), 201);
     String rackId = rack.at("/rack/id").asText();
@@ -65,6 +69,7 @@ class ApiIntegrationTest {
     return new Device(rackId, dev.at("/device/id").asText(), dev.get("deviceToken").asText());
   }
 
+  /** Sends the request as that lock module (its bearer token). */
   private MockHttpServletRequestBuilder asDevice(MockHttpServletRequestBuilder req, Device d) {
     return req.header("Authorization", "Bearer " + d.token());
   }
@@ -76,10 +81,12 @@ class ApiIntegrationTest {
     return HexFormat.of().formatHex(mac.doFinal(("hbr-card-v1:" + uidHex).getBytes(StandardCharsets.UTF_8)));
   }
 
+  /** One event as JSON, with a random ID. */
   private String event(String type, String severity, String occurredAt, String detailsJson) {
     return event(UUID.randomUUID(), type, severity, occurredAt, detailsJson);
   }
 
+  /** One event as JSON, with the given ID (to test duplicates). occurredAt null = no device clock. */
   private String event(UUID id, String type, String severity, String occurredAt, String detailsJson) {
     return "{\"id\":\"" + id + "\",\"eventType\":\"" + type + "\",\"severity\":\"" + severity + "\","
         + "\"occurredAt\":" + (occurredAt == null ? "null" : "\"" + occurredAt + "\"") + ","
@@ -191,6 +198,7 @@ class ApiIntegrationTest {
     assertThat(timeSource(good)).isEqualTo("DEVICE");
   }
 
+  /** Whose clock the server used for that event: DEVICE or SERVER. */
   private String timeSource(UUID id) {
     return jdbc.sql("SELECT time_source FROM security_events WHERE id = :id").param("id", id)
         .query(String.class).single();

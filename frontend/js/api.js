@@ -26,18 +26,22 @@ function base64(text) {
   return btoa(binary);
 }
 
+/** Saves the login for this tab (sent with every request). */
 export function setCredentials(username, password) {
   sessionStorage.setItem(AUTH_KEY, base64(`${username}:${password}`));
 }
 
+/** Forgets the login (Sign Out). */
 export function clearCredentials() {
   sessionStorage.removeItem(AUTH_KEY);
 }
 
+/** Whether this tab has a login saved. */
 export function hasCredentials() {
   return sessionStorage.getItem(AUTH_KEY) !== null;
 }
 
+/** What to do when the server says "log in first" (401), e.g. show the sign-in screen. */
 export function setUnauthorizedHandler(fn) {
   onUnauthorized = fn;
 }

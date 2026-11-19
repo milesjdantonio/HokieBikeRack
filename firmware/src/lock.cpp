@@ -1,3 +1,6 @@
+// The lock: drives the MG90S servo (or just prints, when HBR_ENABLE_SERVO is 0). The re-lock timer
+// lives in lib/hbr_logic/src/lock_controller.h; this file turns its decisions into servo moves.
+// What each function does: include/lock.h.
 #include "lock.h"
 
 #include <Arduino.h>
@@ -35,6 +38,7 @@ void writeAngle(int degrees) {
 }
 #endif
 
+// Moves the servo to the LOCKED or UNLOCKED angle from config.h (or prints, when simulated).
 void moveTo(bool unlocked) {
 #if HBR_ENABLE_SERVO
   Serial.print(F("[lock] servo -> "));

@@ -27,10 +27,12 @@ public final class RackModels {
                             UUID incidentId, boolean sensorFault, Instant createdAt,
                             int capacity, Integer capacitySetting, int spotsInUse, int openSpots, Instant lastAlarmAt) {}
 
+  /** A lock module as the dashboard sees it (never its token). */
   public record DeviceView(UUID id, UUID rackId, String label, String firmwareVersion, Instant lastSeenAt,
                            boolean online, boolean needsConfirm, boolean active, long authorizationRevision,
                            JsonNode lastHeartbeat, Instant tokenRotatedAt, Instant createdAt) {}
 
+  /** A rack and its lock modules. */
   public record RackDetail(RackSummary rack, List<DeviceView> devices) {}
 
   /** latitude/longitude are optional, but must be sent together (checked in RackService). */
@@ -49,8 +51,10 @@ public final class RackModels {
                            @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(200) Integer capacity,
                            Boolean clearCapacity) {}
 
+  /** Body of Add Lock Module: its label. */
   public record CreateDevice(@NotBlank @Size(max = 120) String label) {}
 
+  /** Body of a lock module change; null = leave as is. */
   public record UpdateDevice(@Size(min = 1, max = 120) String label, Boolean active) {}
 
   /** Returned ONCE when a device is added or its token is rotated. We can't show the token again. */

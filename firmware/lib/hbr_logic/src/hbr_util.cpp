@@ -1,3 +1,5 @@
+// Small helpers: bytes <-> hex text, and the debouncer that ignores a card left on the reader.
+// What each function does: hbr_util.h.
 #include "hbr_util.h"
 
 #include <string.h>

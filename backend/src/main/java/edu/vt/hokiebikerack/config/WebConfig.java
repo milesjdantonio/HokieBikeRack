@@ -11,6 +11,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
  */
 @Configuration
 public class WebConfig implements WebMvcConfigurer {
+  /** Short addresses: /admin -> /admin/ -> admin/index.html (same for each version). */
   @Override
   public void addViewControllers(ViewControllerRegistry registry) {
     // The old customer app's address now opens the rider version.

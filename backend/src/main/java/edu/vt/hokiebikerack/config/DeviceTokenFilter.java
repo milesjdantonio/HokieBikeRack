@@ -18,7 +18,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Logs in ESP32 devices for /api/v1/devices/{deviceId}/... requests.
+ * Logs in lock modules for /api/v1/devices/{deviceId}/... requests (the Uno's USB bridge page,
+ * frontend/shared/rack-bridge.js, or a Wi-Fi rack like the ESP32 version, git tag esp32-final).
  *
  * The device sends "Authorization: Bearer <token>". We check that token
  * against the device ID IN THE URL. So a token for rack A can never be used to
@@ -35,6 +36,7 @@ public class DeviceTokenFilter extends OncePerRequestFilter {
     this.auth = auth;
   }
 
+  /** Bearer token valid for the device in the URL: log in as that device. Otherwise carry on unknown (-> 401). */
   @Override
   protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
       throws ServletException, IOException {

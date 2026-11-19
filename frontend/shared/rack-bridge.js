@@ -9,6 +9,7 @@ import { link } from "./rack-link.js";
 import { apiUrl } from "../js/backend.js";
 
 const HEARTBEAT_MS = 30000;
+/** Where a lock module's token is kept in this browser. */
 const TOKEN_KEY = (deviceId) => `hbr-usb-token:${deviceId}`;
 
 let bound = null;      // { rackId, deviceId, token }
@@ -43,6 +44,7 @@ export const bridge = {
   },
 };
 
+/** Tells the listeners (the Admin page) that the bridge started or stopped. */
 function changed() { for (const fn of changeFns) { try { fn(bridge); } catch (e) { console.error(e); } } }
 
 link.onChange(() => { if (!link.connected && bound) bridge.stop(); else changed(); });
@@ -62,6 +64,7 @@ link.onLine((line, info) => {
   flush();
 });
 
+/** Pulls the details out of an [event] line (card reference, reason, jolt...) and tracks sensor health. */
 function parseDetails(type, rest) {
   const d = {};
   let m;
@@ -86,6 +89,7 @@ function parseDetails(type, rest) {
   return d;
 }
 
+/** POSTs to the lock module API as this rack (its bearer token). */
 async function post(path, body) {
   const res = await fetch(apiUrl(`/devices/${bound.deviceId}${path}`), {
     method: "POST",
@@ -113,6 +117,7 @@ async function flush() {
   }
 }
 
+/** Heartbeat: tells the backend the rack is online and how its sensors are, then sends waiting events. */
 async function beat() {
   if (!bound || !link.connected) return;
   try {

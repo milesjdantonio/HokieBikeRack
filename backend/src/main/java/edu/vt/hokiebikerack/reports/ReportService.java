@@ -26,15 +26,19 @@ public class ReportService {
     this.zone = props.reportZone();
   }
 
+  /** Counts for one rack. */
   public record RackRow(UUID rackId, String rackName, long granted, long denied, long tamper, long faults) {}
 
+  /** Counts for one day (local time). */
   public record DayRow(LocalDate day, long granted, long denied, long tamper) {}
 
+  /** Everything on the Reports page. */
   public record Summary(int days, Instant from, Instant to, String timeZone, Map<String, Long> byType,
                         Map<String, Long> bySeverity, Map<String, Long> deniedReasons,
                         List<RackRow> byRack, List<DayRow> byDay, long activeCredentials,
                         long registeredRacks) {}
 
+  /** Counts for the last `days` days: by type, severity, rack, day, and why cards were refused. */
   public Summary summary(int days) {
     Instant to = clock.instant();
     Instant from = to.minus(Duration.ofDays(days));

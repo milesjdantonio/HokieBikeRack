@@ -23,6 +23,7 @@ const PATHS = {
   close: ["M6 6l12 12", "M18 6L6 18"],
 };
 
+/** An inline SVG icon by name. With `label` it's announced to screen readers, otherwise hidden. */
 export function icon(name, label) {
   return s("svg", {
     viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.75",

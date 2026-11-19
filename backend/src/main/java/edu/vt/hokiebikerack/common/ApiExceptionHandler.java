@@ -27,6 +27,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 public class ApiExceptionHandler {
   private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
 
+  /** Our own ApiException: its status and message, as-is. */
   @ExceptionHandler(ApiException.class)
   public ProblemDetail handleApi(ApiException e) {
     return ProblemDetail.forStatusAndDetail(e.status(), e.getMessage());
@@ -44,6 +45,7 @@ public class ApiExceptionHandler {
     return pd;
   }
 
+  /** @Min/@Max etc. failed on a query or path parameter. */
   @ExceptionHandler(HandlerMethodValidationException.class)
   public ProblemDetail handleMethodValidation(HandlerMethodValidationException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Invalid request parameters");
@@ -56,6 +58,7 @@ public class ApiExceptionHandler {
         "Request body is not valid JSON or has a wrong value type");
   }
 
+  /** A parameter couldn't be converted, e.g. a rack ID that isn't a UUID. */
   @ExceptionHandler(MethodArgumentTypeMismatchException.class)
   public ProblemDetail handleTypeMismatch(MethodArgumentTypeMismatchException e) {
     return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,

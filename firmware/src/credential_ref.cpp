@@ -1,3 +1,5 @@
+// Card ID -> keyed reference (HMAC-SHA256 with HBR_CARD_KEY), so the raw card ID is never stored or
+// printed. What each function does: include/credential_ref.h. The maths: lib/hbr_logic/src/card_list.cpp.
 #include "credential_ref.h"
 
 #include <string.h>

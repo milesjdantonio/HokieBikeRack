@@ -1,16 +1,19 @@
 # Arduino Uno R3 firmware
 
-C++ / PlatformIO for an **Arduino Uno R3** with a PN532 (I2C), MPU-6050 (I2C), MG90S servo,
-red/green LEDs and an active buzzer. Concepts explained in [../docs/notes/firmware.md](../docs/notes/firmware.md).
+C++ / PlatformIO for an **Arduino Uno R3** with a PN532 card reader (I2C, or UART with
+`HBR_READER_UART 1`, which the prototype uses), MPU-6050 accelerometer (I2C), MG90S servo,
+red/green LEDs and a buzzer (active, or passive with `HBR_BUZZER_PASSIVE 1`, which the prototype uses).
+Concepts explained in [../docs/notes/firmware.md](../docs/notes/firmware.md).
 
 The Uno has no Wi-Fi, so this rack works **on its own**: allowed cards are enrolled
 at the rack and saved in EEPROM (up to 63), and events are printed to the serial
-monitor. The previous ESP32 version (Wi-Fi + backend sync) is the git tag `esp32-final`:
+monitor. Plugged into a computer by USB, the Admin page's **Connect by USB** passes those
+events on to the dashboard ([../docs/notes/frontend.md](../docs/notes/frontend.md)). The previous ESP32 version (Wi-Fi + backend sync) is the git tag `esp32-final`:
 `git checkout esp32-final -- firmware` brings it back.
 
 ## Commands (from this folder)
 ```bash
-pio test -e native      # 43 logic tests on your PC (needs g++; MSYS2 on Windows)
+pio test -e native      # 45 logic tests on your PC (needs g++; MSYS2 on Windows)
 pio run                 # build for the Uno
 pio run -t upload       # flash over USB
 pio device monitor      # serial console, 115200 baud
@@ -18,7 +21,7 @@ pio device monitor      # serial console, 115200 baud
 On this laptop Windows blocks `pio.exe`; use `~/.platformio/penv/Scripts/python.exe -m platformio`
 instead (e.g. `... -m platformio run -t upload`). Windows also blocks the test
 programs, so run the tests as WebAssembly instead:
-`cd tools/wasm-tests && npm install && npm test` (43 tests).
+`cd tools/wasm-tests && npm install && npm test` (45 tests).
 How it works: [firmware.md → Running the tests on this laptop](../docs/notes/firmware.md#running-the-tests-on-this-laptop).
 
 No Uno on the bench yet? `node tools/model/build.mjs` (from the repo root) compiles this firmware to
@@ -29,7 +32,8 @@ Arduino Nano (same chip).
 ## Setup
 1. Copy `include/config.example.h` to `include/config.h` (git-ignored).
 2. Fill in `HBR_CARD_KEY` (16+ characters, the same on every rack).
-3. Leave `HBR_ENABLE_SERVO 0` until the servo bench test passes.
+3. Leave `HBR_ENABLE_SERVO 0` until the servo bench test passes. Then set the LOCKED / UNLOCKED
+   angles, and `HBR_SERVO_REVERSED 1` if the servo is mounted upside down (the prototype's is).
 4. Flash, open the serial monitor, type `enroll`, tap a card. It now opens the rack.
 Without `config.h` it still builds and runs, denying every card.
 
@@ -62,7 +66,8 @@ What each does: [firmware.md → Serial console](../docs/notes/firmware.md#seria
 | Flashing red + siren, at least 10 s, until the rack is still for 5 s | tamper alarm (an allowed card stops it) |
 
 ## Memory
-863 bytes of 2048 RAM, 21.8 KB of 32 KB flash (servo + test commands on: 908 bytes, 23.2 KB). The Nano build is the same size.
+The prototype's build (servo, UART reader, passive buzzer and test commands on): 1,140 of 2,048 bytes of
+RAM, 29.0 KB of 31.5 KB flash. `pio run` prints the numbers for your config. The Nano build is the same size.
 
 ## Safety
 Servo power: the Uno's 5V with a 100–1000 µF capacitor next to the servo is fine for the MG90S

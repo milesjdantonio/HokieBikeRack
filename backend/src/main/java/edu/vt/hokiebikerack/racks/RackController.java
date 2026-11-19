@@ -21,22 +21,26 @@ public class RackController {
     this.racks = racks;
   }
 
+  /** GET /api/v1/racks: every rack with its status, spots and alerts. */
   @GetMapping
   public List<RackSummary> list() {
     return racks.list();
   }
 
+  /** GET /api/v1/racks/{id}: one rack and its lock modules. */
   @GetMapping("/{rackId}")
   public RackDetail get(@PathVariable UUID rackId) {
     return racks.get(rackId);
   }
 
+  /** POST /api/v1/racks: add a rack (name, optional map position and spots). */
   @PostMapping
   @ResponseStatus(HttpStatus.CREATED)
   public RackDetail create(@Valid @RequestBody CreateRack body, Principal user) {
     return racks.create(body, user.getName());
   }
 
+  /** PATCH /api/v1/racks/{id}: rename, move on the map, change spots. */
   @PatchMapping("/{rackId}")
   public RackDetail update(@PathVariable UUID rackId, @Valid @RequestBody UpdateRack body, Principal user) {
     return racks.update(rackId, body, user.getName());
@@ -61,6 +65,7 @@ public class RackController {
     return racks.confirmOnline(rackId, user.getName());
   }
 
+  /** POST /api/v1/racks/{id}/devices: add a lock module; its token is in this answer only. */
   @PostMapping("/{rackId}/devices")
   @ResponseStatus(HttpStatus.CREATED)
   public DeviceCredentials addDevice(@PathVariable UUID rackId, @Valid @RequestBody CreateDevice body,
@@ -68,11 +73,13 @@ public class RackController {
     return racks.addDevice(rackId, body, user.getName());
   }
 
+  /** POST .../devices/{deviceId}/rotate-token: a new device token; the old one stops working. */
   @PostMapping("/{rackId}/devices/{deviceId}/rotate-token")
   public DeviceCredentials rotateToken(@PathVariable UUID rackId, @PathVariable UUID deviceId, Principal user) {
     return racks.rotateToken(rackId, deviceId, user.getName());
   }
 
+  /** PATCH .../devices/{deviceId}: rename a lock module or turn it on/off. */
   @PatchMapping("/{rackId}/devices/{deviceId}")
   public DeviceView updateDevice(@PathVariable UUID rackId, @PathVariable UUID deviceId,
                                  @Valid @RequestBody UpdateDevice body, Principal user) {

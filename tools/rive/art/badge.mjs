@@ -20,6 +20,7 @@ const COLORS = {
   police: '#58a6ff',
 };
 const KINDS = ['info', 'ok', 'denied', 'warning', 'alarm', 'offline', 'card', 'police'];
+/** A colour with alpha: hex("#ff0000", 0.5) -> "#ff000080". */
 const hex = (c, a = 1) => c + Math.round(a * 255).toString(16).padStart(2, '0');
 
 export default function build() {

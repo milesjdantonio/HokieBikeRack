@@ -7,12 +7,21 @@ Source of truth: the controllers in `backend/src/main/java/edu/vt/hokiebikerack/
 ## Authentication
 | Caller | How | Paths |
 |---|---|---|
-| ESP32 | `Authorization: Bearer <device token>`; the token must belong to the `{deviceId}` in the URL | `/api/v1/devices/{deviceId}/…` |
+| Lock module | `Authorization: Bearer <device token>`; the token must belong to the `{deviceId}` in the URL | `/api/v1/devices/{deviceId}/…` |
 | Admin | HTTP Basic, role ADMIN | everything else; required for any non-GET |
 | Viewer | HTTP Basic, role VIEWER | GET only (403 on changes) |
-| Anyone | none | `GET /api/v1/health` |
+| Rider | `X-Rider-Code: <code>` header (the code is the key) | `GET /rider/me`, `POST /rider/link` |
+| Anyone | none | `GET /api/v1/health`, `POST /rider/request` |
+
+A lock module is the Uno's USB bridge page (Admin > rack > Connect by USB, `frontend/shared/rack-bridge.js`)
+or a Wi-Fi rack (the ESP32 version, git tag `esp32-final`; the simulator acts like one).
+
+**Demo mode** (`HBR_LOGIN_REQUIRED=false`, the default): a request without a login is treated as ADMIN.
+Lock modules still need their tokens.
 
 401/403 come back as JSON **without** `WWW-Authenticate` (no browser popup).
+Other websites may call the API only if their address is in `HBR_ALLOWED_ORIGINS` (CORS; see
+[notes/hosting-render.md](notes/hosting-render.md)).
 
 ## Device endpoints
 ### `POST /devices/{deviceId}/events`
@@ -32,16 +41,17 @@ Source of truth: the controllers in `backend/src/main/java/edu/vt/hokiebikerack/
 Untrusted times (null, > 5 min future, > 30 days old) are replaced by the server's
 receive time and stored with `timeSource: "SERVER"`.
 
-Event types the firmware sends:
+Event types the firmware sends (the Uno prints them as `[event] ...` lines; the USB bridge uploads them):
 | Type | Severity | details |
 |---|---|---|
-| `DEVICE_BOOT` | INFO (MEDIUM after a brownout) | `resetReason`, `servoEnabled`, `readerOk`, `accelOk` |
+| `DEVICE_BOOT` | INFO (Wi-Fi racks: MEDIUM after a brownout) | `servoEnabled`, `readerOk`, `accelOk` (Wi-Fi racks also `resetReason`) |
 | `ACCESS_GRANTED` | INFO | `credentialReference` |
-| `ACCESS_DENIED` | LOW | `credentialReference`, `reason`: `NOT_LISTED` / `NO_SNAPSHOT` / `CLOCK_NOT_SET` / `SNAPSHOT_EXPIRED` |
+| `ACCESS_DENIED` | LOW | `credentialReference`, `reason`: `NOT_LISTED` / `IN_USE` (open for another card) / `NO_CARD_KEY`; Wi-Fi racks also `NO_SNAPSHOT` / `CLOCK_NOT_SET` / `SNAPSHOT_EXPIRED` |
+| `RELOCKED` | INFO | `reason`: `CARD` (same card tapped again) / `TIMEOUT` (120 s) / `COMMAND`; `credentialReference` for CARD |
 | `TAMPER_WARNING` | MEDIUM | `deviationG`, `thresholdG` |
 | `TAMPER_ALARM` | HIGH | `deviationG`, `thresholdG` |
-| `SENSOR_FAULT` | MEDIUM (INFO on recovery) | `sensor`: `PN532`/`MPU6050`, `state` |
-Simulator events also carry `"simulated": true`.
+| `SENSOR_FAULT` | MEDIUM (INFO on recovery) | `sensor`: `PN532`/`MPU6050`, `state`: `NOT_RESPONDING`/`RECOVERED` |
+Events from the simulator, or from a Testing panel `tap` / `shake`, also carry `"simulated": true`.
 
 ### `GET /devices/{deviceId}/authorization-snapshot`
 ```json
@@ -55,25 +65,32 @@ and either `allRacks` or permitted for this rack. Max 500. Validity =
 `hbr.snapshot-validity` (72 h). Devices must reject a lower `revision` than they hold.
 
 ### `POST /devices/{deviceId}/heartbeat`
-Any JSON object ≤ 4 KB. The firmware sends `firmwareVersion, uptimeMs, wifiRssi, freeHeap,
-queueDepth, snapshotRevision, snapshotValidUntilEpoch, snapshotCardCount, clockSynced,
-lockUnlocked, alarmActive, readerOk, accelOk, servoEnabled, lastDeviationG`.
-Response: `{"serverTime": "…", "currentRevision": n}`.
+Any JSON object ≤ 4 KB. The USB bridge sends `link: "usb", firmwareVersion, queueDepth, readerOk,
+accelOk, servoEnabled` every 30 s. (A Wi-Fi rack sends more: `uptimeMs, wifiRssi, freeHeap,
+snapshotRevision, snapshotValidUntilEpoch, snapshotCardCount, clockSynced, lockUnlocked, alarmActive,
+lastDeviationG`.) Response: `{"serverTime": "…", "currentRevision": n}`. A device is ONLINE if it
+was heard from in the last 3 minutes.
 
 ## Admin endpoints
 | Method | Path | Role | Notes |
 |---|---|---|---|
-| GET | `/me` | any | `{username, roles, canEdit}` |
-| GET | `/racks` | any | list with `latitude`/`longitude` (null if not placed), live `status` (ONLINE/OFFLINE/WARNING/UNKNOWN), device counts, `openAlerts`, `sensorFault` |
-| GET | `/racks/{id}` | any | `{rack, devices[]}`; devices include `lastHeartbeat`, `online`, `authorizationRevision` |
-| POST | `/racks` | ADMIN | `{name, locationDescription?, latitude?, longitude?}` → 201. Coordinates come as a pair. |
-| PATCH | `/racks/{id}` | ADMIN | `{name?, locationDescription?, latitude?, longitude?, clearCoordinates?}` |
+| GET | `/health` | public | `{status: "ok"}`; the pages ping it while a sleeping server wakes |
+| GET | `/me` | any | `{username, roles, canEdit, loginRequired}` |
+| GET | `/racks` | any | list with `latitude`/`longitude` (null if not placed), live `status` (ONLINE/OFFLINE/WARNING/UNCONFIRMED/UNKNOWN), device counts, `openAlerts`, `openAlarms`, `sensorFault`, `incidentStatus`, spots (`capacity`, `spotsInUse`, `openSpots`), `lastAlarmAt` |
+| GET | `/racks/{id}` | any | `{rack, devices[]}`; devices include `lastHeartbeat`, `online`, `needsConfirm`, `authorizationRevision` |
+| POST | `/racks` | ADMIN | `{name, locationDescription?, latitude?, longitude?, capacity?}` → 201. Coordinates come as a pair. |
+| PATCH | `/racks/{id}` | ADMIN | `{name?, locationDescription?, latitude?, longitude?, clearCoordinates?, capacity?, clearCapacity?}` |
+| DELETE | `/racks/{id}` | ADMIN | → 204. Removes the rack with its lock modules (tokens stop working), events, incidents and card permissions; cards stay. Audit log keeps `RACK_DELETED`. Can't be undone. |
+| POST | `/racks/{id}/confirm-online` | ADMIN | clears UNCONFIRMED after a rack came back from offline (409 if nothing to confirm) |
+| POST | `/racks/{id}/reset-spots` | ADMIN | "all spots are open now": restarts the tap-in / tap-out count |
+| POST | `/racks/{id}/alert-authorities` | ADMIN | `{note?}` → 201 incident (ALERTED); 409 if one is already open for the rack |
 | POST | `/racks/{id}/devices` | ADMIN | `{label}` → 201 `{device, deviceToken, configSnippet}`. **Token shown once.** |
 | POST | `/racks/{id}/devices/{deviceId}/rotate-token` | ADMIN | new token; old one stops working |
 | PATCH | `/racks/{id}/devices/{deviceId}` | ADMIN | `{label?, active?}` |
 | GET | `/credentials` | any | with `status` (ACTIVE/DISABLED/REVOKED/EXPIRED/NOT_YET_VALID), `rackIds`, `lastUsedAt`, `grantedCount` |
 | GET | `/credentials/unknown` | any | denied-but-unregistered references from the last 7 days |
 | GET | `/credentials/revision` | any | `{revision}` |
+| GET | `/credentials/{id}` | any | one card |
 | POST | `/credentials` | ADMIN | `{credentialReference (64 hex), displayLabel, allRacks, rackIds[], validFrom?, validUntil?}` → 201; 409 if already registered |
 | PATCH | `/credentials/{id}` | ADMIN | any of the above + `active`, `clearValidFrom`, `clearValidUntil` |
 | POST | `/credentials/{id}/revoke` | ADMIN | permanent |
@@ -82,8 +99,22 @@ Response: `{"serverTime": "…", "currentRevision": n}`.
 | POST | `/events/acknowledge-rack/{rackId}` | ADMIN | all open alerts for a rack, and resolves its open police incident → `{acknowledged, incidentResolved}` |
 | GET | `/reports/summary?days=1..90` | any | `byType, bySeverity, deniedReasons, byRack, byDay, activeCredentials` |
 | GET | `/audit-log` | any | paged admin changes |
+| GET | `/incidents?open=true` | any | open police incidents (`open=false`: all) |
+| GET | `/incidents/{id}` | any | `{incident, updates[], rackEvents[]}`: the timeline and what the rack saw |
+| POST | `/incidents/{id}/status` | ADMIN | `{status: EN_ROUTE / ON_SCENE / RESOLVED, note?}`; forward only |
+| POST | `/credentials/{id}/rider-code` | ADMIN | `{name?}` → 201 `{riderId, name, code}`. **Code shown once.** |
+| GET | `/access-requests?status=PENDING` | any | riders who asked for access online |
+| POST | `/access-requests/{id}/approve` | ADMIN | 409 if already decided |
+| POST | `/access-requests/{id}/deny` | ADMIN | 409 if already decided |
 
 Every credential change bumps the authorization revision and writes an audit record.
+
+## Rider endpoints
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| POST | `/rider/request` | public | `{name, email, hokiePassportId? (9 digits), note?}` → 201 `{code, status: "PENDING"}` |
+| GET | `/rider/me` | `X-Rider-Code` | `{name, status, cards[], parked[], linkUntil}`: where my bike is, and alarms there |
+| POST | `/rider/link` | `X-Rider-Code` | approved riders: for 2 min, the next unknown card tapped on any rack becomes theirs |
 
 ## Not done yet (ideas)
 Snapshot signatures (integrity over plain HTTP), per-user admin accounts, rate limits, event retention.

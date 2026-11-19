@@ -16,7 +16,9 @@ namespace hbr {
 class Sha256 {
  public:
   Sha256() { reset(); }
+  // Start a new message.
   void reset();
+  // Add more bytes of the message (can be called many times).
   void update(const uint8_t *data, size_t length);
   void finish(uint8_t digest[32]);  // also resets, ready for the next message
 

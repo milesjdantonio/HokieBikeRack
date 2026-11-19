@@ -1,3 +1,6 @@
+// The MPU-6050 accelerometer, read straight over I2C (see below). Gives one reading per call in g;
+// lib/hbr_logic/src/tamper_detector.h decides what counts as a shake.
+// What each function does: include/tamper_sensor.h.
 #include "tamper_sensor.h"
 
 #include <Arduino.h>
@@ -35,6 +38,7 @@ uint32_t lastSleepCheckMs = 0;
 uint8_t lastRaw[6] = {};
 uint8_t sameCount = 0;
 
+// Writes one sensor register. False if the sensor didn't answer.
 bool writeRegister(uint8_t reg, uint8_t value) {
   Wire.beginTransmission(kAddress);
   Wire.write(reg);
@@ -42,6 +46,7 @@ bool writeRegister(uint8_t reg, uint8_t value) {
   return Wire.endTransmission() == 0;  // 0 = the sensor acknowledged
 }
 
+// Reads `count` registers starting at `reg`. False if the sensor didn't answer.
 bool readRegisters(uint8_t reg, uint8_t *buffer, uint8_t count) {
   Wire.beginTransmission(kAddress);
   Wire.write(reg);
@@ -51,6 +56,7 @@ bool readRegisters(uint8_t reg, uint8_t *buffer, uint8_t count) {
   return true;
 }
 
+// Checks it's an MPU-6050, wakes it, sets the +/-4 g range and filter. True if it all worked.
 bool initSensor() {
   lastInitAttemptMs = millis();
   failures = 0;

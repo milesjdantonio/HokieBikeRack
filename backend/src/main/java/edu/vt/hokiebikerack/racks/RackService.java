@@ -20,7 +20,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Racks and the ESP32 devices attached to them. */
+/** Racks and the lock modules (devices) attached to them. */
 @Service
 public class RackService {
   private final JdbcClient jdbc;
@@ -105,11 +105,13 @@ public class RackService {
         "parkSince", Db.ts(now.minus(Duration.ofDays(7))));
   }
 
+  /** Every rack with its live status, A to Z. */
   public List<RackSummary> list() {
     return jdbc.sql(RACK_SUMMARY_SQL + " ORDER BY lower(r.name), r.created_at")
         .params(summaryParams()).query((rs, n) -> mapSummary(rs)).list();
   }
 
+  /** One rack and its lock modules, or 404. */
   public RackDetail get(UUID rackId) {
     RackSummary rack = jdbc.sql(RACK_SUMMARY_SQL + " WHERE r.id = :rackId")
         .params(summaryParams()).param("rackId", rackId)
@@ -134,6 +136,7 @@ public class RackService {
       FROM devices
       """;
 
+  /** A rack's lock modules, oldest first. */
   public List<DeviceView> devices(UUID rackId) {
     return jdbc.sql(DEVICE_SQL + " WHERE rack_id = :rackId ORDER BY created_at")
         .param("rackId", rackId).query((rs, n) -> mapDevice(rs)).list();
@@ -179,6 +182,7 @@ public class RackService {
     return get(rackId);
   }
 
+  /** Adds a rack. It starts UNKNOWN until a lock module checks in. */
   @Transactional
   public RackDetail create(CreateRack req, String actor) {
     checkPair(req.latitude(), req.longitude());
@@ -194,6 +198,7 @@ public class RackService {
     return get(id);
   }
 
+  /** Changes only the fields sent; clearCoordinates / clearCapacity remove a value. */
   @Transactional
   public RackDetail update(UUID rackId, UpdateRack req, String actor) {
     get(rackId);  // 404 if missing
@@ -253,7 +258,7 @@ public class RackService {
         Map.of("name", rack.name(), "devices", devices, "events", events));
   }
 
-  /** Adds an ESP32 to a rack and creates its secret token (shown once). */
+  /** Adds a lock module to a rack and creates its secret token (shown once). */
   @Transactional
   public DeviceCredentials addDevice(UUID rackId, CreateDevice req, String actor) {
     get(rackId);
@@ -282,6 +287,7 @@ public class RackService {
     return new DeviceCredentials(device(rackId, deviceId), token, configSnippet(deviceId, token));
   }
 
+  /** Renames a lock module or turns it on/off. */
   @Transactional
   public DeviceView updateDevice(UUID rackId, UUID deviceId, UpdateDevice req, String actor) {
     device(rackId, deviceId);
@@ -301,7 +307,7 @@ public class RackService {
   }
 
   private String configSnippet(UUID deviceId, String token) {
-    // The rack can't use "localhost" (that would be the ESP32 itself), so offer this laptop's
+    // The rack can't use "localhost" (that would be the rack itself), so offer this laptop's
     // address on the Wi-Fi it's sharing with the rack (the phone hotspot).
     List<String> urls = lanAddresses().stream().map(ip -> "http://" + ip + ":" + serverPort).toList();
     String base = urls.isEmpty() ? "http://<laptop-ip>:" + serverPort : urls.get(0);

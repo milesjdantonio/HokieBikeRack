@@ -23,6 +23,7 @@ const VT_BOUNDS = [[-80.4520, 37.2050], [-80.3930, 37.2490]];
 const MIN_ZOOM = 14;
 
 let stylePromise = null;
+/** Loads the street map style once and reuses it. */
 function loadStyle() {
   stylePromise = stylePromise || fetch(STYLE_URL).then((r) => {
     if (!r.ok) throw new Error(`map style ${r.status}`);

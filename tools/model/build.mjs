@@ -68,6 +68,7 @@ function sha256(file) {
   return crypto.createHash("sha256").update(text).digest("hex");
 }
 
+/** One hash of every source file (and the servo angles from config.h): a changed hash means rebuild. */
 function sourceHash(files) {
   const h = crypto.createHash("sha256");
   for (const f of files) h.update(path.relative(ROOT, f).replaceAll("\\", "/") + "\0" + sha256(f) + "\n");
@@ -75,6 +76,7 @@ function sourceHash(files) {
   return h.digest("hex");
 }
 
+/** The servo angle lines from the local config.h, so the model's lock matches the real one. */
 function localConfigLines() {
   const file = path.join(FW, "include", "config.h");
   if (!fs.existsSync(file)) return "";
@@ -99,6 +101,7 @@ if (args.has("--check")) {
   fail("The firmware changed since frontend/model/firmware.js was built. Run: node tools/model/build.mjs");
 }
 
+/** Prints the message and stops with an error. */
 function fail(message) {
   console.error(message);
   process.exit(1);
@@ -155,6 +158,7 @@ function toolchain() {
   ].join("\n"));
 }
 
+/** Runs a program and resolves with its output (rejects if it fails). */
 function run(cmd, env, cwd) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd[0], cmd.slice(1), { env, cwd, stdio: ["ignore", "pipe", "pipe"] });
@@ -252,6 +256,7 @@ async function main() {
   console.log(`Done in ${((Date.now() - started) / 1000).toFixed(0)} s: frontend/model/firmware.js (${kb} KB) + firmware.json`);
 }
 
+/** Finds where a setting is defined in a source file, so the page can link to the line. */
 function locate(file, id, relative) {
   const lines = fs.readFileSync(file, "utf8").split(/\r?\n/);
   const word = new RegExp(`\\b${id}\\b`);

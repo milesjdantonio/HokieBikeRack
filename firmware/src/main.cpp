@@ -106,6 +106,7 @@ void printEvent(const __FlashStringHelper *type, const __FlashStringHelper *seve
   Serial.print(F(")"));
 }
 
+// `enroll` mode: the card just tapped is added to the EEPROM list.
 void enrollCard(const uint8_t ref[hbr::kCardRefLength]) {
   cardMode = CardMode::Check;
   Serial.print(F("[cards] "));
@@ -128,6 +129,7 @@ void enrollCard(const uint8_t ref[hbr::kCardRefLength]) {
   }
 }
 
+// `unenroll` mode: the card just tapped is removed from the EEPROM list.
 void unenrollCard(const uint8_t ref[hbr::kCardRefLength]) {
   cardMode = CardMode::Check;
   int index = cardStore().find(ref);
@@ -189,6 +191,9 @@ void unlockReminder() {
   feedbackPlay(hbr::Pattern::UnlockReminder, hbr::kUntilStopped);
 }
 
+// A card was tapped. Makes its reference, then: enroll/unenroll mode, or the normal check.
+// Allowed card: unlocks, or locks again if it's the card that opened it (another card: IN_USE).
+// Not allowed: denied. Every outcome is printed as an [event] line.
 void handleCard(const CardId &card) {
   if (!debouncer.shouldProcess(card.bytes, card.length, millis())) return;  // still on the reader
   Serial.print(F("[card] read a "));
@@ -238,6 +243,7 @@ void handleCard(const CardId &card) {
   }
 }
 
+// The tamper detector said Warning (chirp) or Alarm (siren): play it and print the event.
 void handleTamperSignal(hbr::TamperSignal signal) {
   if (signal == hbr::TamperSignal::None) return;
   if (signal == hbr::TamperSignal::Warning) {
@@ -260,6 +266,7 @@ void handleTamperSignal(hbr::TamperSignal signal) {
   Serial.println(F(" g"));
 }
 
+// Every HBR_TAMPER_SAMPLE_MS: one accelerometer reading into the tamper detector (or a `shake` test).
 void sampleTamperSensor() {
   uint32_t now = millis();
   if (now - lastTamperSampleMs < HBR_TAMPER_SAMPLE_MS) return;
@@ -279,6 +286,7 @@ void sampleTamperSensor() {
   handleTamperSignal(tamper.update(r.x, r.y, r.z, now, armed));
 }
 
+// Prints a SENSOR_FAULT event: a sensor stopped answering, or came back.
 void printSensorFault(const __FlashStringHelper *sensor, bool ok) {
   printEvent(F("SENSOR_FAULT"), ok ? F("INFO") : F("MEDIUM"));
   Serial.print(F(" sensor="));
@@ -286,6 +294,7 @@ void printSensorFault(const __FlashStringHelper *sensor, bool ok) {
   Serial.println(ok ? F(" state=RECOVERED") : F(" state=NOT_RESPONDING"));
 }
 
+// Prints an event when the reader or accelerometer stops or starts answering (only on a change).
 void reportSensorChanges() {
   bool readerOk = cardReaderHealthy();
   bool accelOk = tamperSensorHealthy();
@@ -299,10 +308,12 @@ void reportSensorChanges() {
   }
 }
 
+// Ready = has cards, has the card key, and the reader works. Shown by the idle green/red blip.
 bool rackReady() {
   return cardStore().count() > 0 && credentialKeyConfigured() && cardReaderHealthy();
 }
 
+// `status`: firmware, uptime, free RAM, sensors, lock state, cards.
 void printStatus() {
   Serial.println(F("---- HokieBikeRack status ----"));
   Serial.print(F("firmware " HBR_FIRMWARE_VERSION " (Arduino Uno R3), uptime "));
@@ -333,6 +344,7 @@ void printStatus() {
   if (tamper.alarmActive(millis())) Serial.println(F("TAMPER ALARM is sounding"));
 }
 
+// `list`: every enrolled card's number and short reference.
 void listCards() {
   uint8_t n = cardStore().count();
   Serial.print(n);
@@ -348,6 +360,7 @@ void listCards() {
   }
 }
 
+// `i2c-scan`: which addresses answer on the I2C bus.
 void scanI2c() {
   // Who answers on the I2C bus? Expect 0x24 (PN532) and 0x68 (MPU-6050).
   Serial.println(F("Scanning I2C bus..."));
@@ -373,6 +386,7 @@ void scanI2c() {
 #endif
 }
 
+// `accel`: raw accelerometer readings for 2 s.
 void printAccel() {
   // 2 seconds of raw readings, for calibrating the tamper threshold.
   // (This command pauses the rack for 2 s; it's only for testing.)
@@ -398,6 +412,7 @@ void printAccel() {
   }
 }
 
+// `enroll` / `unenroll`: the next card tapped (within HBR_ENROLL_WINDOW_MS) is added / removed.
 void startCardMode(CardMode mode) {
   cardMode = mode;
   cardModeUntilMs = millis() + HBR_ENROLL_WINDOW_MS;
@@ -407,6 +422,7 @@ void startCardMode(CardMode mode) {
   Serial.println(F(" s"));
 }
 
+// `add <reference>`: enroll a card by its reference, without tapping it.
 void addCardRef(const char *hex) {
   // Paste a credential reference (e.g. from the dashboard). Only its first
   // 32 hex characters are used; it must have been made with the same card key.
@@ -418,6 +434,7 @@ void addCardRef(const char *hex) {
   enrollCard(ref);
 }
 
+// `remove <n>`: remove card number n (as shown by `list`).
 void removeCard(const char *number) {
   char *end = nullptr;
   long index = strtol(number, &end, 10);
@@ -432,6 +449,7 @@ void removeCard(const char *number) {
 }
 
 #if HBR_ENABLE_SERIAL_SIM
+// `tap <hex-id>` (test builds only): pretend a card with this ID was tapped.
 void simulateTap(const char *hex) {
   // Pretend a card with this ID (hex) was tapped. Goes through the exact
   // same path as a real card, so it can only unlock for an enrolled card.
@@ -469,6 +487,7 @@ void testBuzzer(const char *number) {
 }
 #endif
 
+// `help`: the list of serial commands.
 void printHelp() {
   Serial.println(F("commands: status, enroll, unenroll, list, add <reference>, remove <n>,"));
   Serial.print(F("          wipe-cards, i2c-scan, accel, reboot"));
@@ -487,6 +506,7 @@ const char *after(const char *line, const char *prefix) {
   return strncmp_P(line, prefix, n) == 0 ? line + n : nullptr;
 }
 
+// Runs one serial command line (status, enroll, add..., and the test commands in test builds).
 void runCommand(const char *line) {
   const char *arg;
   if (is(line, PSTR("status"))) {
@@ -574,6 +594,7 @@ void handleSerial() {
   }
 }
 
+// Ends `enroll` / `unenroll` mode if no card was tapped in time.
 void expireCardMode() {
   if (cardMode == CardMode::Check) return;
   if (static_cast<int32_t>(millis() - cardModeUntilMs) < 0) return;
@@ -583,6 +604,7 @@ void expireCardMode() {
 
 }  // namespace
 
+// Runs once at power-on: outputs to a safe state, then cards, I2C, reader and accelerometer.
 void setup() {
   Serial.begin(115200);
   Serial.println();
@@ -624,6 +646,7 @@ void setup() {
   Serial.println(F("Ready. Type `status` in the serial monitor for details, `enroll` to add a card."));
 }
 
+// Runs over and over, a few hundred times a second. Nothing in here may wait for long.
 void loop() {
   wdt_reset();  // "still alive" (harmless if the watchdog is off)
   handleSerial();

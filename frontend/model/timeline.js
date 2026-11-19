@@ -166,6 +166,7 @@ export class Timeline {
   }
 }
 
+/** Drops points older than `cut` (optionally keeping the last one before it). */
 function prune(list, cut, keepOneBefore = false) {
   let i = 0;
   while (i < list.length && list[i][0] < cut) i++;
@@ -173,6 +174,7 @@ function prune(list, cut, keepOneBefore = false) {
   if (i > 0) list.splice(0, i);
 }
 
+/** Draws on/off or level values as a step line (holds each value until the next). */
 function stepLine(g, pts, t0, now, X, Y, color, width) {
   if (!pts.length) return;
   g.strokeStyle = color;
@@ -189,6 +191,7 @@ function stepLine(g, pts, t0, now, X, Y, color, width) {
   g.stroke();
 }
 
+/** Draws values as a plain line through the points (servo horn angle, accelerometer samples). */
 function line(g, pts, t0, X, Y, color, width) {
   g.strokeStyle = color;
   g.lineWidth = width;
