@@ -14,6 +14,13 @@ Explained in [../docs/notes/frontend.md](../docs/notes/frontend.md); who each ve
 | http://localhost:8080/lab | Rive lab (every animation state) |
 | http://localhost:8080/model/ | Rack Model: the real firmware running in 3D ([../docs/notes/firmware-model.md](../docs/notes/firmware-model.md)) |
 
+To add a rack: **Add Rack** on the map, then **Connect by USB** in its panel with the rack plugged into
+this computer (Chrome or Edge). The page passes the rack's events to the backend while it's open.
+
+Every version has a **Testing** button in the bottom-right corner (`shared/testing.js`). It connects to the
+rack over USB with Web Serial (Chrome or Edge) and can add and remove cards, unlock, set off the alarm,
+play sounds, move the servo and show the rack's log. The test commands need `HBR_ENABLE_SERIAL_SIM 1`.
+
 Add `?view=app` for the phone layout or `?view=desktop` for the browser layout.
 
 Vendored: `vendor/rive` (Rive runtime), `vendor/maplibre` (MapLibre GL JS), `vendor/three` (three.js). Fonts in `shared/fonts`

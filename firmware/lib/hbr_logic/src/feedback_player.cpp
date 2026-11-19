@@ -32,6 +32,11 @@ uint8_t FeedbackPlayer::stepsFor(Pattern pattern, uint32_t holdMs, Step out[kMax
       w.add(120, false, true, true).add(hold, false, true, false);
       break;
     }
+    case Pattern::UnlockReminder:
+      // One 2 s cycle: red on/off every second, a short beep at the start.
+      w.add(100, true, false, true).add(400, true, false, false).add(500, false, false, false)
+          .add(500, true, false, false).add(500, false, false, false);
+      break;
     case Pattern::Denied:
       w.add(150, true, false, true).add(100, true, false, false)
           .add(150, true, false, true).add(600, true, false, false);
@@ -62,7 +67,8 @@ void FeedbackPlayer::play(Pattern pattern, uint32_t nowMs, uint32_t holdMs) {
   current_ = pattern;
   stepCount_ = stepsFor(pattern, holdMs, steps_);
   startMs_ = nowMs;
-  repeatForMs_ = (pattern == Pattern::TamperAlarm) ? (holdMs ? holdMs : 10000) : 0;
+  bool loops = pattern == Pattern::TamperAlarm || pattern == Pattern::UnlockReminder;
+  repeatForMs_ = loops ? (holdMs ? holdMs : 10000) : 0;
 }
 
 void FeedbackPlayer::stop() {

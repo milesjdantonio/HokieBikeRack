@@ -42,7 +42,9 @@ Without `config.h` it still builds and runs, denying every card.
 
 ## Serial console
 `status`, `enroll`, `unenroll`, `list`, `add <reference>`, `remove <n>`, `wipe-cards`,
-`i2c-scan`, `accel`, `reboot`, and (with `HBR_ENABLE_SERIAL_SIM 1`) `tap <hex-id>`, `shake`.
+`i2c-scan`, `accel`, `reboot`, and (with `HBR_ENABLE_SERIAL_SIM 1`) `tap <hex-id>`, `shake`,
+`buzz <hz>`, `servo <deg>`, `lock`, `unlock`, `silence`, `cancel`.
+The front end's **Testing** button (bottom right) sends these from the browser over USB.
 What each does: [firmware.md → Serial console](../docs/notes/firmware.md#serial-console-115200-baud).
 
 ## What the lights mean
@@ -51,7 +53,9 @@ What each does: [firmware.md → Serial console](../docs/notes/firmware.md#seria
 | Red+green flash + beep at power-on | booting |
 | Short green blip every 5 s | ready (cards enrolled, card key set, reader OK) |
 | Short red blip every 5 s | not ready (no cards enrolled, no card key, or reader fault) |
-| Green + short beep, green stays 5 s | access granted, unlocked |
+| Green + short beep, green stays 10 s | access granted, unlocked (the same card taps again to lock) |
+| Red flash every 1 s + a beep every 2 s | still unlocked after 10 s; re-locks itself at 120 s |
+| Short green + beep | locked again (same card, or the 120 s ran out) |
 | Green + short beep, 1 s (after `enroll`) | card enrolled |
 | Red + two beeps | access denied (or card removed after `unenroll`) |
 | Red blinks + 3 quick chirps | tamper warning |

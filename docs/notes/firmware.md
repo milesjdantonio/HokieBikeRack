@@ -111,7 +111,7 @@ pin numbers (2 and 3) even if unwired. On the Uno, a fake pin number like
   Follows slowly when calm, *very* slowly (0.002) while shaking so a shake can't
   "teach itself" as normal.
 - Deviation = length of the vector `(reading - baseline)` in g.
-- 3 consecutive samples over 0.35 g = jolt (filters one-sample noise spikes).
+- 3 consecutive samples over 0.30 g (`HBR_TAMPER_THRESHOLD_G`) = jolt (filters one-sample noise spikes).
 - Warning → (another jolt within 30 s) → Alarm. 3 s cooldown so one
   shake = one event, not fifty.
 - The siren runs at least 10 s (`HBR_TAMPER_ALARM_MS`) and stops only once the post has
@@ -178,6 +178,9 @@ There's room for small features, but not for Wi-Fi or JSON.
 | `accel` | 2 s of raw accelerometer readings |
 | `reboot` | Restart the Uno |
 | `tap <hex-id>`, `shake` | Test commands, only with `HBR_ENABLE_SERIAL_SIM 1` |
+| `buzz <hz>` | Plays that pitch for 1 s (`buzz 0` = plain HIGH, for an active buzzer). Sim builds only |
+| `servo <deg>`, `lock` | Moves the servo straight to an angle, to find `HBR_SERVO_*_DEG`; `lock` puts it back to LOCKED. Sim builds only |
+| `unlock`, `silence`, `cancel` | Unlock as if an allowed card was tapped; stop a running siren; end an `enroll`/`unenroll` window. Sim builds only |
 
 `tap` goes through the exact same check as a real card, so it can only
 unlock for an enrolled card. Still, set `HBR_ENABLE_SERIAL_SIM 0` for a real deployment.

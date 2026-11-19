@@ -17,7 +17,7 @@ printed to the serial monitor. The ESP32 version is the git tag `esp32-final`.
 | Actuator | MG90S servo on a **separate 5 V supply**, shared ground, 100–1000 µF capacitor. Arduino Servo library. **Disabled by default** (`HBR_ENABLE_SERVO 0`). |
 | Lights | Separate **red + green LEDs** with 220–330 Ω resistors. |
 | Sound | **Active buzzer** switched by an NPN transistor (2N2222/BC547/S8050) with a 1 kΩ base resistor. |
-| Lock behaviour | Momentary: unlock 5 s, auto re-lock. |
+| Lock behaviour | Tap to unlock, the same card taps again to lock. Reminder (red flash + beep) after 10 s; re-locks itself after 120 s. |
 | Card list | Enrolled at the rack (`enroll` + tap), saved in EEPROM. No network. |
 
 ## Pin map (Uno R3)
@@ -44,7 +44,7 @@ Defined in `firmware/include/pins.h`. Keeps 0/1 (USB serial) and 13 (blinks at b
 - Record: locked/unlocked angles, behaviour on power loss mid-unlock, any brownout resets.
 
 ## Accelerometer
-- Default threshold 0.35 g over 3 samples at 50 Hz; warning → alarm within 30 s.
+- Default threshold 0.30 g over 3 samples at 50 Hz; warning → alarm within 30 s.
 - Disarmed while unlocked and 10 s after. Never moves the lock.
 - Record: typical deviation for normal bumps vs deliberate shaking once mounted.
 

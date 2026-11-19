@@ -21,3 +21,5 @@ bool credentialKeyConfigured();
 
 // Fills `out` with the card's reference. Returns false if no key is set.
 bool credentialRefFromCard(const CardId &card, uint8_t out[hbr::kCardRefLength]);
+// The full 32-byte reference (its first 16 bytes are the stored one).
+bool credentialMacFromCard(const CardId &card, uint8_t out[hbr::kCardMacLength]);

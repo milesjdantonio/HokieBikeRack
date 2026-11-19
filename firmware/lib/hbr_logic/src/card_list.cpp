@@ -9,6 +9,14 @@ namespace hbr {
 
 bool makeCardRef(const char *key, size_t keyLength, const uint8_t *cardId, uint8_t idLength,
                  uint8_t out[kCardRefLength]) {
+  uint8_t mac[kCardMacLength];
+  if (!makeCardMac(key, keyLength, cardId, idLength, mac)) return false;
+  memcpy(out, mac, kCardRefLength);
+  return true;
+}
+
+bool makeCardMac(const char *key, size_t keyLength, const uint8_t *cardId, uint8_t idLength,
+                 uint8_t out[kCardMacLength]) {
   if (idLength == 0 || idLength > kMaxCardIdLength) return false;
   // "hbr-card-v1:" is a label so this hash can't be confused with any other
   // use of the same key, and so we can change the scheme later (v2).
@@ -17,10 +25,8 @@ bool makeCardRef(const char *key, size_t keyLength, const uint8_t *cardId, uint8
   char message[kLabelLength + 2 * kMaxCardIdLength + 1];
   memcpy(message, kLabel, kLabelLength);
   toHex(cardId, idLength, message + kLabelLength);
-  uint8_t mac[32];
   hmacSha256(reinterpret_cast<const uint8_t *>(key), keyLength,
-             reinterpret_cast<const uint8_t *>(message), kLabelLength + 2 * idLength, mac);
-  memcpy(out, mac, kCardRefLength);
+             reinterpret_cast<const uint8_t *>(message), kLabelLength + 2 * idLength, out);
   return true;
 }
 

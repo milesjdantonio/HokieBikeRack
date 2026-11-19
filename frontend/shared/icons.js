@@ -18,6 +18,9 @@ const PATHS = {
   tap: ["M7 4h10v16H7z", "M10 17h4", "M19.5 8.5a6 6 0 0 1 0 7", "M21.8 6.5a9 9 0 0 1 0 11"],
   signal: ["M5 19V15", "M10 19v-7", "M15 19V9", "M20 19V5"],
   person: ["M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z", "M4.5 20a7.5 7.5 0 0 1 15 0"],
+  // A lab flask: the Testing panel.
+  test: ["M9 3h6", "M10 3v6.2L4.8 18.4A1.7 1.7 0 0 0 6.3 21h11.4a1.7 1.7 0 0 0 1.5-2.6L14 9.2V3", "M7.2 15h9.6"],
+  close: ["M6 6l12 12", "M18 6L6 18"],
 };
 
 export function icon(name, label) {

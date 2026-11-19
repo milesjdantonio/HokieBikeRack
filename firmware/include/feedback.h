@@ -16,3 +16,5 @@ void feedbackStopSiren();
 void feedbackSetReady(bool ready);
 // Call every loop().
 void feedbackUpdate();
+// The pattern playing now (None when idle).
+hbr::Pattern feedbackCurrent();

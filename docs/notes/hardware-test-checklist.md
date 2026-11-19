@@ -71,7 +71,7 @@ in place of `pio` (Windows blocks `pio.exe`).
 - [ ] `config.h`: `HBR_ENABLE_SERVO 1`. Re-flash. Keep hands clear: it may jump at boot.
 - [ ] Boot: servo moves to LOCKED angle. Allowed tap: moves to UNLOCKED, back after 5 s.
 - [ ] Watch for resets while moving: the start-up messages appearing again = **brownout** (power problem).
-- [ ] Find the real latch angles (change `HBR_SERVO_LOCKED_DEG`/`UNLOCKED_DEG`), avoid straining at the ends (buzzing = pushing past its limit).
+- [ ] Find the real latch angles with `servo <deg>` (then `lock`), and put them in `HBR_SERVO_LOCKED_DEG`/`UNLOCKED_DEG`. Unlocked = plate up, horn just touching the ledge (no load). Locked = plate down far enough to hold the bike. Avoid straining at the ends (buzzing = pushing past its limit).
 - [ ] Unplug the 5 V supply mid-unlock: what does the latch do? (Write it down: this is the fail-safe/fail-secure behaviour of the mechanism.)
 - [ ] Only then connect the linkage, with someone supervising.
 

@@ -98,6 +98,7 @@ export function shortRef(ref, n = 10) {
 
 export const DENY_REASONS = {
   NOT_LISTED: "not registered here",
+  IN_USE: "rack open for another rider",
   NO_SNAPSHOT: "rack had no card list yet",
   CLOCK_NOT_SET: "rack clock not set",
   SNAPSHOT_EXPIRED: "rack offline too long",

@@ -9,6 +9,8 @@ import { api } from "../js/api.js";
 import { riveIcon } from "../js/rive.js";
 import { rackMap, placeMap, searchPlaces } from "./map.js";
 import { icon } from "./icons.js";
+import { link } from "./rack-link.js";
+import { bridge } from "./rack-bridge.js";
 import { createLive, slug, findRack, isAlarm, isUp, pinRack, spotsText, alarmText, INCIDENT_WORD, STATUS_TEXT, bars } from "./live.js";
 
 const ROLE = document.body.dataset.role === "staff" ? "staff" : "admin";
@@ -85,6 +87,7 @@ function eventLine(e, opts = {}) {
     case "ACCESS_DENIED": return log("deny", [rack, ` ${who} refused: ${(DENY_REASONS[d.reason] || d.reason || "not allowed here").toLowerCase()}`], o);
     case "TAMPER_WARNING": return log("warn", [rack, ` shake detected, jolt ${d.deviationG ?? "?"} g, warning chirp`], o);
     case "TAMPER_ALARM": return log("alarm", [rack, ` TAMPER ALARM, jolt ${d.deviationG ?? "?"} g, siren on`], o);
+    case "RELOCKED": return log("ok", [rack, d.reason === "TIMEOUT" ? " locked again by itself after 2 min" : d.reason === "CARD" ? ` ${who} locked it again` : " locked again"], o);
     case "DEVICE_BOOT": return log("info", [rack, ` lock module started${d.resetReason ? ` (${String(d.resetReason).toLowerCase()})` : ""}`], o);
     case "SENSOR_FAULT": return log("warn", [rack, ` sensor problem: ${String(d.sensor || d.component || "sensor").toLowerCase()} ${String(d.state || "").toLowerCase()}`], o);
     default: return log("info", [rack, ` ${e.eventType.toLowerCase().replaceAll("_", " ")}`], o);
@@ -252,7 +255,11 @@ async function alertAuthorities(r) {
 async function registerCard(card, name, r) {
   const res = await act(() => api("/credentials", { method: "POST", body: {
     credentialReference: card.credentialReference, displayLabel: name.trim(), allRacks: false, rackIds: [r.id] } }));
-  if (res) log("ok", [`registered ${name.trim()} at `, { b: slug(r.name) }, ". racks sync within a minute"]);
+  if (res) {
+    // The Uno keeps its own card list. Connected here? Add the card to it right away.
+    if (bridge.rackId === r.id && (await link.send(`add ${card.credentialReference}`))) log("ok", [`registered ${name.trim()} and added it to `, { b: slug(r.name) }]);
+    else log("ok", [`registered ${name.trim()} at `, { b: slug(r.name) }, ". connect the rack by USB, then add the card at the rack"]);
+  }
   return res;
 }
 /** Access requests (riders asking online; the stand-in for StarRez). */
@@ -344,7 +351,7 @@ function needsList() {
     const other = r.openAlerts - r.openAlarms;
     if (other > 0) out.push({ key: `alert-${r.id}`, kind: "warning", title: `${other} alert${other > 1 ? "s" : ""}`, sub: r.name, act: "Open", rack: r.id });
     if (r.status === "OFFLINE") out.push({ key: `off-${r.id}`, kind: "offline", title: r.name, sub: r.lastSeenAt ? `Last check-in ${ago(r.lastSeenAt)}` : "Never checked in", act: "Open", rack: r.id });
-    if (r.status === "UNKNOWN" && CAN.configure) out.push({ key: `setup-${r.id}`, kind: "setup", title: r.name, sub: "No lock module yet", act: "Add", rack: r.id });
+    if (r.status === "UNKNOWN" && CAN.configure) out.push({ key: `setup-${r.id}`, kind: "setup", title: r.name, sub: "Not connected yet", act: "Connect", rack: r.id });
   }
   for (const q of S.requests) {
     out.push({ key: `req-${q.id}`, kind: "request", title: q.name, sub: `${q.email}${q.hokiePassportId ? ` · HokieP ${q.hokiePassportId}` : ""} · ${ago(q.requestedAt)}`,
@@ -412,8 +419,8 @@ function stateLine(r, data) {
   if (isAlarm(r)) return h("p", { class: "state state-alarm" }, r.incidentStatus
     ? `Alarm. ${AGENCY} ${INCIDENT_WORD[r.incidentStatus].toLowerCase()}.` : "Alarm. Someone is tampering with this rack.");
   if (r.status === "UNCONFIRMED") return h("p", { class: "state state-warning" }, "Back online, not confirmed. It was offline and is checking in again. Check it in person, then confirm.");
-  if (r.status === "OFFLINE") return h("p", { class: "state state-offline" }, `Offline${r.lastSeenAt ? `, last check-in ${ago(r.lastSeenAt)}` : ""}. It keeps working on its saved card list for up to 72 h.`);
-  if (r.status === "UNKNOWN") return h("p", { class: "state state-offline" }, CAN.configure ? "No lock module yet. Add one below to get its setup code." : "No lock module installed yet.");
+  if (r.status === "OFFLINE") return h("p", { class: "state state-offline" }, `Offline${r.lastSeenAt ? `, last check-in ${ago(r.lastSeenAt)}` : ""}. The rack keeps working on its own card list; connect it by USB to see it here.`);
+  if (r.status === "UNKNOWN") return h("p", { class: "state state-offline" }, CAN.configure ? "Not connected yet. Plug the rack into this computer by USB and connect it below." : "Not connected yet.");
   if (r.openAlerts) return h("p", { class: "state state-warning" }, `Needs a look: ${r.openAlerts} open alert${r.openAlerts > 1 ? "s" : ""}.`);
   if (data?.detail.devices.some((d) => d.online && (d.lastHeartbeat?.readerOk === false || d.lastHeartbeat?.accelOk === false))) return h("p", { class: "state state-warning" }, "A sensor isn't responding. Check the lock module.");
   return h("p", { class: "state" }, "Working. Cards tap in normally.");
@@ -480,40 +487,7 @@ function renderDetail(body, r, data, { focus } = {}) {
     return form;
   }))] : [];
 
-  const deviceRows = devices.length ? h("div", { class: "list" }, devices.map((dev) => {
-    const hb = dev.lastHeartbeat || {};
-    const problems = [];
-    if (dev.online && hb.readerOk === false) problems.push("card reader not responding");
-    if (dev.online && hb.accelOk === false) problems.push("motion sensor not responding");
-    const status = !dev.active ? ["off", "Turned Off"] : dev.online && dev.needsConfirm ? ["st-UNCONFIRMED", "Not Confirmed"] : dev.online ? ["ok", "Online"] : ["off", "Offline"];
-    return h("div", { class: "item item-wrap" }, riveIcon("signal", { size: 22, inputs: { level: bars(hb.wifiRssi, dev.online) } }).el,
-      h("span", { class: "item-main" }, h("b", {}, dev.label),
-        h("span", {}, !dev.lastSeenAt ? "Never connected. Flash it with its setup code." : problems.length ? problems.join(", ")
-          : dev.online ? `All sensors working, signal ${hb.wifiRssi ?? "?"} dBm${dev.firmwareVersion ? `, firmware ${dev.firmwareVersion}` : ""}` : `Last check-in ${ago(dev.lastSeenAt)}`)),
-      h("span", { class: status[0] }, status[1]),
-      CAN.configure ? h("span", { class: "item-actions" },
-        btn("Rename", (e) => {
-          const nameEl = e.currentTarget.closest(".item").querySelector(".item-main b");
-          inlineRename(nameEl, dev.label, (v) => act(() => api(`/racks/${r.id}/devices/${dev.id}`, { method: "PATCH", body: { label: v } }), `Renamed to ${v}`), "Lock module name");
-        }, "btn-quiet"),
-        btn("New Setup Code", async () => {
-          if (!confirm(`Make a new setup code for ${dev.label}? The old one stops working right away, so the rack must be re-flashed.`)) return;
-          const res = await act(() => api(`/racks/${r.id}/devices/${dev.id}/rotate-token`, { method: "POST" }), "New setup code made. Copy it now: it's only shown once.");
-          if (res) showSecret(body, res);
-        }, "btn-quiet"),
-        btn(dev.active ? "Turn Off" : "Turn On", () => act(() => api(`/racks/${r.id}/devices/${dev.id}`, { method: "PATCH", body: { active: !dev.active } }),
-          dev.active ? "Lock module turned off" : "Lock module turned on"), "btn-quiet")) : null);
-  })) : h("p", { class: "empty" }, d ? "No lock module yet." : "Loading…");
-
-  const addDevice = CAN.configure ? (() => {
-    const label = h("input", { class: "input", placeholder: "e.g. ESP32 #2", maxlength: "120", "aria-label": "Lock module name" });
-    return h("form", { class: "inline-form", onSubmit: async (e) => {
-      e.preventDefault();
-      const res = await act(() => api(`/racks/${r.id}/devices`, { method: "POST", body: { label: label.value.trim() || `ESP32 #${devices.length + 1}` } }),
-        "Lock module added. Copy its setup code now: it's only shown once.");
-      if (res) { log("ok", [{ b: slug(r.name) }, ` lock module ${res.device.label} added`]); showSecret(body, res); }
-    } }, label, h("button", { class: "btn", type: "submit" }, "Add Lock Module"));
-  })() : null;
+  const connection = connectionBlock(r, devices, d);
 
   const cards = CAN.cards ? S.cards.filter((c) => c.status !== "REVOKED" && (c.allRacks || c.rackIds.includes(r.id))) : [];
   const cardBlock = CAN.cards ? [h("h2", {}, "Cards That Work Here"), cards.length ? h("div", { class: "list" }, cards.map((c) =>
@@ -566,12 +540,71 @@ function renderDetail(body, r, data, { focus } = {}) {
     now.length ? h("div", { class: "panel-actions panel-now" }, now) : null,
     h("h2", {}, "Alerts"), alerts,
     ...waitingBlock,
-    h("h2", {}, devices.length > 1 ? "Lock Modules" : "Lock Module"), deviceRows, addDevice,
+    h("h2", {}, "Connection"), connection,
     ...cardBlock,
     ...settings,
   );
   if (focus === "card") body.querySelector("#waiting")?.scrollIntoView({ block: "center" });
 }
+
+/**
+ * The rack's connection. The Uno has no Wi-Fi: it reaches the dashboard through a computer it's
+ * plugged into by USB (shared/rack-bridge.js). Connect makes the lock module and its token the
+ * first time, so there's no setup code to copy and nothing to flash.
+ */
+function connectionBlock(r, devices, d) {
+  if (!d) return h("p", { class: "empty" }, "Loading…");
+  const dev = devices[0];
+  const here = bridge.rackId === r.id;
+  const hb = (dev && dev.lastHeartbeat) || {};
+  const problems = [];
+  if (dev?.online && hb.readerOk === false) problems.push("card reader not responding");
+  if (dev?.online && hb.accelOk === false) problems.push("motion sensor not responding");
+  const title = here ? "Connected by USB on this computer" : dev?.online ? "Connected" : "Not connected";
+  const sub = here || dev?.online
+    ? (problems.length ? problems.join(", ") : `All sensors working${dev?.firmwareVersion ? `, firmware ${dev.firmwareVersion}` : ""}`)
+    : dev?.lastSeenAt ? `Last check-in ${ago(dev.lastSeenAt)}. Plug the rack in by USB, then connect.` : "Plug the rack into this computer by USB, then connect.";
+  const status = here || dev?.online ? (dev?.needsConfirm ? ["st-UNCONFIRMED", "Not Confirmed"] : ["ok", "Online"]) : ["off", "Offline"];
+  const canConnect = link.supported && (CAN.configure || (dev && bridge.savedToken(dev.id)));
+  const action = here ? btn("Disconnect", () => link.disconnect(), "btn-quiet")
+    : canConnect ? btn("Connect by USB", () => connectRack(r, dev), "btn-primary")
+    : !link.supported ? h("span", { class: "hint" }, "Needs Chrome or Edge") : null;
+  return h("div", { class: "list" }, h("div", { class: "item item-wrap" },
+    riveIcon("signal", { size: 22, inputs: { level: bars(here || dev?.online ? -40 : null, Boolean(here || dev?.online)) } }).el,
+    h("span", { class: "item-main" }, h("b", {}, title), h("span", {}, sub)),
+    h("span", { class: status[0] }, status[1]),
+    action ? h("span", { class: "item-actions" }, action) : null));
+}
+
+async function connectRack(r, dev) {
+  // Ask for the port first, straight from the click: the browser only shows its picker then.
+  try {
+    if (!link.connected && !(await link.connect())) return;
+  } catch (err) { toast(`Couldn't open the USB port: ${err.message}`, true); return; }
+  let token = dev ? bridge.savedToken(dev.id) : null;
+  if (!dev) {
+    const res = await act(() => api(`/racks/${r.id}/devices`, { method: "POST", body: { label: "Rack by USB" } }));
+    if (!res) return;
+    dev = res.device; token = res.deviceToken;
+  } else if (!token) {
+    if (!CAN.configure) { toast("An admin has to connect this rack on this computer once", true); return; }
+    // A new token for this computer. A rack can only be connected through one computer at a time.
+    const res = await act(() => api(`/racks/${r.id}/devices/${dev.id}/rotate-token`, { method: "POST" }));
+    if (!res) return;
+    token = res.deviceToken;
+  }
+  bridge.saveToken(dev.id, token);
+  bridge.start({ rackId: r.id, deviceId: dev.id, token });
+  log("ok", [{ b: slug(r.name) }, " connected by USB on this computer"]);
+  toast(`${r.name} connected`);
+}
+
+function rerenderOpen() {
+  const r = openId && rackById(openId);
+  const target = r && (APP ? appSheet.querySelector(".app-rack") : panelBody);
+  if (target) renderDetail(target, r, detailCache.get(r.id));
+}
+bridge.onChange(rerenderOpen);
 
 /**
  * Rename in place: swaps `el` for a text box with Save / Cancel. onSave(newName) does the API call.
@@ -591,19 +624,6 @@ async function renameRack(r, name) {
   const res = await act(() => api(`/racks/${r.id}`, { method: "PATCH", body: { name } }), `Renamed to ${name}`);
   if (res) log("ok", [{ b: slug(r.name) }, " renamed to ", { b: slug(name) }]);
   return res;
-}
-
-/** Shows a new device token + config snippet once, with Copy. */
-function showSecret(body, res) {
-  const box = h("div", { class: "secret" },
-    h("b", {}, `Setup code for ${res.device.label}`),
-    h("p", {}, "Paste into firmware/include/config.h, add your Wi-Fi and card key, then flash the rack. It's only shown this once."),
-    h("pre", {}, res.configSnippet),
-    h("div", { class: "panel-actions" },
-      btn("Copy", async () => { try { await navigator.clipboard.writeText(res.configSnippet); toast("Copied"); } catch { toast("Select the text and copy it", true); } }, "btn-primary"),
-      btn("Done", () => box.remove(), "btn-quiet")));
-  body.prepend(box);
-  box.scrollIntoView({ block: "start" });
 }
 
 // ---------- Alert Authorities (asks first) ----------
@@ -634,7 +654,7 @@ function openPlaceSheet({ rack = null, name: startName = "" } = {}) {
     } else {
       if (!name.value.trim()) { name.focus(); toast("Give the rack a name", true); return; }
       const res = await act(() => api("/racks", { method: "POST", body: { name: name.value.trim(), locationDescription: loc.value.trim() || null, ...point } }), "Rack added");
-      if (res) { log("ok", ["new rack ", { b: slug(res.rack.name) }, ". next: add its lock module"]); close(); openRack(res.rack.id); }
+      if (res) { log("ok", ["new rack ", { b: slug(res.rack.name) }, ". next: plug it in by USB and connect it"]); close(); openRack(res.rack.id); }
     }
   };
   let searchTimer = null;
@@ -1048,7 +1068,7 @@ function appRacks() {
         h("div", { class: isAlarm(r) ? "alarm" : "" }, h("dt", {}, "Alarm"), h("dd", {}, isAlarm(r) ? "Active now" : r.lastAlarmAt ? `Last ${ago(r.lastAlarmAt)}` : "None yet")),
         h("div", {}, h("dt", {}, "Last Check-In"), h("dd", {}, r.lastSeenAt ? ago(r.lastSeenAt) : "Never")),
         h("div", {}, h("dt", {}, "Open Alerts"), h("dd", {}, String(r.openAlerts))),
-        h("div", {}, h("dt", {}, "Lock Modules"), h("dd", {}, `${r.onlineDeviceCount} of ${r.deviceCount} online`)),
+        h("div", {}, h("dt", {}, "Connection"), h("dd", {}, bridge.rackId === r.id ? "USB, this computer" : r.onlineDeviceCount ? "Online" : "Not connected")),
         h("div", {}, h("dt", {}, "Police"), h("dd", {}, r.incidentStatus ? INCIDENT_WORD[r.incidentStatus] : "None"))),
       h("span", { class: "rcard-go" }, "Details"));
   });

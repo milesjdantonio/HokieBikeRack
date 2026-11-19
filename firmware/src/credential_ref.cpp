@@ -10,3 +10,8 @@ bool credentialRefFromCard(const CardId &card, uint8_t out[hbr::kCardRefLength])
   if (!credentialKeyConfigured()) return false;
   return hbr::makeCardRef(HBR_CARD_KEY, strlen(HBR_CARD_KEY), card.bytes, card.length, out);
 }
+
+bool credentialMacFromCard(const CardId &card, uint8_t out[hbr::kCardMacLength]) {
+  if (!credentialKeyConfigured()) return false;
+  return hbr::makeCardMac(HBR_CARD_KEY, strlen(HBR_CARD_KEY), card.bytes, card.length, out);
+}

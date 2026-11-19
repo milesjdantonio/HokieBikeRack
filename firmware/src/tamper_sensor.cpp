@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 #include <Wire.h>
+#include <string.h>
 
 // We talk to the MPU-6050 directly with Wire instead of a library: it's only
 // a few registers, and it's a good way to learn how I2C sensors work.
@@ -23,6 +24,16 @@ constexpr uint8_t kFailuresBeforeUnhealthy = 5;
 bool healthy = false;
 uint8_t failures = 0;
 uint32_t lastInitAttemptMs = 0;
+
+// A dip on the 5 V line (the servo, the buzzer) can restart the MPU-6050. It then
+// wakes up ASLEEP: it still answers on I2C, so it looks fine, but its readings
+// freeze and no shake is ever seen. Two checks catch that and wake it again.
+constexpr uint32_t kSleepCheckEveryMs = 2000;  // read its power register this often
+constexpr uint8_t kSleepBit = 0x40;            // PWR_MGMT_1 bit 6 = SLEEP
+constexpr uint8_t kFrozenSamples = 100;        // identical readings in a row (2 s at 50 Hz)
+uint32_t lastSleepCheckMs = 0;
+uint8_t lastRaw[6] = {};
+uint8_t sameCount = 0;
 
 bool writeRegister(uint8_t reg, uint8_t value) {
   Wire.beginTransmission(kAddress);
@@ -85,6 +96,31 @@ bool tamperSensorRead(AccelReading &reading) {
     return false;
   }
   failures = 0;
+
+  // Frozen? Real readings always jitter by a few counts, so 100 identical ones in a row
+  // mean the sensor stopped measuring.
+  if (memcmp(raw, lastRaw, 6) == 0) {
+    if (++sameCount >= kFrozenSamples) {
+      Serial.println(F("[accel] readings frozen; restarting the sensor"));
+      sameCount = 0;
+      healthy = initSensor();
+      return false;
+    }
+  } else {
+    sameCount = 0;
+    memcpy(lastRaw, raw, 6);
+  }
+  // Asleep? (It restarted after a power dip.)
+  if (millis() - lastSleepCheckMs >= kSleepCheckEveryMs) {
+    lastSleepCheckMs = millis();
+    uint8_t power = 0;
+    if (readRegisters(kRegPowerMgmt1, &power, 1) && (power & kSleepBit)) {
+      Serial.println(F("[accel] sensor had restarted and gone to sleep (power dip?); waking it"));
+      healthy = initSensor();
+      return false;
+    }
+  }
+
   // Each axis is a signed 16-bit number, high byte first ("big-endian").
   int16_t x = static_cast<int16_t>((raw[0] << 8) | raw[1]);
   int16_t y = static_cast<int16_t>((raw[2] << 8) | raw[3]);

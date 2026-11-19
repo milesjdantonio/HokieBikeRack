@@ -26,7 +26,8 @@ using the simulator. Rehearse once the day before.
    Cards to Register → name it → **Register** (or `register <rack> <name>`).
    Point out: the server never sees the raw card ID, only a keyed hash.
 4. **Allowed (1 min)**: type `sync` in the serial monitor (or wait ≤ 60 s), tap again →
-   green + beep, lock opens for 5 s (servo or simulated), re-locks itself.
+   green + beep, lock opens. Wait 10 s: red flashes and it beeps every 2 s. Tap the same card again to lock it
+   (otherwise it re-locks itself after 2 min).
 5. **Tamper (1.5 min)**: shake the rack once → warning chirps, the amber **Shake Detected** panel drops
    in on the admin map; shake again → siren, the panel turns red. **Alert Authorities** → Alert Now:
    the pin flashes red and blue. Police tab: the incident with its timeline → **On My Way** → On Scene →

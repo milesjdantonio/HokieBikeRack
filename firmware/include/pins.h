@@ -41,3 +41,4 @@ constexpr uint8_t LED_RED_PIN = 6;
 // Active buzzer, switched by an NPN transistor:
 // pin -> 1 k resistor -> transistor base. HIGH = buzzer on.
 constexpr uint8_t BUZZER_PIN = 7;
+

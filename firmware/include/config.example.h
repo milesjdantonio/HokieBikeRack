@@ -19,9 +19,16 @@
 // 0 = SIMULATED lock (serial messages only). 1 = really drive the MG90S.
 // Only set 1 after the bench test in docs/notes/hardware-test-checklist.md.
 #define HBR_ENABLE_SERVO 0
-// Servo angles. Find the right values on the bench with the linkage DISCONNECTED.
-#define HBR_SERVO_LOCKED_DEG 0
-#define HBR_SERVO_UNLOCKED_DEG 90
+// Servo angles. Plate DOWN = locked: the servo holds it down against the
+// spring. Unlocking lets the spring lift the plate UP (horn back on the ledge).
+// Loss of power = spring lifts the plate = UNLOCKED (fail-open).
+// Stay off the end stops (0 and 180). Tune with `servo <deg>`.
+#define HBR_SERVO_LOCKED_DEG 60
+#define HBR_SERVO_UNLOCKED_DEG 10
+// 1 = servo mounted UPSIDE DOWN: it turns the other way, so every angle is
+// sent as 180 - angle. Keep the angles above as they are; `servo <deg>` is
+// flipped too, so calibration numbers mean the same plate position.
+#define HBR_SERVO_REVERSED 0
 
 // 1 = serial monitor test commands like `tap 04a1b2c3` and `shake`
 // (handy without a card or while testing). Set 0 for a real deployment.
