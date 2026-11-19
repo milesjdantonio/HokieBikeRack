@@ -25,7 +25,7 @@ enum class Pattern : uint8_t {
   None = 0,
   Boot,           // red+green flash and a beep at power-on
   Granted,        // green on while unlocked + one short beep
-  UnlockReminder, // still unlocked: red flash every 1 s + a beep every 2 s, until stop()
+  UnlockReminder, // still unlocked: green stays on, red flashes every 1 s, a beep every 2 s, until stop()
   Denied,         // red + two beeps
   TamperWarning,  // red blinks + 3 quick chirps
   TamperAlarm,    // flashing red + siren until stop() (the tamper detector decides when)

@@ -54,7 +54,7 @@ What each does: [firmware.md → Serial console](../docs/notes/firmware.md#seria
 | Short green blip every 5 s | ready (cards enrolled, card key set, reader OK) |
 | Short red blip every 5 s | not ready (no cards enrolled, no card key, or reader fault) |
 | Green + short beep, green stays 10 s | access granted, unlocked (the same card taps again to lock) |
-| Red flash every 1 s + a beep every 2 s | still unlocked after 10 s; re-locks itself at 120 s |
+| Green on, red flash every 1 s + a beep every 2 s | still unlocked after 10 s; re-locks itself at 120 s |
 | Short green + beep | locked again (same card, or the 120 s ran out) |
 | Green + short beep, 1 s (after `enroll`) | card enrolled |
 | Red + two beeps | access denied (or card removed after `unenroll`) |

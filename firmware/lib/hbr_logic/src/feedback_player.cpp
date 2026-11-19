@@ -33,9 +33,9 @@ uint8_t FeedbackPlayer::stepsFor(Pattern pattern, uint32_t holdMs, Step out[kMax
       break;
     }
     case Pattern::UnlockReminder:
-      // One 2 s cycle: red on/off every second, a short beep at the start.
-      w.add(100, true, false, true).add(400, true, false, false).add(500, false, false, false)
-          .add(500, true, false, false).add(500, false, false, false);
+      // One 2 s cycle: green stays on (still unlocked), red on/off every second, a short beep at the start.
+      w.add(100, true, true, true).add(400, true, true, false).add(500, false, true, false)
+          .add(500, true, true, false).add(500, false, true, false);
       break;
     case Pattern::Denied:
       w.add(150, true, false, true).add(100, true, false, false)

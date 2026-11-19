@@ -34,6 +34,24 @@ void test_denied_is_red_never_green() {
   TEST_ASSERT_TRUE(p.update(10).red);
 }
 
+void test_unlock_reminder_keeps_green_on_while_red_flashes() {
+  FeedbackPlayer p;
+  p.play(Pattern::UnlockReminder, 0, kUntilStopped);
+  int redOn = 0, redOff = 0, beeps = 0;
+  bool wasBuzzing = false;
+  for (uint32_t t = 0; t < 6000; t += 10) {  // 3 cycles
+    Output o = p.update(t);
+    TEST_ASSERT_TRUE(o.green);                 // still unlocked: green the whole time
+    (o.red ? redOn : redOff)++;
+    if (o.buzzer && !wasBuzzing) beeps++;
+    wasBuzzing = o.buzzer;
+  }
+  TEST_ASSERT_TRUE(redOn > 200 && redOff > 200);  // red really flashes
+  TEST_ASSERT_EQUAL(3, beeps);                    // one beep every 2 s
+  p.stop();
+  TEST_ASSERT_FALSE(p.update(6010).green);
+}
+
 void test_alarm_loops_for_10_seconds_then_stops() {
   FeedbackPlayer p;
   p.play(Pattern::TamperAlarm, 0, 10000);
@@ -162,6 +180,7 @@ int main() {
   UNITY_BEGIN();
   RUN_TEST(test_granted_is_green_with_short_beep_then_green_hold);
   RUN_TEST(test_denied_is_red_never_green);
+  RUN_TEST(test_unlock_reminder_keeps_green_on_while_red_flashes);
   RUN_TEST(test_alarm_loops_for_10_seconds_then_stops);
   RUN_TEST(test_alarm_until_stopped_keeps_going_past_10_seconds);
   RUN_TEST(test_less_important_pattern_does_not_interrupt_alarm);

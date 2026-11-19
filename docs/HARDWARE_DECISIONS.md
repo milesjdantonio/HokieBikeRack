@@ -17,7 +17,7 @@ printed to the serial monitor. The ESP32 version is the git tag `esp32-final`.
 | Actuator | MG90S servo on a **separate 5 V supply**, shared ground, 100–1000 µF capacitor. Arduino Servo library. **Disabled by default** (`HBR_ENABLE_SERVO 0`). |
 | Lights | Separate **red + green LEDs** with 220–330 Ω resistors. |
 | Sound | **Active buzzer** switched by an NPN transistor (2N2222/BC547/S8050) with a 1 kΩ base resistor. |
-| Lock behaviour | Tap to unlock, the same card taps again to lock. Reminder (red flash + beep) after 10 s; re-locks itself after 120 s. |
+| Lock behaviour | Tap to unlock, the same card taps again to lock. Reminder (green stays on, red flashes, beep) after 10 s; re-locks itself after 120 s. |
 | Card list | Enrolled at the rack (`enroll` + tap), saved in EEPROM. No network. |
 
 ## Pin map (Uno R3)
