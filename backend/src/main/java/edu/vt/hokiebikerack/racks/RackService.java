@@ -229,6 +229,30 @@ public class RackService {
     return get(rackId);
   }
 
+  /**
+   * Removes a rack for good, with everything attached to it: its lock modules (their tokens stop
+   * working), its events, its police incidents and which cards were allowed there. The cards
+   * themselves stay. The audit log keeps a line saying who removed it and what it was called.
+   */
+  @Transactional
+  public void delete(UUID rackId, String actor) {
+    RackSummary rack = get(rackId).rack();  // 404 if missing
+    jdbc.sql("""
+            DELETE FROM incident_updates
+            WHERE incident_id IN (SELECT id FROM incidents WHERE rack_id = :id)
+            """).param("id", rackId).update();
+    jdbc.sql("DELETE FROM incidents WHERE rack_id = :id").param("id", rackId).update();
+    int events = jdbc.sql("""
+            DELETE FROM security_events
+            WHERE rack_id = :id OR device_id IN (SELECT id FROM devices WHERE rack_id = :id)
+            """).param("id", rackId).update();
+    jdbc.sql("DELETE FROM credential_rack_permissions WHERE rack_id = :id").param("id", rackId).update();
+    int devices = jdbc.sql("DELETE FROM devices WHERE rack_id = :id").param("id", rackId).update();
+    jdbc.sql("DELETE FROM racks WHERE id = :id").param("id", rackId).update();
+    audit.record(actor, "RACK_DELETED", "RACK", rackId,
+        Map.of("name", rack.name(), "devices", devices, "events", events));
+  }
+
   /** Adds an ESP32 to a rack and creates its secret token (shown once). */
   @Transactional
   public DeviceCredentials addDevice(UUID rackId, CreateDevice req, String actor) {

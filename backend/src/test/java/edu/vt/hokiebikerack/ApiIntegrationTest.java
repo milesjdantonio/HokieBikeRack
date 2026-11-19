@@ -2,6 +2,7 @@ package edu.vt.hokiebikerack;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.httpBasic;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -531,5 +532,38 @@ class ApiIntegrationTest {
     JsonNode cleared = json(jsonBody(patch("/api/v1/racks/" + id), "{\"clearCoordinates\":true}").with(ADMIN), 200);
     assertThat(cleared.at("/rack/latitude").isNull()).isTrue();
     assertThat(cleared.at("/rack/name").asText()).isEqualTo("Mapped");
+  }
+
+  @Test
+  void deletingARackRemovesItsDevicesEventsAndIncidentsButKeepsCards() throws Exception {
+    Device d = newRackWithDevice("Delete me");
+    Device other = newRackWithDevice("Keep me");
+    String ref = credentialRef("test-card-key-1234567890", "04deadbeef0001");
+    json(jsonBody(post("/api/v1/credentials"),
+        "{\"credentialReference\":\"" + ref + "\",\"displayLabel\":\"Two racks\",\"allRacks\":false,"
+            + "\"rackIds\":[\"" + d.rackId() + "\",\"" + other.rackId() + "\"]}").with(ADMIN), 201);
+    json(asDevice(jsonBody(post("/api/v1/devices/" + d.deviceId() + "/events"),
+        "{\"events\":[" + event("TAMPER_ALARM", "HIGH", null, "{\"deviationG\":1.3}") + "]}"), d), 200);
+    json(jsonBody(post("/api/v1/racks/" + d.rackId() + "/alert-authorities"), "{}").with(ADMIN), 201);
+
+    String path = "/api/v1/racks/" + d.rackId();
+    json(delete(path).with(VIEWER), 403);
+    json(delete(path).with(ADMIN), 204);
+    json(get(path).with(ADMIN), 404);
+    json(delete(path).with(ADMIN), 404);
+    // Its lock module's token stops working.
+    mvc.perform(asDevice(get("/api/v1/devices/" + d.deviceId() + "/authorization-snapshot"), d))
+        .andExpect(status().isUnauthorized());
+    UUID rackId = UUID.fromString(d.rackId());
+    assertThat(jdbc.sql("SELECT count(*) FROM security_events WHERE rack_id = :id").param("id", rackId)
+        .query(Long.class).single()).isZero();
+    assertThat(jdbc.sql("SELECT count(*) FROM incidents WHERE rack_id = :id").param("id", rackId)
+        .query(Long.class).single()).isZero();
+    // The card stays, still allowed at the other rack.
+    JsonNode snap = json(asDevice(get("/api/v1/devices/" + other.deviceId() + "/authorization-snapshot"), other), 200);
+    assertThat(snap.get("credentialReferences").toString()).contains(ref.substring(0, 32));
+    assertThat(json(get("/api/v1/racks").with(ADMIN), 200).toString()).contains(other.rackId()).doesNotContain(d.rackId());
+    assertThat(jdbc.sql("SELECT count(*) FROM admin_audit_log WHERE action = 'RACK_DELETED' AND target_id = :id")
+        .param("id", d.rackId()).query(Long.class).single()).isEqualTo(1);
   }
 }

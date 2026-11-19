@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 
 /**
  * Admin API for racks and their devices. Security rules (who may call) live in
- * SecurityConfig: GET = ADMIN or VIEWER, POST/PATCH = ADMIN.
+ * SecurityConfig: GET = ADMIN or VIEWER, POST/PATCH/DELETE = ADMIN.
  */
 @RestController
 @RequestMapping("/api/v1/racks")
@@ -40,6 +40,13 @@ public class RackController {
   @PatchMapping("/{rackId}")
   public RackDetail update(@PathVariable UUID rackId, @Valid @RequestBody UpdateRack body, Principal user) {
     return racks.update(rackId, body, user.getName());
+  }
+
+  /** Removes the rack and everything attached to it (see RackService.delete). Can't be undone. */
+  @DeleteMapping("/{rackId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void delete(@PathVariable UUID rackId, Principal user) {
+    racks.delete(rackId, user.getName());
   }
 
   /** "All spots are open now": restarts the tap-in / tap-out count. */

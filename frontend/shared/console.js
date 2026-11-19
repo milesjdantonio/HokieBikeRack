@@ -104,6 +104,7 @@ const HELP_LINES = [
   ["confirm <rack>", "confirm a rack is back online (check it in person first)"],
   ["rename <rack> <new name>", "rename a rack"],
   ["move <rack>", "move a rack's pin on the map"],
+  ["delete <rack> confirm", "remove a rack for good, with its lock module and history"],
   ["cards [rack]", "list registered cards"],
   ["revoke <card name> confirm", "turn a card off for good"],
   ["incidents", "open police incidents"],
@@ -118,7 +119,7 @@ async function run(text) {
   if (!cmd) return;
   log("cmd", `${ROLE} $ ${text.trim()}`);
   const verb = cmd.toLowerCase();
-  const needsRack = ["open", "ack", "alert", "register", "confirm", "move", "rename"].includes(verb);
+  const needsRack = ["open", "ack", "alert", "register", "confirm", "move", "rename", "delete"].includes(verb);
   const r = needsRack ? findRack(S.racks, parts[1]) : null;
   if (needsRack && !r) {
     log("deny", parts[1] ? `no rack called "${parts[1]}". type racks to see their names` : `which rack? e.g. ${verb} ${S.racks[0] ? slug(S.racks[0].name) : "newman-library"}`);
@@ -168,6 +169,15 @@ async function run(text) {
       const name = parts.slice(2).join(" ");
       if (!name) { log("deny", `give the new name: rename ${slug(r.name)} Goodwin Hall East`); break; }
       await renameRack(r, name);
+      break;
+    }
+    case "delete": {
+      if (!CAN.configure) { log("deny", "deleting racks is for admins"); break; }
+      if ((parts[2] || "").toLowerCase() !== "confirm") {
+        log("warn", [`this removes `, { b: slug(r.name) }, ` for good: its lock module, events and incidents go too (cards stay). type: delete ${slug(r.name)} confirm`]);
+        break;
+      }
+      await deleteRack(r);
       break;
     }
     case "confirm":
@@ -626,6 +636,15 @@ async function renameRack(r, name) {
   return res;
 }
 
+async function deleteRack(r) {
+  const ok = await act(() => api(`/racks/${r.id}`, { method: "DELETE" }).then(() => true), `Deleted ${r.name}`);
+  if (!ok) return false;
+  if (openId === r.id) { if (APP) closeAppSheet(); else closeRack(); }
+  if (bridge.rackId === r.id) bridge.stop(); // the plugged-in rack's lock module is gone; keep the USB link for testing
+  log("off", [{ b: slug(r.name) }, " deleted"]);
+  return true;
+}
+
 // ---------- Alert Authorities (asks first) ----------
 function askAuthorities(r) {
   if (!APP) { showDrop(r, "confirm"); return; }
@@ -697,7 +716,8 @@ const COMMANDS = [
   { group: "Racks", items: [["add <name>", "Add a new rack: the map opens so you can click where it stands, then Add Rack.", "add Squires North"],
     ["confirm <rack>", "Confirm a rack that came back from being offline is working. Check it in person first.", "confirm newman"],
     ["move <rack>", "Move a rack's pin: click the map or drag the pin, then Save Spot.", "move newman"],
-    ["rename <rack> <new name>", "Rename a rack. Cards and lock modules have a Rename button in the rack's panel.", "rename meow Goodwin Hall East"]] },
+    ["rename <rack> <new name>", "Rename a rack. Cards and lock modules have a Rename button in the rack's panel.", "rename meow Goodwin Hall East"],
+    ["delete <rack> confirm", `Remove a rack for good, with its lock module, events and incidents. Cards stay. Can't be undone. Without "confirm" it only explains.`, "delete old-test-rack"]] },
   { group: "Terminal", items: [["clear", "Clear the terminal. Nothing is deleted.", "clear"], ["↑ / ↓", "Bring back earlier commands.", ""]] },
 ];
 function commandsPage() {
